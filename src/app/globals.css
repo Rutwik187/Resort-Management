@@ -1,26 +1,480 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Palette, from the place itself:
+ *   mist  - monsoon fog over the Sahyadri, the page background
+ *   moss  - wet basalt under moss, text and dark sections
+ *   fern  - secondary text on light surfaces
+ *   sage  - secondary text on dark surfaces
+ *   zari  - the gold thread of a Paithani border, the only accent
+ *   chira - red laterite stone, used for tiny marks only
+ */
+@theme {
+  --color-mist: #e9ece4;
+  --color-paper: #f4f5f0;
+  --color-moss: #142b24;
+  --color-moss-2: #1b372e;
+  --color-moss-3: #0f221c;
+  --color-fern: #3e5246;
+  --color-sage: #bcc8bb;
+  --color-zari: #c3a162;
+  --color-zari-deep: #7e5f28;
+  --color-chira: #8c3b26;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-gilda), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-figtree), "Helvetica Neue", Arial, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Lenis base rules (the package does not export its stylesheet). */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis:not(.lenis-autoToggle).lenis-stopped {
+  overflow: clip;
+}
+.lenis [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
+@layer base {
+  html {
+    background: var(--color-mist);
+    color: var(--color-moss);
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  @media (min-width: 768px) {
+    body {
+      font-size: 1.125rem;
+    }
+  }
+
+  h1,
+  h2,
+  h3,
+  .display {
+    font-family: var(--font-display);
+    font-weight: 400;
+    line-height: 1.06;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  h3 {
+    letter-spacing: 0;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: var(--color-zari);
+    color: var(--color-moss);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-zari);
+    outline-offset: 3px;
+  }
+
+  img {
+    -webkit-user-drag: none;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* A text link with an underline that draws in on hover. */
+  .link-line {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6em;
+    padding-block: 0.35em;
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 100% 1px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+  }
+  /* Bigger touch area for text links, without changing how they look. */
+  .link-line::after,
+  .tap::after {
+    content: "";
+    position: absolute;
+    inset: -6px -4px;
+  }
+  .tap {
+    position: relative;
+  }
+  .tap::after {
+    inset: -12px -6px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .link-line {
+      transition: background-size 400ms var(--ease-out);
+    }
+    .link-line:hover {
+      background-size: 35% 1px;
+    }
+  }
+
+  /* Pill button, used for the single primary action on a surface. */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    min-height: 3rem;
+    padding: 0.75rem 1.6rem;
+    border-radius: 999px;
+    font-size: 0.95rem;
+    letter-spacing: 0.01em;
+    transition:
+      background-color 250ms ease,
+      color 250ms ease,
+      transform 160ms var(--ease-out);
+  }
+  .btn:active {
+    transform: scale(0.97);
+  }
+  .btn-zari {
+    background: var(--color-zari);
+    color: var(--color-moss);
+  }
+  .btn-moss {
+    background: var(--color-moss);
+    color: var(--color-mist);
+  }
+  .btn-ghost {
+    box-shadow: inset 0 0 0 1px currentColor;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .btn-zari:hover {
+      background: #d4b677;
+    }
+    .btn-moss:hover {
+      background: var(--color-moss-2);
+    }
+    .btn-ghost:hover {
+      background: color-mix(in oklab, currentColor 10%, transparent);
+    }
+  }
+
+  /* Large photo frames zoom very slightly on hover, as a cue that they lead somewhere. */
+  @media (hover: hover) and (pointer: fine) {
+    .zoom-on-hover img {
+      transition: transform 900ms var(--ease-out);
+    }
+    .zoom-on-hover:hover img {
+      transform: scale(1.035);
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Scroll reveals                                                      */
+/* Only hidden when JS has run (.js on <html>), so content never        */
+/* stays invisible if scripts fail.                                     */
+/* ------------------------------------------------------------------ */
+
+.js [data-inview] .rise {
+  display: block;
+  overflow: clip;
+  overflow-clip-margin: 0.15em;
+}
+.js [data-inview] .rise > span {
+  display: block;
+  transform: translate3d(0, 105%, 0);
+  transition: transform 1100ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 70ms);
+}
+.js [data-inview="true"] .rise > span {
+  transform: none;
+}
+
+/* Word by word: each word rises out of its own mask, once. */
+.js [data-inview] .rise-word {
+  display: inline-block;
+  overflow: clip;
+  overflow-clip-margin: 0.1em;
+  vertical-align: top;
+}
+.js [data-inview] .rise-word > span {
+  display: inline-block;
+  transform: translate3d(0, 120%, 0);
+  transition: transform 1000ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 16ms);
+}
+.js [data-inview="true"] .rise-word > span {
+  transform: none;
+}
+
+.js [data-inview] .unveil {
+  clip-path: inset(100% 0 0 0);
+  transition: clip-path 1300ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 80ms);
+}
+.js [data-inview] .unveil img {
+  transform: scale(1.12);
+  transition: transform 1600ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 80ms);
+}
+.js [data-inview="true"] .unveil {
+  clip-path: inset(0 0 0 0);
+}
+.js [data-inview="true"] .unveil img {
+  transform: none;
+}
+
+.js [data-inview] .fade {
+  opacity: 0;
+  transition: opacity 900ms ease;
+  transition-delay: calc(200ms + var(--i, 0) * 60ms);
+}
+.js [data-inview="true"] .fade {
+  opacity: 1;
+}
+
+.js [data-inview] .grow-x {
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 1200ms var(--ease-out);
+  transition-delay: calc(150ms + var(--i, 0) * 90ms);
+}
+.js [data-inview="true"] .grow-x {
+  transform: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Hero load sequence: the one orchestrated moment on the page.        */
+/* Pure CSS so it stays smooth while the page is still loading.         */
+/* ------------------------------------------------------------------ */
+
+@keyframes hero-fill {
+  from {
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes hero-settle {
+  from {
+    transform: scale(1.3);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes hero-word {
+  from {
+    transform: translate3d(0, 108%, 0);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes hero-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.hero-fill {
+  animation: hero-fill 1500ms var(--ease-in-out) 150ms both;
+}
+/* Hold the arch closed until the hero photo is ready (see hero.tsx). */
+.js .hero:not([data-ready]) .hero-fill {
+  animation: none;
+  clip-path: inset(100% 0 0 0);
+}
+.js .hero:not([data-ready]) .hero-settle {
+  animation: none;
+  transform: scale(1.3);
+}
+.hero-settle {
+  animation: hero-settle 2400ms var(--ease-out) 150ms both;
+}
+.hero-word {
+  animation: hero-word 1300ms var(--ease-out) both;
+  animation-delay: calc(650ms + var(--i, 0) * 110ms);
+}
+.hero-fade {
+  animation: hero-fade 900ms ease both;
+  animation-delay: calc(1200ms + var(--i, 0) * 90ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-fill,
+  .hero-settle,
+  .hero-word {
+    animation: hero-fade 600ms ease both;
+  }
+  .js [data-inview] .rise > span,
+  .js [data-inview] .rise-word > span,
+  .js [data-inview] .unveil img,
+  .js [data-inview] .grow-x {
+    transform: none;
+    transition: none;
+  }
+  .js [data-inview] .unveil {
+    clip-path: none;
+    opacity: 0;
+    transition: opacity 600ms ease;
+  }
+  .js [data-inview="true"] .unveil {
+    opacity: 1;
+  }
+}
+
+/*
+ * Hero arch window geometry. --open runs from 0 (arched window) to 1 (full bleed).
+ * Registered as non-inheriting so a change only restyles this one element.
+ * The clip-path repaint is a deliberate exception to transform-only motion:
+ * it is the page's single signature moment, it runs only inside the hero,
+ * and the photo beneath it sits on its own transformed layer.
+ */
+@property --open {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+.hero-window {
+  --open: 0;
+  --top: 30%;
+  --side: 15%;
+  --bottom: 12%;
+  --arch: 35vw;
+  clip-path: inset(
+    calc(var(--top) * (1 - var(--open))) calc(var(--side) * (1 - var(--open)))
+      calc(var(--bottom) * (1 - var(--open))) calc(var(--side) * (1 - var(--open)))
+      round calc(var(--arch) * (1 - var(--open))) calc(var(--arch) * (1 - var(--open))) 0 0
+  );
+}
+@media (min-width: 768px) {
+  .hero-window {
+    --top: 16%;
+    --side: 36%;
+    --bottom: 9%;
+    --arch: 14vw;
+  }
+}
+
+/* The arch outline sits exactly where the closed arch will be. */
+.hero-window-frame {
+  --top: 30%;
+  --side: 15%;
+  --bottom: 12%;
+  --arch: 35vw;
+  top: var(--top);
+  bottom: var(--bottom);
+  left: var(--side);
+  right: var(--side);
+  border: 1px solid rgb(20 43 36 / 0.22);
+  border-bottom: 0;
+  border-radius: var(--arch) var(--arch) 0 0;
+}
+@media (min-width: 768px) {
+  .hero-window-frame {
+    --top: 16%;
+    --side: 36%;
+    --bottom: 9%;
+    --arch: 14vw;
+  }
+}
+@keyframes hero-outline-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+/* Fades in while the photo loads, holds while the photo fills the arch, then fades out. */
+.hero-outline {
+  opacity: 0;
+}
+.js .hero .hero-outline {
+  animation: hero-fade 900ms ease 400ms both;
+}
+.js .hero[data-ready] .hero-outline {
+  animation: hero-outline-out 700ms ease 1700ms both;
+}
+html:not(.js) .hero-outline {
+  display: none;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile menu sheet: native <dialog>, animated in and out with CSS. */
+.menu-sheet {
+  opacity: 0;
+  transform: translate3d(0, -1.5%, 0);
+  transition:
+    opacity 280ms ease,
+    transform 420ms var(--ease-out),
+    overlay 420ms allow-discrete,
+    display 420ms allow-discrete;
+}
+.menu-sheet[open] {
+  opacity: 1;
+  transform: none;
+}
+@starting-style {
+  .menu-sheet[open] {
+    opacity: 0;
+    transform: translate3d(0, -1.5%, 0);
+  }
+}
+.menu-sheet .menu-item {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+  transition:
+    opacity 500ms ease,
+    transform 700ms var(--ease-out);
+  transition-delay: calc(120ms + var(--i, 0) * 55ms);
+}
+.menu-sheet[open] .menu-item {
+  opacity: 1;
+  transform: none;
+}
+@starting-style {
+  .menu-sheet[open] .menu-item {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .menu-sheet,
+  .menu-sheet .menu-item {
+    transform: none;
+  }
 }
