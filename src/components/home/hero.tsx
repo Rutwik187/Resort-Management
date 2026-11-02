@@ -25,12 +25,15 @@ export function Hero() {
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
 
   const open = useTransform(scrollYProgress, [0, 0.62], [0, 1]);
+  const outlineOpacity = useTransform(scrollYProgress, [0, 0.06], [1, 0]);
   const imageScale = useTransform(scrollYProgress, [0, 0.75], [1.16, 1]);
   const leftX = useTransform(scrollYProgress, [0, 0.55], [0, -38]);
   const rightX = useTransform(scrollYProgress, [0, 0.55], [0, 38]);
   const wordsOpacity = useTransform(scrollYProgress, [0.05, 0.4], [1, 0]);
   const introOpacity = useTransform(scrollYProgress, [0, 0.18], [1, 0]);
   const endOpacity = useTransform(scrollYProgress, [0.62, 0.82], [0, 1]);
+  // While the arch opens, the Sahyadri gives way to the resort itself.
+  const resortOpacity = useTransform(scrollYProgress, [0.08, 0.4], [0, 1]);
   const endY = useTransform(scrollYProgress, [0.62, 0.9], [40, 0]);
 
   const imageTransform = useMotionTemplate`scale(${imageScale})`;
@@ -49,9 +52,6 @@ export function Hero() {
       style={{ height: still ? "100svh" : "280svh" }}
     >
       <div className="sticky top-0 h-svh overflow-hidden">
-        {/* A hairline outline of the arch, shown while the photo is still on its way. */}
-        <div aria-hidden className="hero-outline hero-window-frame pointer-events-none absolute" />
-
         {/* The arch */}
         <motion.div
           className="hero-window absolute inset-0"
@@ -60,14 +60,21 @@ export function Hero() {
           <div className="hero-fill absolute inset-0">
             <motion.div className="absolute inset-0" style={still ? undefined : { transform: imageTransform }}>
               <div className="hero-settle absolute inset-0">
+                {/*
+                  The landscape around the resort, not the resort itself: mist on the
+                  Sahyadri at Varandha Ghat, in Bhor taluka, during the monsoon.
+                  Photo by Satyan Chawla, free under the Unsplash License:
+                  https://unsplash.com/photos/green-trees-on-mountain-during-foggy-day-PTI5yH3A4l8
+                  Credited in the site footer.
+                */}
                 <Image
-                  src={photos.heroPool}
-                  alt="The main pool at Prathamesh Resorts, ringed by tall trees, under a soft monsoon sky"
+                  src={photos.heroSahyadri}
+                  alt="Mist over the green slopes of the Sahyadri at Varandha Ghat, near Bhor, in the monsoon"
                   fill
                   preload
                   sizes="100vw"
                   placeholder="blur"
-                  className="object-cover object-[50%_45%]"
+                  className="object-cover object-[66%_50%]"
                   onLoad={(event) => {
                     event.currentTarget
                       .decode()
@@ -75,6 +82,23 @@ export function Hero() {
                       .finally(() => setPhotoReady(true));
                   }}
                 />
+                {/*
+                  Through the arch: the resort. A Glass House balcony at Prathamesh.
+                  Mounted only after the first photo is ready, so on a slow phone
+                  connection it never competes with the opening image.
+                */}
+                {photoReady && !still && (
+                  <motion.div className="absolute inset-0" style={{ opacity: resortOpacity }}>
+                    <Image
+                      src={photos.glassJacuzzi}
+                      alt="A jacuzzi filled with rose petals on a Glass House balcony at Prathamesh Resorts, open to the trees"
+                      fill
+                      loading="eager"
+                      sizes="100vw"
+                      className="object-cover object-[28%_60%] md:object-[50%_60%]"
+                    />
+                  </motion.div>
+                )}
               </div>
             </motion.div>
             <motion.div
@@ -83,6 +107,19 @@ export function Hero() {
               style={{ opacity: still ? 0 : endOpacity }}
             />
           </div>
+        </motion.div>
+
+        {/*
+          A hairline outline of the arch. It appears while the photo loads, then
+          stays on top of the photo's edge so the curve reads clearly against the
+          pale mist, and fades away as soon as the arch starts to open.
+        */}
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{ opacity: still ? 1 : outlineOpacity }}
+        >
+          <div className="hero-outline hero-window-frame absolute" />
         </motion.div>
 
         {/* "Come, breathe." on either side of the arch */}

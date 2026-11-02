@@ -12,8 +12,8 @@ export function GlassHouse() {
         <div className="relative lg:col-span-7">
           <div className="unveil">
             <ParallaxPhoto
-              name="glassBalcony"
-              alt="A jacuzzi filled with rose petals on a Glass House balcony, open to the trees"
+              name="glassTub"
+              alt="A Glass House balcony bath filled with rose petals, with green trees beyond the railing"
               sizes="(min-width: 1024px) 55vw, 100vw"
               className="aspect-[4/5] sm:aspect-square"
               depth={7}

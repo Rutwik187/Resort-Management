@@ -84,7 +84,18 @@ export function SiteFooter() {
             </Link>
           ))}
         </nav>
-        <p>© 2026 Prathamesh Resorts</p>
+        <p>
+          © 2026 Prathamesh Resorts. Opening photo of the Sahyadri by{" "}
+          <a
+            href="https://unsplash.com/photos/green-trees-on-mountain-during-foggy-day-PTI5yH3A4l8"
+            target="_blank"
+            rel="noreferrer"
+            className="tap underline decoration-sage/40 underline-offset-4 hover:text-mist"
+          >
+            Satyan Chawla
+          </a>
+          .
+        </p>
       </div>
 
       <p

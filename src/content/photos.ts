@@ -1,4 +1,5 @@
-// Generated from src/assets/photos. Every photo is the client's own, colour-graded for a consistent look.
+// Generated from src/assets/photos. Every photo is the client's own, colour-graded for a consistent look,
+// except heroSahyadri: a Sahyadri landscape near Bhor by Satyan Chawla (Unsplash License), see hero.tsx.
 import archery from "@/assets/photos/archery.jpg";
 import atv from "@/assets/photos/atv.jpg";
 import banquetExterior from "@/assets/photos/banquet-exterior.jpg";
@@ -30,6 +31,7 @@ import glassTub from "@/assets/photos/glass-tub.jpg";
 import glassTwin from "@/assets/photos/glass-twin.jpg";
 import groupOuting from "@/assets/photos/group-outing.jpg";
 import heroPool from "@/assets/photos/hero-pool.jpg";
+import heroSahyadri from "@/assets/photos/hero-sahyadri.jpg";
 import kidsPlay from "@/assets/photos/kids-play.jpg";
 import netClimb from "@/assets/photos/net-climb.jpg";
 import poolFalls from "@/assets/photos/pool-falls.jpg";
@@ -103,6 +105,7 @@ export const photos = {
   glassTwin,
   groupOuting,
   heroPool,
+  heroSahyadri,
   kidsPlay,
   netClimb,
   poolFalls,

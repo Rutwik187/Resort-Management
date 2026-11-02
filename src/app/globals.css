@@ -393,7 +393,7 @@ html.lenis body {
   bottom: var(--bottom);
   left: var(--side);
   right: var(--side);
-  border: 1px solid rgb(20 43 36 / 0.22);
+  border: 1px solid rgb(20 43 36 / 0.28);
   border-bottom: 0;
   border-radius: var(--arch) var(--arch) 0 0;
 }
@@ -405,23 +405,12 @@ html.lenis body {
     --arch: 14vw;
   }
 }
-@keyframes hero-outline-out {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-/* Fades in while the photo loads, holds while the photo fills the arch, then fades out. */
+/* Fades in while the photo loads and stays on the arch's edge (hero.tsx fades it on scroll). */
 .hero-outline {
   opacity: 0;
 }
 .js .hero .hero-outline {
   animation: hero-fade 900ms ease 400ms both;
-}
-.js .hero[data-ready] .hero-outline {
-  animation: hero-outline-out 700ms ease 1700ms both;
 }
 html:not(.js) .hero-outline {
   display: none;

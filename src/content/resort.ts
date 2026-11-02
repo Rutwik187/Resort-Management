@@ -78,7 +78,7 @@ export const stays: Stay[] = [
     rooms: "6 rooms",
     guests: "4 to 5 guests",
     photos: ["glassBalcony", "glassTwin", "glassDetail", "glassJacuzzi", "glassRoom", "glassTub"],
-    cover: "glassJacuzzi",
+    cover: "glassRoom",
     features: ["Balcony jacuzzi", ...standardFeatures],
     weekday: { basis: "per couple", base: 5000, extraPerson: 1500, child5to11: 800, child3to5: 0 },
     weekend: { basis: "per couple", base: 8000, extraPerson: 2000, child5to11: 1500, child3to5: 800 },

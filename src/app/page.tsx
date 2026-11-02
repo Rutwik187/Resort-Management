@@ -21,7 +21,7 @@ const resortJsonLd = {
   "@type": "Resort",
   name: siteName,
   url: siteUrl,
-  image: `${siteUrl}/og-image.jpg`,
+  image: `${siteUrl}/resort-photo.jpg`,
   telephone: "+91-90495-38888",
   email: contact.email,
   address: {
