@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { contact, dayPasses, formatRupees, nav, sisterResorts } from "@/content/resort";
+import { otherProperties } from "@repo/sites";
+import { contact, dayPasses, formatRupees, nav } from "@/content/resort";
 import { Logo } from "./logo";
 
 const fromPrice = formatRupees(Math.min(...dayPasses.map((p) => p.adult)));
@@ -9,8 +10,8 @@ export function SiteFooter() {
     <footer data-tone="dark" className="bg-pine-deep text-chalk">
       {/* The last thing on every page: a pass that leads straight to planning. */}
       <div className="mx-auto max-w-[1600px] px-4 pt-20 md:px-8 md:pt-28">
-        <a
-          href="#enquire"
+        <Link
+          href="/day-packages"
           className="group grid overflow-hidden rounded-[6px] bg-lime text-ink md:grid-cols-[1fr_22rem] md:ticket-v"
         >
           <span className="flex flex-col justify-between gap-10 p-7 md:p-10">
@@ -29,7 +30,7 @@ export function SiteFooter() {
               Plan a day <span aria-hidden className="arrow">→</span>
             </span>
           </span>
-        </a>
+        </Link>
       </div>
 
       <div className="mx-auto grid max-w-[1600px] gap-12 px-4 pb-14 pt-20 sm:grid-cols-2 md:px-8 lg:grid-cols-12">
@@ -81,11 +82,11 @@ export function SiteFooter() {
         <div className="lg:col-span-3">
           <h2 className="label text-mist [font-stretch:100%]">Our other resorts</h2>
           <ul className="mt-4 space-y-3.5">
-            {sisterResorts.map((r) => (
-              <li key={r.href}>
-                <a href={r.href} target="_blank" rel="noreferrer" className="group block">
-                  <span className="font-semibold group-hover:text-lime">{r.name}</span>
-                  <span className="block text-[0.9rem] text-mist">{r.place}</span>
+            {otherProperties("GC").map((property) => (
+              <li key={property.code}>
+                <a href={property.url} className="group block">
+                  <span className="font-semibold group-hover:text-lime">{property.name}</span>
+                  <span className="block text-[0.9rem] text-mist">{property.place}</span>
                 </a>
               </li>
             ))}

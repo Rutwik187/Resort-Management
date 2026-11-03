@@ -3,13 +3,12 @@
 import Form from "next/form";
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { addDays, plural, todayInIndia } from "./dates";
+import { searchParamNames } from "./params";
 import { Stepper } from "./stepper";
 import type { StaySearch } from "./types";
 
 export const defaultSearch: StaySearch = { checkIn: "", checkOut: "", rooms: 1, adults: 2, children: 0 };
 
-/** The query string a search travels in, from the home page to the rooms page. */
-export const searchParamNames = { checkIn: "in", checkOut: "out", rooms: "rooms", adults: "adults", children: "children" } as const;
 
 type SearchBarProps = {
   /** The rooms page. Without `onSearch`, the form goes there with the search in its address. */

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { motion, useReducedMotion, useScroll, useTransform, type MotionStyle } from "motion/react";
 import type { StaticImageData } from "next/image";
-import { dayPasses, formatRupees } from "@/content/resort";
 import { photos } from "@/content/photos";
 import { VideoLoop, type VideoSources } from "../video-loop";
 
@@ -40,7 +39,6 @@ const panels: Panel[] = [
 ];
 
 const STORY_MS = 5200;
-const fromPrice = formatRupees(Math.min(...dayPasses.map((p) => p.adult)));
 
 const WIDE = "(min-width: 1024px)";
 function subscribe(onChange: () => void) {
@@ -151,11 +149,11 @@ export function Hero() {
               and cottages for the night.
             </p>
             <div className="hero-fade flex flex-wrap items-center gap-x-6 gap-y-3 md:col-span-7 md:justify-end" style={{ "--i": 1 } as React.CSSProperties}>
-              <a href="#enquire" className="btn btn-lime">
-                Plan a day out <span aria-hidden className="arrow">→</span>
-              </a>
-              <Link href="/day-packages" className="link-line text-chalk">
-                Day passes from {fromPrice}
+              <Link href="/day-packages" className="btn btn-lime">
+                Book day passes <span aria-hidden className="arrow">→</span>
+              </Link>
+              <Link href="/stays" className="link-line text-chalk">
+                Or stay the night
               </Link>
             </div>
           </div>

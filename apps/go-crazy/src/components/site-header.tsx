@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { otherProperties } from "@repo/sites";
 import { contact, nav } from "@/content/resort";
 import { OPEN_BOOKING } from "./booking-drawer";
 import { Logo } from "./logo";
+import { OurResortsMenu } from "./our-resorts-menu";
 
 type Tone = "film" | "dark" | "light" | "top";
 
@@ -100,7 +102,7 @@ export function SiteHeader() {
             <Logo variant="mark" alt="" sizes="(min-width: 768px) 156px, 124px" preload className="w-[124px] md:w-[156px]" />
           </Link>
 
-          <nav aria-label="Main" className="hidden items-center gap-7 lg:flex">
+          <nav aria-label="Main" className="hidden items-center gap-7 xl:flex">
             {nav.map((item) => {
               const active = pathname.startsWith(item.href);
               return (
@@ -120,26 +122,27 @@ export function SiteHeader() {
                 </Link>
               );
             })}
+            <OurResortsMenu />
           </nav>
 
           <div className="flex items-center gap-2.5">
             <a
               href={contact.phone.href}
-              className="mr-3 hidden text-[0.95rem] font-semibold tabular-nums opacity-90 transition-opacity hover:opacity-100 xl:block"
+              className="mr-3 hidden text-[0.95rem] font-semibold tabular-nums opacity-90 transition-opacity hover:opacity-100 2xl:block"
             >
               {contact.phone.display}
             </a>
-            <a href="#enquire" className="btn btn-lime min-h-11 px-4 py-2 text-[0.95rem]">
+            <Link href="/day-packages" className="btn btn-lime min-h-11 px-4 py-2 text-[0.95rem]">
               <span className="sm:hidden">Book</span>
-              <span className="hidden sm:inline">Plan a day</span>
+              <span className="hidden sm:inline">Book now</span>
               <span aria-hidden className="arrow hidden sm:inline">
                 →
               </span>
-            </a>
+            </Link>
             <button
               type="button"
               onClick={openMenu}
-              className="flex min-h-11 items-center gap-2.5 rounded-[3px] pl-2.5 text-[0.95rem] font-bold uppercase tracking-[0.06em] lg:hidden"
+              className="flex min-h-11 items-center gap-2.5 rounded-[3px] pl-2.5 text-[0.95rem] font-bold uppercase tracking-[0.06em] xl:hidden"
               aria-haspopup="dialog"
               aria-expanded={menuOpen}
               aria-controls="site-menu"
@@ -181,15 +184,31 @@ export function SiteHeader() {
                 className="menu-item group flex items-baseline justify-between gap-4 border-b border-chalk/15 py-3.5 aria-[current=page]:text-lime"
                 style={{ "--i": i } as React.CSSProperties}
               >
-                <span className="display text-[2.7rem] leading-none">{item.label}</span>
+                <span className="display text-[2.4rem] leading-none">{item.label}</span>
                 <span className="label text-mist">0{i + 1}</span>
               </Link>
             ))}
           </nav>
-          <div className="mt-auto flex flex-col gap-4 pt-10">
-            <a href="#enquire" className="btn btn-lime">
-              Plan a day out <span aria-hidden className="arrow">→</span>
-            </a>
+          <div className="mt-8">
+            <p className="label text-mist">Our other resorts</p>
+            <ul className="mt-3 grid gap-2.5">
+              {otherProperties("GC").map((property) => (
+                <li key={property.code}>
+                  <a href={property.url} className="flex items-baseline justify-between gap-4">
+                    <span className="text-[1.02rem] font-semibold">{property.name}</span>
+                    <span className="shrink-0 text-[0.85rem] text-mist">{property.place}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="mt-auto flex flex-col gap-3 pt-10">
+            <Link href="/day-packages" className="btn btn-lime">
+              Book day passes <span aria-hidden className="arrow">→</span>
+            </Link>
+            <Link href="/stays" className="btn btn-chalk">
+              Book a stay
+            </Link>
             <a href={contact.phone.href} className="text-center text-[0.98rem] text-mist">
               Call {contact.phone.display}
             </a>

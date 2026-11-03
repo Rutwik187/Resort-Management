@@ -45,9 +45,9 @@ export function Passes() {
             )}
           </p>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-            <a href="#enquire" data-purpose="day" className="btn btn-lime">
-              Work out the cost <span aria-hidden className="arrow">→</span>
-            </a>
+            <Link href="/day-packages" className="btn btn-lime">
+              Book day passes <span aria-hidden className="arrow">→</span>
+            </Link>
             <Link href="/day-packages" className="link-line">
               Meal times and what is included
             </Link>

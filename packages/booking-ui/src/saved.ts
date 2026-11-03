@@ -1,5 +1,6 @@
 import { isDate } from "./dates";
-import { defaultSearch, searchParamNames } from "./search-bar";
+import { searchParamNames } from "./params";
+import { defaultSearch } from "./search-bar";
 import type { Party, StaySearch } from "./types";
 
 const count = (value: unknown, min: number, max: number, fallback: number) => {

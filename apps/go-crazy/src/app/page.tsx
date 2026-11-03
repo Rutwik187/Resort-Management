@@ -3,6 +3,7 @@ import { Enquiry } from "@/components/enquiry";
 import { Board } from "@/components/home/board";
 import { CelebrationsTeaser } from "@/components/home/celebrations";
 import { Hero } from "@/components/home/hero";
+import { BookBar } from "@/components/home/book-bar";
 import { Intro } from "@/components/home/intro";
 import { Near } from "@/components/home/near";
 import { Passes } from "@/components/home/passes";
@@ -56,6 +57,7 @@ export default function HomePage() {
     <PageTransition>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(parkJsonLd) }} />
       <Hero />
+      <BookBar />
       <Intro />
       <Passes />
       <Board />

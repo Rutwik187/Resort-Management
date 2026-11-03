@@ -65,12 +65,12 @@ export function StaysTeaser() {
         <div className="mt-8 flex flex-wrap items-center justify-between gap-6">
           <p className="text-[0.92rem] text-stone">Cottage prices are Monday to Thursday rates, per night, plus GST. Villas have one rate every day.</p>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-            <a href="#enquire" data-purpose="stay" className="btn btn-ink">
-              Ask about a stay <span aria-hidden className="arrow">→</span>
-            </a>
-            <Link href="/stays" className="link-line">
-              Rooms and rates
+            <Link href="/stays" className="btn btn-ink">
+              Book a stay <span aria-hidden className="arrow">→</span>
             </Link>
+            <a href="#enquire" data-purpose="stay" className="link-line">
+              Ask a question
+            </a>
           </div>
         </div>
       </div>

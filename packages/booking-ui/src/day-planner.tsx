@@ -1,11 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { formatDay, isDate, plural, pluralOf, todayInIndia } from "./dates";
 import { PartyPicker } from "./party-picker";
 import { describeParty, formatRupees, headcount, priceForPass } from "./pricing";
 import { requestMessage, type RequestLine } from "./request";
+import { dayParam, passParam } from "./params";
 import { newKey } from "./saved";
 import { useSessionValue } from "./store";
 import { Tray, TrayDock, useCheckout } from "./tray";
@@ -29,6 +30,11 @@ const emptyDay: DayPlan = { date: "", items: [] };
 
 const noop = () => () => {};
 
+const dateFromAddress = () => {
+  const value = new URLSearchParams(window.location.search).get(dayParam);
+  return isDate(value) ? value : null;
+};
+
 /**
  * Day visits, the same way as rooms: choose the date, add a pass and say
  * who is coming, then add other passes. The tray keeps the total.
@@ -40,18 +46,30 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
   const checkout = useCheckout();
   const key = `booking:${storageKey}:day`;
   const [plan, setPlan] = useSessionValue<DayPlan>(key, emptyDay, () => {
+    // A date chosen a moment ago on the home page wins over a saved one.
+    const fromAddress = dateFromAddress();
     try {
       const raw = JSON.parse(sessionStorage.getItem(key) ?? "null") as Partial<DayPlan> | null;
       return {
-        date: isDate(raw?.date) ? raw.date : "",
+        date: fromAddress ?? (isDate(raw?.date) ? raw.date : ""),
         items: Array.isArray(raw?.items) ? raw.items.filter((item) => byId.has(item?.passId) && typeof item.key === "string") : [],
       };
     } catch {
       // A broken saved selection is simply ignored.
-      return emptyDay;
+      return { date: fromAddress ?? "", items: [] };
     }
   });
   const { date, items: picked } = plan;
+  // The pass a link asked for, such as /day-packages?pass=morning. Read in the browser only.
+  const invited = useSyncExternalStore(noop, () => new URLSearchParams(window.location.search).get(passParam), () => null);
+
+  // A new date from the home page, after this tab already saved a plan, replaces the saved date.
+  useEffect(() => {
+    const fromAddress = dateFromAddress();
+    if (fromAddress && fromAddress !== plan.date) setPlan({ date: fromAddress, items: plan.items });
+    // Only when the page opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const setDate = (next: string) => setPlan({ date: next, items: picked });
   const setPicked = (items: PickedPass[]) => setPlan({ date, items });
 
@@ -66,7 +84,7 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
   const tray = (
     <Tray
       heading="Your day"
-      when={date ? `${formatDay(date)} · ${plural(people, "guest")}` : <a href="#visit-date" className="underline underline-offset-4">Choose your date</a>}
+      when={date ? `${formatDay(date)}${people ? ` · ${plural(people, "guest")}` : ""}` : <a href="#visit-date" className="underline underline-offset-4">Choose your date</a>}
       lines={lines}
       emptySlots={[]}
       onRemove={(itemKey) => setPicked(picked.filter((item) => item.key !== itemKey))}
@@ -102,6 +120,7 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
                 key={pass.id}
                 pass={pass}
                 noun={noun}
+                invited={invited === pass.id}
                 count={picked.filter((item) => item.passId === pass.id).length}
                 onAdd={(party) => {
                   setPicked([...picked, { key: newKey(pass.id), passId: pass.id, party }]);
@@ -131,18 +150,27 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
   );
 }
 
-function PassCard({ pass, noun, count, onAdd }: { pass: Pass; noun: string; count: number; onAdd: (party: Party) => void }) {
-  const [picking, setPicking] = useState(false);
+function PassCard({ pass, noun, invited, count, onAdd }: { pass: Pass; noun: string; invited: boolean; count: number; onAdd: (party: Party) => void }) {
+  const [opened, setOpened] = useState(false);
+  // A link that asked for this pass opens its picker once, until the guest closes it.
+  const [settled, setSettled] = useState(false);
+  const picking = opened || (invited && !settled);
+  const cardRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (invited) cardRef.current?.scrollIntoView({ block: "center" });
+  }, [invited]);
   const [party, setParty] = useState<Party>({ adults: 2, children5to11: 0, children3to5: 0, under3: 0 });
   const [added, setAdded] = useState(false);
   const addRef = useRef<HTMLButtonElement>(null);
   const close = () => {
-    setPicking(false);
+    setOpened(false);
+    setSettled(true);
     requestAnimationFrame(() => addRef.current?.focus());
   };
 
   return (
-    <article aria-labelledby={`pass-${pass.id}`} className={`rounded-bk border border-bk-line bg-bk-card p-3 text-bk-ink sm:p-4 ${picking ? "md:col-span-2" : ""}`}>
+    <article ref={cardRef} aria-labelledby={`pass-${pass.id}`} className={`rounded-bk border border-bk-line bg-bk-card p-3 text-bk-ink sm:p-4 ${picking ? "md:col-span-2" : ""}`}>
       {pass.photo && (
         <div className="relative aspect-[16/9] overflow-hidden rounded-[calc(var(--bk-radius)*0.75)] bg-bk-soft">
           <Image src={pass.photo.src} alt={pass.photo.alt} fill sizes="(min-width: 768px) 30vw, 100vw" placeholder="blur" className="object-cover" />
@@ -175,7 +203,7 @@ function PassCard({ pass, noun, count, onAdd }: { pass: Pass; noun: string; coun
               ref={addRef}
               type="button"
               onClick={() => {
-                setPicking(true);
+                setOpened(true);
                 setAdded(false);
               }}
               className="mt-4 min-h-12 w-full rounded-bk-control bg-bk-accent px-5 bk-button text-bk-accent-ink transition-opacity hover:opacity-90"
@@ -194,7 +222,6 @@ function PassCard({ pass, noun, count, onAdd }: { pass: Pass; noun: string; coun
             title={`Who is coming on the ${pass.name.toLowerCase()} ${noun}?`}
             party={party}
             onChange={setParty}
-            maxGuests={60}
             price={
               <span>
                 <span className="bk-display text-[1.45rem] tabular-nums">{formatRupees(priceForPass(pass, party))}</span>

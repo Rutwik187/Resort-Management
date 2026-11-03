@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { passParam } from "@repo/booking-ui";
 import { formatRupees, meals, type DayPass } from "@/content/resort";
 
 /* Each pass is printed in one of the logo's colours, like a book of coloured tickets. */
@@ -71,9 +73,9 @@ export function PassTicket({ pass, index, className = "", style }: { pass: DayPa
           })}
         </ul>
 
-        <a href="#enquire" data-purpose="day" data-pass={pass.id} className="btn btn-ink mt-6 w-full">
+        <Link href={`/day-packages?${passParam}=${pass.id}`} className="btn btn-ink mt-6 w-full">
           Book the {pass.name.toLowerCase()} pass <span aria-hidden className="arrow">→</span>
-        </a>
+        </Link>
       </div>
     </article>
   );

@@ -15,9 +15,11 @@
  *   --bk-alert        "guests still need a room"
  *   --bk-radius       cards and the tray
  *   --bk-control-radius  buttons and fields
- *   --bk-display, --bk-display-weight, --bk-display-case, --bk-display-tracking
+ *   --bk-display, --bk-display-weight, --bk-display-stretch, --bk-display-case,
+ *   --bk-display-tracking
  *                     the font for names and prices
- *   --bk-button-size, --bk-button-weight, --bk-button-case, --bk-button-tracking
+ *   --bk-button-size, --bk-button-weight, --bk-button-stretch, --bk-button-case,
+ *   --bk-button-tracking
  *                     the type on buttons
  *   --bk-sticky-top   the site header's height, so the tray sticks below it
  */
@@ -56,10 +58,12 @@
   --bk-control-radius: 999px;
   --bk-display: inherit;
   --bk-display-weight: 500;
+  --bk-display-stretch: normal;
   --bk-display-case: none;
   --bk-display-tracking: -0.01em;
   --bk-button-size: 0.95rem;
   --bk-button-weight: 500;
+  --bk-button-stretch: normal;
   --bk-button-case: none;
   --bk-button-tracking: 0;
   --bk-sticky-top: 5.5rem;
@@ -69,6 +73,7 @@
   .bk-display {
     font-family: var(--bk-display);
     font-weight: var(--bk-display-weight);
+    font-stretch: var(--bk-display-stretch);
     text-transform: var(--bk-display-case);
     letter-spacing: var(--bk-display-tracking);
     line-height: 1.05;
@@ -78,6 +83,7 @@
   .bk-button {
     font-size: var(--bk-button-size);
     font-weight: var(--bk-button-weight);
+    font-stretch: var(--bk-button-stretch);
     text-transform: var(--bk-button-case);
     letter-spacing: var(--bk-button-tracking);
   }

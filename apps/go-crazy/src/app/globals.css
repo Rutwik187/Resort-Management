@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@repo/booking-ui/booking.css";
 
 /*
  * Palette, from the logo and the park:
@@ -33,6 +34,33 @@
 
 @theme inline {
   --font-sans: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
+}
+
+/* The shared booking widget, in this site's chalk, lime and condensed Archivo (see packages/booking-ui). */
+:root {
+  --bk-page: var(--color-chalk);
+  --bk-card: #fbfaf6;
+  --bk-ink: var(--color-ink);
+  --bk-muted: var(--color-stone);
+  --bk-line: rgb(14 26 20 / 0.16);
+  --bk-soft: rgb(14 26 20 / 0.055);
+  --bk-accent: var(--color-lime);
+  --bk-accent-ink: var(--color-ink);
+  --bk-good: var(--color-olive);
+  --bk-alert: var(--color-brick);
+  --bk-radius: 6px;
+  --bk-control-radius: 3px;
+  --bk-display: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
+  --bk-display-weight: 850;
+  --bk-display-stretch: 62%;
+  --bk-display-case: uppercase;
+  --bk-display-tracking: -0.004em;
+  --bk-button-size: 1rem;
+  --bk-button-weight: 780;
+  --bk-button-stretch: 72%;
+  --bk-button-case: uppercase;
+  --bk-button-tracking: 0.04em;
+  --bk-sticky-top: 5rem;
 }
 
 @layer base {
