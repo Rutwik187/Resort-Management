@@ -178,7 +178,7 @@ function PassCard({ pass, noun, count, onAdd }: { pass: Pass; noun: string; coun
                 setPicking(true);
                 setAdded(false);
               }}
-              className="mt-4 min-h-12 w-full rounded-bk-control bg-bk-accent px-5 text-[0.95rem] font-medium text-bk-accent-ink transition-opacity hover:opacity-90"
+              className="mt-4 min-h-12 w-full rounded-bk-control bg-bk-accent px-5 bk-button text-bk-accent-ink transition-opacity hover:opacity-90"
             >
               {count > 0 ? "Add more guests" : `Add ${noun}`}
             </button>

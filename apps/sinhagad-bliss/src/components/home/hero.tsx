@@ -176,9 +176,9 @@ export function Hero() {
               the hills in view.
             </p>
             <div className="hero-fade mt-6 flex flex-wrap items-center justify-center gap-x-7 gap-y-3" style={{ "--i": 1 } as React.CSSProperties}>
-              <a href="#enquire" tabIndex={-1} className="btn btn-mist hidden md:inline-flex">
-                Plan your stay
-              </a>
+              <Link href="/stays#book" tabIndex={-1} className="btn btn-mist hidden md:inline-flex">
+                Book a stay
+              </Link>
               <Link href="/stays" className="link-rule text-mist">
                 See the rooms
               </Link>

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@repo/booking-ui/booking.css";
 
 /*
  * Palette, from the logo and the resort at dusk:
@@ -38,6 +39,29 @@
   /* Jost has no rupee sign; the browser takes ₹ alone from the small rupee face. */
   --font-sans: var(--font-jost), var(--font-rupee), "Futura", "Avenir Next", "Helvetica Neue", Arial, sans-serif;
   --font-serif: var(--font-spectral), "Iowan Old Style", Georgia, serif;
+}
+
+/* The shared booking widget, in this site's mist, ink and Jost (see packages/booking-ui). */
+:root {
+  --bk-page: var(--color-mist);
+  --bk-card: #faf9f6;
+  --bk-ink: var(--color-ink);
+  --bk-muted: var(--color-slate);
+  --bk-line: rgb(30 38 50 / 0.14);
+  --bk-soft: rgb(30 38 50 / 0.05);
+  --bk-accent: var(--color-dusk);
+  --bk-accent-ink: var(--color-mist);
+  --bk-good: #4b6043;
+  --bk-alert: var(--color-apricot-deep);
+  --bk-radius: 4px;
+  --bk-control-radius: 2px;
+  --bk-display: var(--font-jost), var(--font-rupee), "Futura", "Avenir Next", sans-serif;
+  --bk-display-weight: 300;
+  --bk-display-tracking: -0.01em;
+  --bk-button-size: 0.75rem;
+  --bk-button-case: uppercase;
+  --bk-button-tracking: 0.2em;
+  --bk-sticky-top: 5.25rem;
 }
 
 /* Lenis base rules (the package does not export its stylesheet). */

@@ -72,9 +72,10 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
     const roomsLeft = Math.max(1, search.rooms - picked.length);
     const adultsLeft = search.adults - placedAdults;
     let adults = adultsLeft > 0 ? Math.ceil(adultsLeft / roomsLeft) : 2;
-    adults = Math.min(listing.maxGuests, Math.max(1, adults, listing.minGuests ?? 1));
+    const most = listing.maxGuests ?? 60;
+    adults = Math.min(most, Math.max(1, adults, listing.minGuests ?? 1));
     const childrenLeft = Math.max(0, search.children - placedChildren);
-    const children = Math.min(Math.ceil(childrenLeft / roomsLeft), listing.maxGuests - adults);
+    const children = Math.min(Math.ceil(childrenLeft / roomsLeft), most - adults);
     return { adults, children5to11: Math.max(0, children), children3to5: 0, under3: 0 };
   }
 
@@ -150,7 +151,7 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
       <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start xl:gap-12">
         <div className="grid gap-14">
           {groups.map((group) => (
-            <section key={group.id} aria-labelledby={`group-${group.id}`}>
+            <section key={group.id} id={group.id} aria-labelledby={`group-${group.id}`} className="scroll-mt-28">
               <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-bk-line pb-4">
                 <h2 id={`group-${group.id}`} className="bk-display text-[2rem] sm:text-[2.4rem]">
                   {group.title}

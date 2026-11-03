@@ -10,7 +10,8 @@ type PartyPickerProps = {
   title: string;
   party: Party;
   onChange: (party: Party) => void;
-  maxGuests: number;
+  /** Without a published limit, the picker allows a large group and makes no claim. */
+  maxGuests?: number;
   minGuests?: number;
   /** The live price for this party, or a note when it can't be priced. */
   price: ReactNode;
@@ -25,7 +26,7 @@ type PartyPickerProps = {
  */
 export function PartyPicker({ title, party, onChange, maxGuests, minGuests = 1, price, confirmLabel, onConfirm, onCancel }: PartyPickerProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const room = maxGuests - headcount(party);
+  const room = (maxGuests ?? 60) - headcount(party);
   const short = payingGuests(party) < minGuests;
   const set = (key: keyof Party) => (value: number) => onChange({ ...party, [key]: value });
 
@@ -43,7 +44,7 @@ export function PartyPicker({ title, party, onChange, maxGuests, minGuests = 1, 
       <h4 ref={headingRef} tabIndex={-1} className="bk-display text-[1.3rem] outline-none">
         {title}
       </h4>
-      <p className="mt-1 text-[0.85rem] text-bk-muted">Up to {maxGuests} guests, children included.</p>
+      {maxGuests !== undefined && <p className="mt-1 text-[0.85rem] text-bk-muted">Up to {maxGuests} guests, children included.</p>}
       <div className="mt-2 divide-y divide-bk-line">
         <Stepper label="Adults" hint="12 and over" value={party.adults} min={1} max={party.adults + room} onChange={set("adults")} />
         <Stepper label="Children" hint="5 to 11" value={party.children5to11} min={0} max={party.children5to11 + room} onChange={set("children5to11")} />
@@ -62,7 +63,7 @@ export function PartyPicker({ title, party, onChange, maxGuests, minGuests = 1, 
             type="button"
             onClick={onConfirm}
             disabled={short}
-            className="min-h-11 rounded-bk-control bg-bk-accent px-5 text-[0.92rem] font-medium text-bk-accent-ink transition-opacity disabled:opacity-40"
+            className="min-h-11 rounded-bk-control bg-bk-accent px-5 bk-button text-bk-accent-ink transition-opacity disabled:opacity-40"
           >
             {confirmLabel}
           </button>

@@ -132,7 +132,7 @@ export function SearchBar({ action, value = defaultSearch, onSearch, submitLabel
             <button
               type="button"
               onClick={() => setGuestsOpen(false)}
-              className="mt-3 min-h-11 w-full rounded-bk-control border border-bk-line text-[0.92rem] font-medium hover:border-bk-ink"
+              className="mt-3 min-h-11 w-full rounded-bk-control border border-bk-line bk-button hover:border-bk-ink"
             >
               Done
             </button>
@@ -143,7 +143,7 @@ export function SearchBar({ action, value = defaultSearch, onSearch, submitLabel
       <div className="col-span-2 p-2 md:col-span-1">
         <button
           type="submit"
-          className="flex h-full min-h-12 w-full items-center justify-center rounded-[calc(var(--bk-radius)-0.35rem)] bg-bk-accent px-6 text-[0.95rem] font-medium text-bk-accent-ink transition-opacity hover:opacity-90"
+          className="flex h-full min-h-12 w-full items-center justify-center rounded-[max(0px,calc(var(--bk-radius)-0.35rem))] bg-bk-accent px-6 bk-button text-bk-accent-ink transition-opacity hover:opacity-90"
         >
           {submitLabel}
         </button>

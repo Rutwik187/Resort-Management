@@ -17,6 +17,8 @@
  *   --bk-control-radius  buttons and fields
  *   --bk-display, --bk-display-weight, --bk-display-case, --bk-display-tracking
  *                     the font for names and prices
+ *   --bk-button-size, --bk-button-weight, --bk-button-case, --bk-button-tracking
+ *                     the type on buttons
  *   --bk-sticky-top   the site header's height, so the tray sticks below it
  */
 
@@ -56,6 +58,10 @@
   --bk-display-weight: 500;
   --bk-display-case: none;
   --bk-display-tracking: -0.01em;
+  --bk-button-size: 0.95rem;
+  --bk-button-weight: 500;
+  --bk-button-case: none;
+  --bk-button-tracking: 0;
   --bk-sticky-top: 5.5rem;
 }
 
@@ -67,6 +73,13 @@
     letter-spacing: var(--bk-display-tracking);
     line-height: 1.05;
     text-wrap: balance;
+  }
+
+  .bk-button {
+    font-size: var(--bk-button-size);
+    font-weight: var(--bk-button-weight);
+    text-transform: var(--bk-button-case);
+    letter-spacing: var(--bk-button-tracking);
   }
 
   /* The phone sheet rises from the foot of the screen. */

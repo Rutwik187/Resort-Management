@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { villas } from "@/content/resort";
 import { InView, Lines } from "../in-view";
 import { Photo } from "../photo";
@@ -36,9 +37,9 @@ export function Villas() {
             <p className="clear mt-6 text-[0.95rem] text-slate" style={{ "--i": 6 } as React.CSSProperties}>
               Villa rates are on request. Tell us your dates and the team will quote them.
             </p>
-            <a href="#enquire" data-purpose="villa" className="clear btn btn-ink mt-8" style={{ "--i": 7 } as React.CSSProperties}>
-              Ask about a villa
-            </a>
+            <Link href="/stays#villas" className="clear btn btn-ink mt-8" style={{ "--i": 7 } as React.CSSProperties}>
+              See villas and book
+            </Link>
           </div>
         </InView>
       </div>

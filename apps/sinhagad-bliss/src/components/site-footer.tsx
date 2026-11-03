@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { contact, nav, sisterResorts } from "@/content/resort";
+import { otherProperties } from "@repo/sites";
+import { contact, nav } from "@/content/resort";
 import { Logo } from "./logo";
 
 export function SiteFooter() {
@@ -84,11 +85,11 @@ export function SiteFooter() {
         <div className="lg:col-span-3">
           <h2 className="kicker font-sans text-haze">The other Prathamesh resorts</h2>
           <ul className="mt-5 space-y-4">
-            {sisterResorts.map((r) => (
-              <li key={r.href}>
-                <a href={r.href} target="_blank" rel="noreferrer" className="group block">
-                  <span className="transition-colors group-hover:text-apricot">{r.name}</span>
-                  <span className="block text-[0.92rem] text-haze">{r.place}</span>
+            {otherProperties("SB").map((property) => (
+              <li key={property.code}>
+                <a href={property.url} className="group block">
+                  <span className="transition-colors group-hover:text-apricot">{property.name}</span>
+                  <span className="block text-[0.92rem] text-haze">{property.place}</span>
                 </a>
               </li>
             ))}

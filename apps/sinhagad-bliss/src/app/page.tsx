@@ -1,6 +1,7 @@
 import type { Viewport } from "next";
 import { Hero } from "@/components/home/hero";
 import { Intro } from "@/components/home/intro";
+import { BookBar } from "@/components/home/book-bar";
 import { Rooms } from "@/components/home/rooms";
 import { Villas } from "@/components/home/villas";
 import { Mornings } from "@/components/home/mornings";
@@ -52,6 +53,7 @@ export default function HomePage() {
     <PageTransition>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(resortJsonLd) }} />
       <Hero />
+      <BookBar />
       <Intro />
       <Rooms />
       <Villas />

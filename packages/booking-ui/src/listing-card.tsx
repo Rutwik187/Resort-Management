@@ -89,9 +89,9 @@ export function ListingCard({ listing, nights, count, suggested, onAdd, imageSiz
               onClick={open}
               disabled={full || picking}
               aria-expanded={picking}
-              className="min-h-12 w-full rounded-bk-control bg-bk-accent px-5 text-[0.95rem] font-medium text-bk-accent-ink transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 md:w-auto lg:w-full"
+              className="min-h-12 w-full rounded-bk-control bg-bk-accent px-5 bk-button text-bk-accent-ink transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 md:w-auto lg:w-full"
             >
-              {full ? `All ${plural(listing.units!, listing.noun)} added` : count > 0 ? `Add another ${listing.noun}` : `Add ${listing.noun}`}
+              {full ? `All ${plural(listing.units!, listing.noun)} added` : count > 0 ? "Add another" : `Add ${listing.noun}`}
             </button>
             <p aria-live="polite" className="mt-2 min-h-[1.25rem] text-center text-[0.82rem] text-bk-good md:text-left lg:text-center">
               {added ? `Added. See it in your selection.` : count > 0 ? `${count} in your selection` : ""}

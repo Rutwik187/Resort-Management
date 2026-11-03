@@ -4,9 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useLenis } from "lenis/react";
+import { otherProperties } from "@repo/sites";
 import { contact, nav } from "@/content/resort";
 import { OPEN_BOOKING } from "./booking-drawer";
 import { Logo } from "./logo";
+import { OurResortsMenu } from "./our-resorts-menu";
 
 type Tone = "film" | "dark" | "light" | "top";
 
@@ -103,12 +105,12 @@ export function SiteHeader() {
             tone === "film" ? "opacity-100" : "opacity-0"
           }`}
         />
-        <div className="relative mx-auto grid h-[68px] max-w-[1560px] grid-cols-[1fr_auto] items-center gap-6 px-5 md:h-[84px] md:px-10 lg:grid-cols-[1fr_auto_1fr]">
+        <div className="relative mx-auto grid h-[68px] max-w-[1560px] grid-cols-[1fr_auto] items-center gap-6 px-5 md:h-[84px] md:px-10 xl:grid-cols-[1fr_auto_1fr]">
           <Link href="/" aria-label="Sinhagad Bliss, home" className="w-fit shrink-0">
             <Logo variant="mark" alt="" sizes="(min-width: 768px) 128px, 100px" className="w-[100px] md:w-[128px]" />
           </Link>
 
-          <nav aria-label="Main" className="hidden items-center gap-10 lg:flex">
+          <nav aria-label="Main" className="hidden items-center gap-10 xl:flex">
             {nav.map((item) => {
               const active = isActive(pathname, item.href);
               return (
@@ -128,6 +130,7 @@ export function SiteHeader() {
                 </Link>
               );
             })}
+            <OurResortsMenu />
           </nav>
 
           <div className="flex items-center justify-end gap-3">
@@ -137,17 +140,17 @@ export function SiteHeader() {
             >
               {contact.phone.display}
             </a>
-            <a
-              href="#enquire"
+            <Link
+              href="/stays#book"
               className={`btn min-h-11 px-4 sm:px-5 ${light ? "btn-mist" : "btn-ink"} xl:ml-5`}
             >
               <span className="sm:hidden">Book</span>
-              <span className="hidden sm:inline">Plan your stay</span>
-            </a>
+              <span className="hidden sm:inline">Book now</span>
+            </Link>
             <button
               type="button"
               onClick={openMenu}
-              className="kicker flex min-h-11 items-center gap-3 pl-2 lg:hidden"
+              className="kicker flex min-h-11 items-center gap-3 pl-2 xl:hidden"
               aria-haspopup="dialog"
               aria-expanded={menuOpen}
               aria-controls="site-menu"
@@ -189,12 +192,12 @@ export function SiteHeader() {
               Close
             </button>
           </div>
-          <nav aria-label="Menu" className="mt-14 flex flex-col items-center gap-2 text-center">
+          <nav aria-label="Menu" className="mt-10 flex flex-col items-center gap-1 text-center">
             {[{ label: "Home", href: "/" as const }, ...nav].map((item, i) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="menu-item display flex min-h-14 items-center text-[2.6rem] leading-none"
+                className="menu-item display flex min-h-14 items-center text-[2.3rem] leading-none"
                 style={{ "--i": i } as React.CSSProperties}
               >
                 {item.label}
@@ -208,6 +211,19 @@ export function SiteHeader() {
               Policies
             </Link>
           </nav>
+          <div className="mt-8 text-center">
+            <p className="kicker text-haze">Our other resorts</p>
+            <ul className="mt-3 grid gap-2">
+              {otherProperties("SB").map((property) => (
+                <li key={property.code}>
+                  <a href={property.url} className="inline-flex min-h-11 items-center gap-2 text-[1.02rem]">
+                    {property.name}
+                    <span className="text-[0.85rem] text-haze">· {property.place}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
 
           {/* The sun from the logo, setting on a thin horizon. */}
           <div aria-hidden className="relative mx-auto mt-auto h-12 w-40 overflow-hidden">
@@ -215,9 +231,9 @@ export function SiteHeader() {
             <span className="absolute inset-x-0 bottom-0 h-px bg-mist/30" />
           </div>
           <div className="mt-8 flex flex-col gap-4">
-            <a href="#enquire" className="btn btn-apricot">
-              Plan your stay
-            </a>
+            <Link href="/stays#book" className="btn btn-apricot">
+              Book a stay
+            </Link>
             <a href={contact.phone.href} className="text-center text-[0.95rem] text-haze">
               Call {contact.phone.display}
             </a>

@@ -34,8 +34,8 @@ export type Listing = {
   features?: string[];
   /** The fewest paying guests it takes, for group packages and large villas. */
   minGuests?: number;
-  /** The most guests in one booking of it, children included. */
-  maxGuests: number;
+  /** The most guests in one booking of it, children included. Leave it out when the resort doesn't publish one. */
+  maxGuests?: number;
   /** How many of it exist. Guests cannot add more than this. */
   units?: number;
   /** Sunday to Thursday nights. */

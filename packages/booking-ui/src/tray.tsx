@@ -77,10 +77,10 @@ export function Tray({ heading, when, lines, emptySlots, onRemove, coverage, tot
           Your request is ready in WhatsApp. Press send there, and our team replies with availability and the final price.
         </p>
         <div className="mt-6 grid gap-2">
-          <button type="button" onClick={() => openWhatsApp(desk.whatsapp.number, message(guest))} className="min-h-12 rounded-bk-control bg-bk-accent px-5 font-medium text-bk-accent-ink">
+          <button type="button" onClick={() => openWhatsApp(desk.whatsapp.number, message(guest))} className="min-h-12 rounded-bk-control bg-bk-accent px-5 bk-button text-bk-accent-ink">
             Open WhatsApp again
           </button>
-          <button type="button" onClick={() => go("pick")} className="min-h-12 rounded-bk-control border border-bk-line px-5 text-[0.95rem] hover:border-bk-ink">
+          <button type="button" onClick={() => go("pick")} className="min-h-12 rounded-bk-control border border-bk-line px-5 bk-button hover:border-bk-ink">
             Change the request
           </button>
         </div>
@@ -140,7 +140,7 @@ export function Tray({ heading, when, lines, emptySlots, onRemove, coverage, tot
               className={`${field} resize-none rounded-[calc(var(--bk-radius)*0.6)]`}
             />
           </label>
-          <button type="submit" className="mt-1 min-h-12 rounded-bk-control bg-bk-accent px-5 font-medium text-bk-accent-ink transition-opacity hover:opacity-90">
+          <button type="submit" className="mt-1 min-h-12 rounded-bk-control bg-bk-accent px-5 bk-button text-bk-accent-ink transition-opacity hover:opacity-90">
             Send booking request
           </button>
         </form>
@@ -216,7 +216,7 @@ export function Tray({ heading, when, lines, emptySlots, onRemove, coverage, tot
         type="button"
         onClick={() => go("details")}
         disabled={Boolean(blocker)}
-        className="mt-5 min-h-12 w-full rounded-bk-control bg-bk-accent px-5 font-medium text-bk-accent-ink transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+        className="mt-5 min-h-12 w-full rounded-bk-control bg-bk-accent px-5 bk-button text-bk-accent-ink transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
       >
         Continue
       </button>
@@ -278,7 +278,7 @@ export function TrayDock({ summary, total, children }: TrayDockProps) {
             <span className="block truncate text-[0.9rem]">{summary}</span>
             {total !== null && <span className="bk-display block text-[1.25rem] leading-tight tabular-nums">{formatRupees(total)}</span>}
           </p>
-          <button type="button" onClick={open} className="min-h-12 shrink-0 rounded-bk-control bg-bk-accent px-6 font-medium text-bk-accent-ink">
+          <button type="button" onClick={open} className="min-h-12 shrink-0 rounded-bk-control bg-bk-accent px-6 bk-button text-bk-accent-ink">
             View and book
           </button>
         </div>
