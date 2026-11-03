@@ -8,7 +8,12 @@ The plan for the whole platform is in [`docs/implementation-plan.md`](docs/imple
 
 | Folder | Package | What it holds |
 |---|---|---|
-| `apps/khed-shivapur` | `khed-shivapur` | The Khed Shivapur website, prathameshresorts.com |
+| `apps/khed-shivapur` | `khed-shivapur` | Prathamesh Resorts, Khed Shivapur: prathameshresorts.com |
+| `apps/go-crazy` | `go-crazy` | Prathamesh Go Crazy Resort, Sinhagad: gocrazyadventure.com |
+| `apps/sinhagad-bliss` | `sinhagad-bliss` | Sinhagad Bliss: sinhagadbliss.com |
+| `apps/valley` | `valley` | Prathamesh Valley Resorts, Mahabaleshwar: prathameshvalleyresorts.com |
+| `packages/booking-ui` | `@repo/booking-ui` | The booking widget that all four sites share: the search bar, the room and day-pass lists, and the tray |
+| `packages/sites` | `@repo/sites` | The group's four resorts: names, places and website addresses |
 | `packages/typescript-config` | `@repo/typescript-config` | The TypeScript settings that every package extends |
 | `packages/eslint-config` | `@repo/eslint-config` | The ESLint rules that every package uses |
 
@@ -29,7 +34,7 @@ Run these from the repository root. Turborepo runs the task in every package tha
 
 | Command | What it does |
 |---|---|
-| `pnpm dev` | Starts the apps in development mode. The Khed Shivapur site opens at http://localhost:3000 |
+| `pnpm dev` | Starts the four sites in development mode: Khed Shivapur at http://localhost:3000, Go Crazy at :3001, Sinhagad Bliss at :3002 and Valley at :3003 |
 | `pnpm build` | Checks the types, then builds the apps |
 | `pnpm lint` | Checks the code with ESLint |
 | `pnpm typecheck` | Checks the TypeScript types |
@@ -42,6 +47,26 @@ Add each dependency to the package that uses it, for example `pnpm add lenis --f
 
 Turborepo passes a task only the environment variables that `turbo.json` lists. When code reads a new variable, add it to the task's `env` list. ESLint reports any variable that is missing.
 
+## Booking
+
+Every site books with the shared widget in `packages/booking-ui`, the way MakeMyTrip does it. The guest chooses dates, rooms and guests, adds a room and says who stays in it, then adds other rooms of any type. A tray keeps the rooms, the guests still to place and the estimate. Day passes work the same way, by date.
+
+Until the booking engine and Razorpay arrive, the tray sends the request on WhatsApp, to the resort's own number.
+
+- A site describes its rooms, packages and day passes in `src/content/booking.ts`, from the facts in `src/content/resort.ts`.
+- A site styles the widget with the `--bk-*` values in its `globals.css`. `packages/booking-ui/src/booking.css` lists them.
+- Friday and Saturday nights take the weekend rate. Every other night takes the weekday rate.
+- When a resort doesn't publish a rate that the guests need, the widget leaves that price for the team to quote. It never guesses one.
+
 ## Deploy
 
-Each app is its own Vercel project. The `prathameshresorts` project builds `apps/khed-shivapur`, so its Root Directory setting is `apps/khed-shivapur`.
+Each app is its own Vercel project. Its Root Directory setting is its own folder.
+
+| Vercel project | Root Directory | Domain |
+|---|---|---|
+| `prathameshresorts` | `apps/khed-shivapur` | prathameshresorts.com |
+| To create | `apps/go-crazy` | gocrazyadventure.com |
+| To create | `apps/sinhagad-bliss` | sinhagadbliss.com |
+| To create | `apps/valley` | prathameshvalleyresorts.com |
+
+Each app's `next.config.ts` redirects the old WordPress site's pages to their new homes, so old links and search results keep working when a domain moves to Vercel. prathameshresorts.com also sends `/go-crazy`, `/sinhagad-bliss` and `/valley` to the other resorts.
