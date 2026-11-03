@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Prathamesh Group
 
-## Getting Started
+The resort websites and the admin dashboard of the Prathamesh Group. This repository is a monorepo: it holds the apps and the packages they share. [Turborepo](https://turborepo.dev) runs the tasks and caches their results. [pnpm](https://pnpm.io) installs the dependencies.
 
-First, run the development server:
+The plan for the whole platform is in [`docs/implementation-plan.md`](docs/implementation-plan.md).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## What is where
+
+| Folder | Package | What it holds |
+|---|---|---|
+| `apps/khed-shivapur` | `khed-shivapur` | The Khed Shivapur website, prathameshresorts.com |
+| `packages/typescript-config` | `@repo/typescript-config` | The TypeScript settings that every package extends |
+| `packages/eslint-config` | `@repo/eslint-config` | The ESLint rules that every package uses |
+
+## Set up
+
+You need Node.js 20.9 or later, and pnpm.
+
+```sh
+npm install --global pnpm
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The root `package.json` pins pnpm 12.16.1. pnpm 10 and later switch to that version by themselves.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Commands
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Run these from the repository root. Turborepo runs the task in every package that has it.
 
-## Learn More
+| Command | What it does |
+|---|---|
+| `pnpm dev` | Starts the apps in development mode. The Khed Shivapur site opens at http://localhost:3000 |
+| `pnpm build` | Checks the types, then builds the apps |
+| `pnpm lint` | Checks the code with ESLint |
+| `pnpm typecheck` | Checks the TypeScript types |
 
-To learn more about Next.js, take a look at the following resources:
+When a task's files have not changed since the last run, Turborepo skips the task and replays the saved result.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+To run a task in one app only, add a filter, for example `pnpm dev --filter=khed-shivapur`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Add each dependency to the package that uses it, for example `pnpm add lenis --filter=khed-shivapur`. The root `package.json` holds only tools for the whole repository, such as `turbo`.
 
-## Deploy on Vercel
+Turborepo passes a task only the environment variables that `turbo.json` lists. When code reads a new variable, add it to the task's `env` list. ESLint reports any variable that is missing.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploy
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Each app is its own Vercel project. The `prathameshresorts` project builds `apps/khed-shivapur`, so its Root Directory setting is `apps/khed-shivapur`.
