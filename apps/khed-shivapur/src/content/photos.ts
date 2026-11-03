@@ -1,5 +1,6 @@
 // Generated from src/assets/photos. Every photo is the client's own, colour-graded for one consistent look.
 // Drone stills and video frames are from the resort's own flights over the valley in August 2024 and 2026.
+// The three resort-* photos come from the group's other resorts, for the "Our resorts" section.
 import archery from "@/assets/photos/archery.jpg";
 import atv from "@/assets/photos/atv.jpg";
 import banquetExterior from "@/assets/photos/banquet-exterior.jpg";
@@ -43,6 +44,9 @@ import pwhCanopy from "@/assets/photos/pwh-canopy.jpg";
 import pwhExterior from "@/assets/photos/pwh-exterior.jpg";
 import pwhRoom from "@/assets/photos/pwh-room.jpg";
 import rainDance from "@/assets/photos/rain-dance.jpg";
+import resortGoCrazy from "@/assets/photos/resort-go-crazy.jpg";
+import resortSinhagadBliss from "@/assets/photos/resort-sinhagad-bliss.jpg";
+import resortValley from "@/assets/photos/resort-valley.jpg";
 import restaurant from "@/assets/photos/restaurant.jpg";
 import river218 from "@/assets/photos/river-218.jpg";
 import ropeTunnel from "@/assets/photos/rope-tunnel.jpg";
@@ -123,6 +127,9 @@ export const photos = {
   pwhExterior,
   pwhRoom,
   rainDance,
+  resortGoCrazy,
+  resortSinhagadBliss,
+  resortValley,
   restaurant,
   river218,
   ropeTunnel,

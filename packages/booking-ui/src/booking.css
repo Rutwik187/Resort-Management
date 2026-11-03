@@ -1,0 +1,125 @@
+/*
+ * The booking widget's design tokens. A site imports this file into its
+ * globals.css after Tailwind, then sets the --bk-* values to its own colours
+ * and fonts, so the same widget looks native on every resort's site.
+ *
+ *   --bk-page         the page behind the widget
+ *   --bk-card         cards, the tray and fields
+ *   --bk-ink          text
+ *   --bk-muted        secondary text, with AA contrast on --bk-card
+ *   --bk-line         borders
+ *   --bk-soft         quiet fills: fact chips, the photo frame
+ *   --bk-accent       the main button
+ *   --bk-accent-ink   text on the main button
+ *   --bk-good         "room for every guest"
+ *   --bk-alert        "guests still need a room"
+ *   --bk-radius       cards and the tray
+ *   --bk-control-radius  buttons and fields
+ *   --bk-display, --bk-display-weight, --bk-display-case, --bk-display-tracking
+ *                     the font for names and prices
+ *   --bk-sticky-top   the site header's height, so the tray sticks below it
+ */
+
+/* Tailwind must see the widget's classes, which live outside the site's folder. */
+@source "./";
+
+@theme inline {
+  --color-bk-page: var(--bk-page);
+  --color-bk-card: var(--bk-card);
+  --color-bk-ink: var(--bk-ink);
+  --color-bk-muted: var(--bk-muted);
+  --color-bk-line: var(--bk-line);
+  --color-bk-soft: var(--bk-soft);
+  --color-bk-accent: var(--bk-accent);
+  --color-bk-accent-ink: var(--bk-accent-ink);
+  --color-bk-good: var(--bk-good);
+  --color-bk-alert: var(--bk-alert);
+  --radius-bk: var(--bk-radius);
+  --radius-bk-control: var(--bk-control-radius);
+}
+
+/* Readable defaults, until a site sets its own. */
+:root {
+  --bk-page: #f6f5f1;
+  --bk-card: #ffffff;
+  --bk-ink: #1c201e;
+  --bk-muted: #59615c;
+  --bk-line: rgb(28 32 30 / 0.14);
+  --bk-soft: rgb(28 32 30 / 0.05);
+  --bk-accent: #1c201e;
+  --bk-accent-ink: #ffffff;
+  --bk-good: #2c6a43;
+  --bk-alert: #93481a;
+  --bk-radius: 1rem;
+  --bk-control-radius: 999px;
+  --bk-display: inherit;
+  --bk-display-weight: 500;
+  --bk-display-case: none;
+  --bk-display-tracking: -0.01em;
+  --bk-sticky-top: 5.5rem;
+}
+
+@layer components {
+  .bk-display {
+    font-family: var(--bk-display);
+    font-weight: var(--bk-display-weight);
+    text-transform: var(--bk-display-case);
+    letter-spacing: var(--bk-display-tracking);
+    line-height: 1.05;
+    text-wrap: balance;
+  }
+
+  /* The phone sheet rises from the foot of the screen. */
+  .bk-sheet {
+    transform: translate3d(0, 100%, 0);
+    transition:
+      transform 450ms cubic-bezier(0.32, 0.72, 0, 1),
+      overlay 450ms allow-discrete,
+      display 450ms allow-discrete;
+  }
+  .bk-sheet[open] {
+    transform: none;
+  }
+  @starting-style {
+    .bk-sheet[open] {
+      transform: translate3d(0, 100%, 0);
+    }
+  }
+  .bk-sheet::backdrop {
+    background: rgb(0 0 0 / 0);
+    transition:
+      background-color 350ms ease,
+      overlay 450ms allow-discrete,
+      display 450ms allow-discrete;
+  }
+  .bk-sheet[open]::backdrop {
+    background: rgb(0 0 0 / 0.45);
+  }
+  @starting-style {
+    .bk-sheet[open]::backdrop {
+      background: rgb(0 0 0 / 0);
+    }
+  }
+
+  /* A small lift when the selection changes. */
+  .bk-pulse {
+    animation: bk-pulse 600ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  @keyframes bk-pulse {
+    from {
+      transform: translate3d(0, 6px, 0);
+      opacity: 0.4;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bk-sheet,
+    .bk-sheet[open] {
+      transform: none;
+      transition: opacity 200ms ease;
+    }
+    .bk-pulse {
+      animation: none;
+    }
+  }
+}

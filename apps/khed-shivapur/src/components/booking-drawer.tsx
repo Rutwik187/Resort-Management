@@ -10,7 +10,7 @@ export const OPEN_BOOKING = "booking:open";
 
 /** What the page is about decides which plan the form starts on. */
 function pagePurpose(pathname: string): Purpose {
-  if (pathname.startsWith("/experiences")) return "day";
+  if (pathname.startsWith("/experiences") || pathname.startsWith("/day-packages")) return "day";
   if (pathname.startsWith("/celebrations")) return "wedding";
   return "stay";
 }

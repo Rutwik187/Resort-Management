@@ -5,10 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useLenis } from "lenis/react";
+import { otherProperties } from "@repo/sites";
 import { contact, nav } from "@/content/resort";
 import { photos } from "@/content/photos";
 import { OPEN_BOOKING } from "./booking-drawer";
 import { Logo } from "./logo";
+import { OurResortsMenu } from "./our-resorts-menu";
 import { Roll } from "./roll";
 
 type Tone = "film" | "dark" | "light" | "top";
@@ -36,7 +38,13 @@ function readTone(): Tone {
   return window.scrollY > 24 ? "light" : "top";
 }
 
-const menuPhotos = { "/": photos.valley, "/stays": photos.glassHouseExterior, "/experiences": photos.ropesHills, "/celebrations": photos.weddingMandapWhite };
+const menuPhotos = {
+  "/": photos.valley,
+  "/stays": photos.glassHouseExterior,
+  "/day-packages": photos.poolPalms,
+  "/experiences": photos.ropesHills,
+  "/celebrations": photos.weddingMandapWhite,
+};
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -114,7 +122,7 @@ export function SiteHeader() {
             <Logo variant="mark" alt="" sizes="(min-width: 768px) 132px, 106px" preload className="w-[106px] md:w-[132px]" />
           </Link>
 
-          <nav aria-label="Main" className="hidden items-center gap-10 md:flex">
+          <nav aria-label="Main" className="hidden items-center gap-8 lg:flex">
             {nav.map((item) => {
               const active = pathname.startsWith(item.href);
               return (
@@ -136,6 +144,7 @@ export function SiteHeader() {
                 </Link>
               );
             })}
+            <OurResortsMenu light={light} />
           </nav>
 
           <div className="flex items-center gap-3">
@@ -145,19 +154,19 @@ export function SiteHeader() {
             >
               {contact.bookingPhone.display}
             </a>
-            <a
-              href="#enquire"
+            <Link
+              href="/stays#book"
               className={`btn min-h-10 px-4 py-2 text-[0.85rem] sm:min-h-11 sm:px-5 sm:py-2.5 ${light ? "btn-paper" : "btn-forest"} xl:ml-5`}
             >
               <span className="sm:hidden">Book</span>
               <span className="hidden sm:inline">
-                <Roll>Book a stay</Roll>
+                <Roll>Book now</Roll>
               </span>
-            </a>
+            </Link>
             <button
               type="button"
               onClick={openMenu}
-              className="flex min-h-11 items-center gap-3 rounded-full pl-3 text-[0.9rem] font-medium md:hidden"
+              className="flex min-h-11 items-center gap-3 rounded-full pl-3 text-[0.9rem] font-medium lg:hidden"
               aria-haspopup="dialog"
               aria-expanded={menuOpen}
               aria-controls="site-menu"
@@ -214,7 +223,7 @@ export function SiteHeader() {
               Close
             </button>
           </div>
-          <nav aria-label="Menu" className="relative mt-12 flex flex-col">
+          <nav aria-label="Menu" className="relative mt-8 flex flex-col">
             {[{ label: "Home", href: "/" as const }, ...nav].map((item, i) => (
               <Link
                 key={item.href}
@@ -225,14 +234,30 @@ export function SiteHeader() {
                 style={{ "--i": i } as React.CSSProperties}
               >
                 <span className="label text-sage">0{i + 1}</span>
-                <span className="display text-[2.9rem] leading-none">{item.label}</span>
+                <span className="display text-[2.4rem] leading-none">{item.label}</span>
               </Link>
             ))}
           </nav>
+          <div className="relative mt-8">
+            <p className="label text-sage">Our other resorts</p>
+            <ul className="mt-3 grid gap-3">
+              {otherProperties("KS").map((property) => (
+                <li key={property.code}>
+                  <a href={property.url} className="flex items-baseline justify-between gap-4">
+                    <span className="text-[1.05rem]">{property.name}</span>
+                    <span className="text-[0.85rem] text-sage">{property.place}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
           <div className="relative mt-auto flex flex-col gap-4">
-            <a href="#enquire" className="btn btn-sun">
+            <Link href="/stays#book" className="btn btn-sun">
               Book a stay
-            </a>
+            </Link>
+            <Link href="/day-packages" className="btn btn-ghost text-paper">
+              Book a day package
+            </Link>
             <a href={contact.bookingPhone.href} className="text-center text-[0.95rem] text-sage">
               Call {contact.bookingPhone.display}
             </a>
