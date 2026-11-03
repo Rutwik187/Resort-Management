@@ -6,6 +6,7 @@ import { Enquiry } from "@/components/enquiry";
 import { InView, RiseLines } from "@/components/in-view";
 import { PageIntro } from "@/components/page-intro";
 import { Photo } from "@/components/photo";
+import { PageTransition } from "@/components/page-transition";
 
 export const metadata = pageMetadata({
   title: "Experiences and day packages",
@@ -19,6 +20,7 @@ const alts: Partial<Record<PhotoKey, string>> = {
   poolPalms: "The main pool lined with palms",
   rainDance: "The covered rain dance floor with sprinklers",
   ropesSky: "Guests crossing the high ropes course with the hills behind",
+  ropesHills: "The rope net on the high ropes course, with the hills beyond the trees",
   zipForest: "A guest on the zip line between the trees",
   burmaBridge: "A wooden Burma bridge strung between the trees",
   ropeway: "A guest on the ropeway above the valley",
@@ -31,11 +33,12 @@ const alts: Partial<Record<PhotoKey, string>> = {
 
 export default function ExperiencesPage() {
   return (
-    <>
+    <PageTransition>
       <PageIntro
+        label="Experiences"
         lines={["Eighty ways", "to spend a day"]}
-        photo="ropesSky"
-        alt="Guests crossing the high ropes course, with the Sahyadri hills on the horizon"
+        photo="ropesHills"
+        alt="The rope net on the high ropes course, with the Sahyadri hills beyond the trees"
       >
         <p>
           Water, heights, aim, games and a play area for children. Every activity is included in every stay and every
@@ -43,8 +46,8 @@ export default function ExperiencesPage() {
         </p>
       </PageIntro>
 
-      <section id="day" aria-labelledby="day-title" className="scroll-mt-16 bg-paper">
-        <div className="mx-auto grid max-w-[1600px] gap-14 px-5 py-24 md:px-10 md:py-32 lg:grid-cols-12 lg:gap-10">
+      <section id="day" aria-labelledby="day-title" className="scroll-mt-16 bg-linen">
+        <div className="mx-auto grid max-w-[1680px] gap-14 px-5 py-24 md:px-10 md:py-32 lg:grid-cols-12 lg:gap-10">
           <InView className="lg:col-span-4">
             <h2 id="day-title" className="text-[clamp(2.6rem,5vw,5rem)]">
               <RiseLines lines={["Day", "packages"]} />
@@ -53,7 +56,7 @@ export default function ExperiencesPage() {
               Choose the part of the day that suits you. Meals are cooked fresh, with pure-veg and non-veg food from
               separate kitchens.
             </p>
-            <a href="#enquire" className="fade btn btn-moss mt-8" style={{ "--i": 2 } as React.CSSProperties}>
+            <a href="#enquire" className="fade btn btn-forest mt-8" style={{ "--i": 2 } as React.CSSProperties}>
               Book a day package
             </a>
           </InView>
@@ -63,15 +66,15 @@ export default function ExperiencesPage() {
         </div>
       </section>
 
-      <div className="bg-mist">
+      <div className="bg-paper">
         {experienceGroups.map((group) => (
           <section
             key={group.id}
             id={group.id}
             aria-labelledby={`${group.id}-title`}
-            className="scroll-mt-16 border-t border-moss/10"
+            className="scroll-mt-16 border-t border-forest/10"
           >
-            <InView amount={0.08} className="mx-auto max-w-[1600px] px-5 py-20 md:px-10 md:py-28">
+            <InView amount={0.08} className="mx-auto max-w-[1680px] px-5 py-20 md:px-10 md:py-28">
               <div className="grid gap-6 md:grid-cols-12 md:items-end">
                 <h2 id={`${group.id}-title`} className="text-[clamp(2.6rem,5.4vw,5.6rem)] md:col-span-7">
                   <RiseLines lines={[group.title]} />
@@ -96,6 +99,6 @@ export default function ExperiencesPage() {
       </div>
 
       <Enquiry defaultPurpose="day" />
-    </>
+    </PageTransition>
   );
 }

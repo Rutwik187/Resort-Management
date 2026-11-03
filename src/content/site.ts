@@ -8,7 +8,7 @@ const shareImage = {
   url: "/og-image.jpg",
   width: 1200,
   height: 630,
-  alt: "The arched window from the Prathamesh Resorts home page, framing the pool, with the words Come, breathe.",
+  alt: "The green valley at Khed Shivapur from the air, the resort among the trees, with the words Breathe. Relax. Enjoy.",
 };
 
 /**

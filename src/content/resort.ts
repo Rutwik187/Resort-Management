@@ -14,7 +14,8 @@ export const contact = {
   addressLines: ["At Post Salawade, near Khed Shivapur Toll", "Taluka Bhor, District Pune", "Maharashtra 412205"],
   mapsUrl: "https://maps.app.goo.gl/7AtDb3gf7WbEx82j6",
   reviewsUrl: "https://www.google.com/travel/hotels/entity/CgsI_YXpwaa9rZjKARAB/overview",
-  geo: { lat: 18.45735, lng: 73.80356 },
+  // From the resort's own Google Maps place (mapsUrl above), which matches the GPS in the drone photos.
+  geo: { lat: 18.28616, lng: 73.86122 },
   social: [
     { label: "Instagram", href: "https://www.instagram.com/prathamesh_resorts/" },
     { label: "Facebook", href: "https://www.facebook.com/prathameshresorts" },
@@ -72,13 +73,12 @@ export const stays: Stay[] = [
   {
     slug: "riverside-glass-house",
     name: "Riverside Glass House",
-    line: "A bath on the balcony, with the river trees for walls.",
+    line: "Glass rooms on stilts, up in the river trees.",
     description:
-      "Our newest rooms. Each one opens onto a private balcony with a jacuzzi, two chairs and nothing but green beyond the railing. Inside, white linen, soft light and room for four.",
+      "Our newest rooms, raised on stilts among the trees by the river. Each one opens onto a private balcony with a jacuzzi, two chairs and nothing but green beyond the railing. Inside, white linen, soft light and room for four.",
     rooms: "6 rooms",
     guests: "4 to 5 guests",
-    photos: ["glassBalcony", "glassTwin", "glassDetail", "glassJacuzzi", "glassRoom", "glassTub"],
-    cover: "glassRoom",
+    photos: ["glassHouseExterior", "glassBalconyView", "glassTwin", "glassDetail", "glassRoom", "glassJacuzzi"],
     features: ["Balcony jacuzzi", ...standardFeatures],
     weekday: { basis: "per couple", base: 5000, extraPerson: 1500, child5to11: 800, child3to5: 0 },
     weekend: { basis: "per couple", base: 8000, extraPerson: 2000, child5to11: 1500, child3to5: 800 },
@@ -91,7 +91,7 @@ export const stays: Stay[] = [
       "The resort inside the resort. A 3 BHK villa with a private swimming pool, a garden gazebo, a large lounge and its own veg and non-veg kitchens and dining. Built for weddings, reunions and large family weekends.",
     rooms: "One 3 BHK villa",
     guests: "20 to 30 guests",
-    photos: ["bungalowPool", "bungalowExterior", "bungalowLounge", "bungalowRoom"],
+    photos: ["bungalowPoolAbove", "bungalowVeranda", "bungalowPool", "bungalowLounge", "bungalowRoom"],
     features: ["Private swimming pool", "Separate veg kitchen and dining", "Separate non-veg kitchen and dining", ...standardFeatures],
     weekday: { basis: "per person", base: 2000, child5to11: 1000, child3to5: 0 },
     weekend: { basis: "per person", base: 3500, child5to11: 1500, child3to5: 800 },
@@ -116,7 +116,7 @@ export const stays: Stay[] = [
       "Built from chira, the red laterite stone of the Sahyadri and the Konkan. The cottages sit around a wide lawn, shaded by old trees.",
     rooms: "12 cottages",
     guests: "2 to 4 guests",
-    photos: ["chiraLawn", "chiraExterior", "chiraRoom", "chiraForest"],
+    photos: ["chiraLawnTrees", "chiraCottage", "chiraInterior", "chiraExterior", "chiraForest"],
     features: standardFeatures,
     weekday: { basis: "per couple", base: 5000, extraPerson: 1500, child5to11: 800, child3to5: 0 },
     weekend: { basis: "per couple", base: 8000, extraPerson: 2000, child5to11: 1500, child3to5: 800 },
@@ -253,8 +253,8 @@ export const experienceGroups: ExperienceGroup[] = [
     id: "heights",
     title: "Up in the trees",
     items: ["zip line", "ropeway", "Burma bridge", "high ropes course"],
-    cover: "ropesSky",
-    gallery: ["ropesSky", "zipForest", "burmaBridge", "ropeway", "zipline", "ropesCourse", "netClimb", "ropeWalk", "swing", "ropeTunnel"],
+    cover: "ropesHills",
+    gallery: ["ropesSky", "ropesHills", "zipForest", "burmaBridge", "ropeway", "zipline", "ropesCourse", "netClimb", "ropeWalk", "swing", "ropeTunnel"],
   },
   {
     id: "ground",
@@ -292,17 +292,17 @@ export const weddingMoments = [
   {
     title: "Haldi and mehendi",
     body: "Sunflower stages on the lawn in front of the cottages, with both families together in one place for the whole weekend.",
-    photo: "weddingHaldi" as PhotoKey,
+    photo: "weddingHaldiPetals" as PhotoKey,
   },
   {
     title: "The ceremony",
     body: "Plan the day your way, with ample space for every guest, comfortable rooms for family, and reputed chefs and caterers for a multi-cuisine menu.",
-    photo: "weddingMandap" as PhotoKey,
+    photo: "weddingLawnMandap" as PhotoKey,
   },
   {
     title: "The reception",
     body: "An on-site manager, theme décor and floral arrangements, professional catering and air-conditioned rooms for the guests who stay on.",
-    photo: "weddingReception" as PhotoKey,
+    photo: "weddingColdFire" as PhotoKey,
   },
 ];
 

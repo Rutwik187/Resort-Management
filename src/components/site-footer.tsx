@@ -1,16 +1,20 @@
 import Link from "next/link";
 import { contact, nav, sisterResorts } from "@/content/resort";
+import { Logo } from "./logo";
 
 export function SiteFooter() {
   return (
-    <footer className="overflow-hidden bg-moss-3 text-mist">
-      <div className="mx-auto grid max-w-[1600px] gap-12 px-5 pb-16 pt-20 sm:grid-cols-2 md:px-10 lg:grid-cols-12">
-        <div className="lg:col-span-3">
-          <p className="display max-w-xs text-[2rem] leading-[1.1]">Come, breathe, relax, enjoy.</p>
+    <footer data-tone="dark" className="overflow-hidden bg-night text-paper">
+      <div className="mx-auto grid max-w-[1680px] gap-14 px-5 pb-16 pt-24 sm:grid-cols-2 md:px-10 lg:grid-cols-12">
+        <div className="sm:col-span-2 lg:col-span-4">
+          <Logo variant="fullOnDark" sizes="260px" className="w-[220px] md:w-[260px]" />
+          <p className="display mt-10 max-w-xs text-[2.1rem] leading-[1.05]">
+            Come, breathe, relax, <em>enjoy.</em>
+          </p>
           <ul className="mt-8 flex gap-6 text-[0.95rem] text-sage">
             {contact.social.map((s) => (
               <li key={s.href}>
-                <a href={s.href} target="_blank" rel="noreferrer" className="tap transition-colors hover:text-mist">
+                <a href={s.href} target="_blank" rel="noreferrer" className="tap transition-colors hover:text-paper">
                   {s.label}
                 </a>
               </li>
@@ -18,9 +22,9 @@ export function SiteFooter() {
           </ul>
         </div>
 
-        <div className="lg:col-span-3">
-          <h2 className="font-sans text-[0.95rem] tracking-normal text-sage">Find us</h2>
-          <address className="mt-4 not-italic leading-relaxed">
+        <div className="lg:col-span-3 lg:col-start-5">
+          <h2 className="label font-sans tracking-[0.16em] text-sage">Find us</h2>
+          <address className="mt-5 not-italic leading-relaxed">
             {contact.addressLines.map((line) => (
               <span key={line} className="block">
                 {line}
@@ -33,20 +37,20 @@ export function SiteFooter() {
         </div>
 
         <div className="lg:col-span-3">
-          <h2 className="font-sans text-[0.95rem] tracking-normal text-sage">Talk to us</h2>
-          <ul className="mt-4 space-y-3">
+          <h2 className="label font-sans tracking-[0.16em] text-sage">Talk to us</h2>
+          <ul className="mt-5 space-y-3">
             <li>
-              <a href={contact.bookingPhone.href} className="tap hover:text-zari">
+              <a href={contact.bookingPhone.href} className="tap tabular-nums hover:text-sun">
                 {contact.bookingPhone.display}
               </a>
             </li>
             <li>
-              <a href={`https://wa.me/${contact.whatsapp.number}`} target="_blank" rel="noreferrer" className="tap hover:text-zari">
+              <a href={`https://wa.me/${contact.whatsapp.number}`} target="_blank" rel="noreferrer" className="tap tabular-nums hover:text-sun">
                 WhatsApp {contact.whatsapp.display}
               </a>
             </li>
             <li>
-              <a href={`mailto:${contact.email}`} className="tap hover:text-zari">
+              <a href={`mailto:${contact.email}`} className="tap hover:text-sun">
                 {contact.email}
               </a>
             </li>
@@ -58,13 +62,13 @@ export function SiteFooter() {
           </p>
         </div>
 
-        <div className="lg:col-span-3">
-          <h2 className="font-sans text-[0.95rem] tracking-normal text-sage">Our other resorts</h2>
-          <ul className="mt-4 space-y-3">
+        <div className="lg:col-span-2">
+          <h2 className="label font-sans tracking-[0.16em] text-sage">Our other resorts</h2>
+          <ul className="mt-5 space-y-4">
             {sisterResorts.map((r) => (
               <li key={r.href}>
                 <a href={r.href} target="_blank" rel="noreferrer" className="group block">
-                  <span className="group-hover:text-zari">{r.name}</span>
+                  <span className="group-hover:text-sun">{r.name}</span>
                   <span className="block text-[0.9rem] text-sage">{r.place}</span>
                 </a>
               </li>
@@ -73,34 +77,23 @@ export function SiteFooter() {
         </div>
       </div>
 
-      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4 border-t border-sage/15 px-5 py-6 text-[0.9375rem] text-sage md:px-10">
+      <div className="mx-auto flex max-w-[1680px] flex-wrap items-center justify-between gap-4 border-t border-paper/10 px-5 py-6 text-[0.9rem] text-sage md:px-10">
         <nav aria-label="Footer" className="flex flex-wrap gap-6">
-          <Link href="/" className="tap hover:text-mist">
+          <Link href="/" className="tap hover:text-paper">
             Home
           </Link>
           {nav.map((item) => (
-            <Link key={item.href} href={item.href} className="tap hover:text-mist">
+            <Link key={item.href} href={item.href} className="tap hover:text-paper">
               {item.label}
             </Link>
           ))}
         </nav>
-        <p>
-          © 2026 Prathamesh Resorts. Opening photo of the Sahyadri by{" "}
-          <a
-            href="https://unsplash.com/photos/green-trees-on-mountain-during-foggy-day-PTI5yH3A4l8"
-            target="_blank"
-            rel="noreferrer"
-            className="tap underline decoration-sage/40 underline-offset-4 hover:text-mist"
-          >
-            Satyan Chawla
-          </a>
-          .
-        </p>
+        <p>© 2026 Prathamesh Resorts, Khed Shivapur</p>
       </div>
 
       <p
         aria-hidden
-        className="display pointer-events-none -mb-[0.2em] select-none whitespace-nowrap text-center text-[19.5vw] leading-[0.85] tracking-[-0.03em] text-moss-2"
+        className="display pointer-events-none -mb-[0.22em] select-none whitespace-nowrap text-center text-[20.5vw] leading-[0.85] tracking-[-0.045em] text-canopy"
       >
         Prathamesh
       </p>

@@ -17,11 +17,11 @@ export function DayTimeline({ detailed = false }: { detailed?: boolean }) {
     <InView amount={0.2} className="w-full">
       <div className="mb-6 flex flex-wrap gap-x-8 gap-y-2 text-[0.9rem] text-fern">
         <span className="flex items-center gap-2.5">
-          <span aria-hidden className="h-2.5 w-6 rounded-full bg-[#8da38e]" />
+          <span aria-hidden className="h-2.5 w-6 rounded-full bg-sage" />
           Pure veg kitchen
         </span>
         <span className="flex items-center gap-2.5">
-          <span aria-hidden className="h-2.5 w-6 rounded-full bg-moss" />
+          <span aria-hidden className="h-2.5 w-6 rounded-full bg-forest" />
           Veg and non-veg kitchen
         </span>
       </div>
@@ -43,7 +43,7 @@ export function DayTimeline({ detailed = false }: { detailed?: boolean }) {
         {/* Hour gridlines behind the bars */}
         <div aria-hidden className="pointer-events-none absolute bottom-0 left-0 right-0 top-8 md:left-[25%]">
           {ticks.map((h) => (
-            <span key={h} className="absolute inset-y-0 w-px bg-moss/10" style={{ left: pct(h) }} />
+            <span key={h} className="absolute inset-y-0 w-px bg-forest/10" style={{ left: pct(h) }} />
           ))}
         </div>
 
@@ -52,16 +52,16 @@ export function DayTimeline({ detailed = false }: { detailed?: boolean }) {
           {dayPackages.map((p, i) => {
             const veg = p.kitchen === "Pure veg";
             return (
-              <li key={p.name} className="relative grid gap-3 border-t border-moss/12 py-6 md:grid-cols-4 md:gap-0 md:py-7">
+              <li key={p.name} className="relative grid gap-3 border-t border-forest/12 py-6 md:grid-cols-4 md:gap-0 md:py-7">
                 <div className="flex items-baseline justify-between gap-4 md:block md:pr-8">
-                  <h3 className="text-[2rem] leading-none">{p.name}</h3>
+                  <h3 className="text-[2.2rem] leading-none">{p.name}</h3>
                   <p className="text-[0.9rem] text-fern md:mt-2">{p.hours}</p>
                 </div>
                 <div className="relative md:col-span-3">
                   <div className="relative h-14 md:h-16">
                     <div
                       className={`grow-x absolute inset-y-0 flex items-center overflow-hidden rounded-full px-5 ${
-                        veg ? "bg-[#8da38e] text-moss" : "bg-moss text-mist"
+                        veg ? "bg-sage text-forest" : "bg-forest text-paper"
                       }`}
                       style={{ left: pct(p.start), width: `calc(${pct(p.end)} - ${pct(p.start)})`, "--i": i } as React.CSSProperties}
                     >
@@ -69,7 +69,7 @@ export function DayTimeline({ detailed = false }: { detailed?: boolean }) {
                     </div>
                   </div>
                   <p className="mt-3 text-[0.95rem]">
-                    <span className="display text-[1.5rem]">{formatRupees(p.adult)}</span>
+                    <span className="display text-[1.7rem]">{formatRupees(p.adult)}</span>
                     <span className="text-fern"> an adult</span>
                     {detailed && (
                       <span className="text-fern">

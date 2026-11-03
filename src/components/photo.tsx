@@ -15,7 +15,7 @@ type PhotoProps = {
 /** A photo that fills its frame. The frame decides the shape; the photo covers it. */
 export function Photo({ name, alt, sizes, className = "", imgClassName = "", preload, style }: PhotoProps) {
   return (
-    <div className={`relative overflow-hidden bg-moss-2 ${className}`} style={style}>
+    <div className={`relative overflow-hidden bg-canopy ${className}`} style={style}>
       <Image
         src={photos[name]}
         alt={alt}

@@ -27,7 +27,7 @@ export function ParallaxPhoto({ name, alt, sizes, className = "", depth = 8, pre
   const transform = useMotionTemplate`translate3d(0, ${y}%, 0)`;
 
   return (
-    <div ref={ref} className={`relative overflow-hidden bg-moss-2 ${className}`}>
+    <div ref={ref} className={`relative overflow-hidden bg-canopy ${className}`}>
       <motion.div
         className="absolute inset-x-0"
         style={{ top: `-${depth}%`, bottom: `-${depth}%`, transform: reduce ? undefined : transform }}

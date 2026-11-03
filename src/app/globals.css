@@ -1,33 +1,40 @@
 @import "tailwindcss";
 
 /*
- * Palette, from the place itself:
- *   mist  - monsoon fog over the Sahyadri, the page background
- *   moss  - wet basalt under moss, text and dark sections
- *   fern  - secondary text on light surfaces
- *   sage  - secondary text on dark surfaces
- *   zari  - the gold thread of a Paithani border, the only accent
- *   chira - red laterite stone, used for tiny marks only
+ * Palette, from the logo and the valley:
+ *   paper    - handmade paper, the page background
+ *   linen    - a second light surface, for alternating sections
+ *   forest   - the monsoon canopy, text and dark sections
+ *   canopy   - a lighter dark, for surfaces on forest
+ *   night    - the valley after dark, the footer
+ *   fern     - secondary text on light surfaces
+ *   sage     - secondary text on dark surfaces
+ *   sun      - the orange sun in the logo, the one accent
+ *   sun-deep - the same sun, deep enough for text on paper
+ *   paddy    - the lime band in the logo, for tiny marks on dark only
  */
 @theme {
-  --color-mist: #e9ece4;
-  --color-paper: #f4f5f0;
-  --color-moss: #142b24;
-  --color-moss-2: #1b372e;
-  --color-moss-3: #0f221c;
-  --color-fern: #3e5246;
-  --color-sage: #bcc8bb;
-  --color-zari: #c3a162;
-  --color-zari-deep: #7e5f28;
-  --color-chira: #8c3b26;
+  --color-paper: #f2efe7;
+  --color-linen: #e7e3d6;
+  --color-forest: #11261d;
+  --color-canopy: #1b362a;
+  --color-night: #0b1813;
+  --color-fern: #4a5c51;
+  --color-sage: #aab6a6;
+  --color-sun: #e2702a;
+  --color-sun-deep: #a2471b;
+  --color-paddy: #d2d81e;
 
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-film: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 @theme inline {
-  --font-display: var(--font-gilda), Georgia, "Times New Roman", serif;
-  --font-sans: var(--font-figtree), "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-newsreader), "Iowan Old Style", Georgia, serif;
+  --font-display-italic: var(--font-newsreader-italic), var(--font-newsreader), "Iowan Old Style", Georgia, serif;
+  --font-sans: var(--font-albert), "Helvetica Neue", Arial, sans-serif;
+  --font-marathi: var(--font-tiro-marathi), "Kohinoor Devanagari", "Noto Serif Devanagari", serif;
 }
 
 /* Lenis base rules (the package does not export its stylesheet). */
@@ -47,8 +54,8 @@ html.lenis body {
 
 @layer base {
   html {
-    background: var(--color-mist);
-    color: var(--color-moss);
+    background: var(--color-paper);
+    color: var(--color-forest);
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
   }
@@ -56,10 +63,11 @@ html.lenis body {
   body {
     font-family: var(--font-sans);
     font-size: 1.0625rem;
-    line-height: 1.7;
+    line-height: 1.65;
     font-weight: 400;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "ss01";
   }
 
   @media (min-width: 768px) {
@@ -73,14 +81,27 @@ html.lenis body {
   h3,
   .display {
     font-family: var(--font-display);
-    font-weight: 400;
-    line-height: 1.06;
-    letter-spacing: -0.01em;
+    font-weight: 300;
+    font-optical-sizing: auto;
+    line-height: 0.98;
+    letter-spacing: -0.025em;
     text-wrap: balance;
   }
 
   h3 {
-    letter-spacing: 0;
+    letter-spacing: -0.012em;
+  }
+
+  /* Italic in headings is the voice of the brand: one word, never a sentence. */
+  h1 em,
+  h2 em,
+  h3 em,
+  .display em,
+  .display.italic {
+    font-family: var(--font-display-italic);
+    font-style: italic;
+    font-weight: 300;
+    letter-spacing: -0.035em;
   }
 
   p {
@@ -88,22 +109,43 @@ html.lenis body {
   }
 
   ::selection {
-    background: var(--color-zari);
-    color: var(--color-moss);
+    background: var(--color-paddy);
+    color: var(--color-forest);
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-zari);
+    outline: 2px solid var(--color-sun);
     outline-offset: 3px;
   }
 
-  img {
+  img,
+  video {
     -webkit-user-drag: none;
   }
 }
 
 @layer components {
-  /* A text link with an underline that draws in on hover. */
+  /* Small tracked capitals: section labels, figure numbers, metadata. */
+  .label {
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* An editorial lead paragraph, set in the serif. */
+  .lead {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(1.35rem, 1.9vw, 1.8rem);
+    line-height: 1.32;
+    letter-spacing: -0.01em;
+  }
+
+  /* A text link with an underline that draws back in on hover. */
   .link-line {
     position: relative;
     display: inline-flex;
@@ -131,63 +173,129 @@ html.lenis body {
 
   @media (hover: hover) and (pointer: fine) {
     .link-line {
-      transition: background-size 400ms var(--ease-out);
+      transition: background-size 500ms var(--ease-out);
+      background-position: 100% 100%;
     }
     .link-line:hover {
-      background-size: 35% 1px;
+      background-size: 0% 1px;
     }
   }
 
-  /* Pill button, used for the single primary action on a surface. */
+  /* Pill button. The label rolls up and a copy rolls in from below on hover. */
   .btn {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.75rem;
     min-height: 3rem;
-    padding: 0.75rem 1.6rem;
+    padding: 0.8rem 1.6rem;
     border-radius: 999px;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    font-weight: 500;
     letter-spacing: 0.01em;
+    line-height: 1;
+    white-space: nowrap;
     transition:
-      background-color 250ms ease,
-      color 250ms ease,
+      background-color 300ms ease,
+      color 300ms ease,
+      box-shadow 300ms ease,
       transform 160ms var(--ease-out);
   }
   .btn:active {
     transform: scale(0.97);
   }
-  .btn-zari {
-    background: var(--color-zari);
-    color: var(--color-moss);
+  .btn-sun {
+    background: var(--color-sun);
+    color: var(--color-forest);
   }
-  .btn-moss {
-    background: var(--color-moss);
-    color: var(--color-mist);
+  .btn-forest {
+    background: var(--color-forest);
+    color: var(--color-paper);
+  }
+  .btn-paper {
+    background: var(--color-paper);
+    color: var(--color-forest);
   }
   .btn-ghost {
-    box-shadow: inset 0 0 0 1px currentColor;
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, currentColor 45%, transparent);
   }
+
+  .roll {
+    position: relative;
+    display: inline-block;
+    overflow: clip;
+    overflow-clip-margin: 0.1em;
+    line-height: 1.15;
+  }
+  .roll > span {
+    display: block;
+    transition: transform 520ms var(--ease-out);
+  }
+  .roll > span + span {
+    position: absolute;
+    inset: 0;
+    transform: translate3d(0, 110%, 0);
+  }
+
   @media (hover: hover) and (pointer: fine) {
-    .btn-zari:hover {
-      background: #d4b677;
+    .btn-sun:hover {
+      background: #ec8442;
     }
-    .btn-moss:hover {
-      background: var(--color-moss-2);
+    .btn-forest:hover {
+      background: var(--color-canopy);
+    }
+    .btn-paper:hover {
+      background: #fff;
     }
     .btn-ghost:hover {
-      background: color-mix(in oklab, currentColor 10%, transparent);
+      box-shadow: inset 0 0 0 1px currentColor;
     }
+    .btn:hover .roll > span:first-child,
+    a:hover > .roll > span:first-child {
+      transform: translate3d(0, -110%, 0);
+    }
+    .btn:hover .roll > span + span,
+    a:hover > .roll > span + span {
+      transform: none;
+    }
+  }
+
+  /* Arched frame: the top is always a full semicircle, whatever the width. */
+  .arch {
+    border-radius: 100vmax 100vmax 0 0;
   }
 
   /* Large photo frames zoom very slightly on hover, as a cue that they lead somewhere. */
   @media (hover: hover) and (pointer: fine) {
     .zoom-on-hover img {
-      transition: transform 900ms var(--ease-out);
+      transition: transform 1100ms var(--ease-out);
     }
     .zoom-on-hover:hover img {
-      transform: scale(1.035);
+      transform: scale(1.04);
     }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Film grain                                                          */
+/* One static tile over the whole page. It is fixed, so it costs one   */
+/* composited layer and never repaints while scrolling.                */
+/* ------------------------------------------------------------------ */
+
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+  background-image: url("/grain.png");
+  /* Half-size tile: one grain per device pixel on retina screens, so it reads as texture, not dirt. */
+  background-size: 64px 64px;
+  opacity: 0.08;
+}
+@media (max-width: 767px) {
+  .grain {
+    opacity: 0.05;
   }
 }
 
@@ -204,9 +312,9 @@ html.lenis body {
 }
 .js [data-inview] .rise > span {
   display: block;
-  transform: translate3d(0, 105%, 0);
-  transition: transform 1100ms var(--ease-out);
-  transition-delay: calc(var(--i, 0) * 70ms);
+  transform: translate3d(0, 108%, 0);
+  transition: transform 1200ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 80ms);
 }
 .js [data-inview="true"] .rise > span {
   transform: none;
@@ -216,61 +324,33 @@ html.lenis body {
 .js [data-inview] .rise-word {
   display: inline-block;
   overflow: clip;
-  overflow-clip-margin: 0.1em;
+  overflow-clip-margin: 0.12em;
   vertical-align: top;
 }
 .js [data-inview] .rise-word > span {
   display: inline-block;
-  transform: translate3d(0, 120%, 0);
-  transition: transform 1000ms var(--ease-out);
-  transition-delay: calc(var(--i, 0) * 16ms);
+  transform: translate3d(0, 115%, 0);
+  transition: transform 1100ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 22ms);
 }
 .js [data-inview="true"] .rise-word > span {
   transform: none;
 }
 
+/*
+ * Photos open upward like a blind. Until then they are hidden with opacity,
+ * not a clip: browsers never lazy-load an image that is clipped away, so a
+ * clip here would make every photo start downloading only as it is revealed.
+ */
 .js [data-inview] .unveil {
-  clip-path: inset(100% 0 0 0);
-  transition: clip-path 1300ms var(--ease-out);
-  transition-delay: calc(var(--i, 0) * 80ms);
-}
-.js [data-inview] .unveil img {
-  transform: scale(1.12);
-  transition: transform 1600ms var(--ease-out);
-  transition-delay: calc(var(--i, 0) * 80ms);
+  opacity: 0;
 }
 .js [data-inview="true"] .unveil {
-  clip-path: inset(0 0 0 0);
-}
-.js [data-inview="true"] .unveil img {
-  transform: none;
-}
-
-.js [data-inview] .fade {
-  opacity: 0;
-  transition: opacity 900ms ease;
-  transition-delay: calc(200ms + var(--i, 0) * 60ms);
-}
-.js [data-inview="true"] .fade {
   opacity: 1;
+  animation: unveil 1400ms var(--ease-film) both;
+  animation-delay: calc(var(--i, 0) * 90ms);
 }
-
-.js [data-inview] .grow-x {
-  transform: scaleX(0);
-  transform-origin: left center;
-  transition: transform 1200ms var(--ease-out);
-  transition-delay: calc(150ms + var(--i, 0) * 90ms);
-}
-.js [data-inview="true"] .grow-x {
-  transform: none;
-}
-
-/* ------------------------------------------------------------------ */
-/* Hero load sequence: the one orchestrated moment on the page.        */
-/* Pure CSS so it stays smooth while the page is still loading.         */
-/* ------------------------------------------------------------------ */
-
-@keyframes hero-fill {
+@keyframes unveil {
   from {
     clip-path: inset(100% 0 0 0);
   }
@@ -278,17 +358,114 @@ html.lenis body {
     clip-path: inset(0 0 0 0);
   }
 }
-@keyframes hero-settle {
-  from {
-    transform: scale(1.3);
+.js [data-inview] .unveil img,
+.js [data-inview] .unveil video {
+  transform: scale(1.14);
+  transition: transform 1800ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 90ms);
+}
+.js [data-inview="true"] .unveil img,
+.js [data-inview="true"] .unveil video {
+  transform: none;
+}
+
+.js [data-inview] .fade {
+  opacity: 0;
+  transform: translate3d(0, 14px, 0);
+  transition:
+    opacity 900ms ease,
+    transform 1100ms var(--ease-out);
+  transition-delay: calc(200ms + var(--i, 0) * 70ms);
+}
+.js [data-inview="true"] .fade {
+  opacity: 1;
+  transform: none;
+}
+
+.js [data-inview] .grow-x {
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 1300ms var(--ease-out);
+  transition-delay: calc(150ms + var(--i, 0) * 90ms);
+}
+.js [data-inview="true"] .grow-x {
+  transform: none;
+}
+
+/* Inline photographs inside a sentence open sideways as the words arrive. */
+.pill {
+  position: relative;
+  display: inline-block;
+  height: 0.74em;
+  width: 1.55em;
+  margin-inline: 0.06em;
+  border-radius: 999px;
+  overflow: hidden;
+  vertical-align: -0.04em;
+  background: var(--color-linen);
+}
+.js [data-inview] .pill {
+  width: 0;
+  margin-inline: 0;
+  transition:
+    width 1200ms var(--ease-out),
+    margin 1200ms var(--ease-out);
+  transition-delay: calc(250ms + var(--i, 0) * 22ms);
+}
+.js [data-inview="true"] .pill {
+  width: 1.55em;
+  margin-inline: 0.06em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js [data-inview] .rise > span,
+  .js [data-inview] .rise-word > span,
+  .js [data-inview] .unveil img,
+  .js [data-inview] .unveil video,
+  .js [data-inview] .grow-x,
+  .js [data-inview] .fade {
+    transform: none;
+    transition: opacity 600ms ease;
   }
-  to {
-    transform: scale(1);
+  .js [data-inview] .unveil {
+    transition: opacity 600ms ease;
+  }
+  .js [data-inview="true"] .unveil {
+    animation: none;
+  }
+  .js [data-inview] .pill {
+    width: 1.55em;
+    margin-inline: 0.06em;
+    transition: none;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Hero                                                                */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Each later scene opens through an arch that rises from the bottom of
+ * the screen and widens to full bleed. --p runs from 0 (closed) to 1 (open).
+ * Registered so the browser can interpolate it and restyle only this layer.
+ */
+@property --p {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+.scene-arch {
+  --p: 0;
+  --q: calc(1 - var(--p));
+  /* Half the current width, so the top stays a semicircle, easing to square corners only at the very end. */
+  --r: calc(var(--p) * 50vw * (1 - var(--p) * var(--p) * var(--p) * var(--p)));
+  clip-path: inset(calc(var(--q) * 100%) calc(var(--q) * 50%) 0 calc(var(--q) * 50%) round var(--r) var(--r) 0 0);
+}
+
+/* First paint: the headline rises and the details fade in, before any script runs. */
 @keyframes hero-word {
   from {
-    transform: translate3d(0, 108%, 0);
+    transform: translate3d(0, 110%, 0);
   }
   to {
     transform: none;
@@ -302,118 +479,72 @@ html.lenis body {
     opacity: 1;
   }
 }
-
-.hero-fill {
-  animation: hero-fill 1500ms var(--ease-in-out) 150ms both;
-}
-/* Hold the arch closed until the hero photo is ready (see hero.tsx). */
-.js .hero:not([data-ready]) .hero-fill {
-  animation: none;
-  clip-path: inset(100% 0 0 0);
-}
-.js .hero:not([data-ready]) .hero-settle {
-  animation: none;
-  transform: scale(1.3);
-}
-.hero-settle {
-  animation: hero-settle 2400ms var(--ease-out) 150ms both;
+@keyframes hero-settle {
+  from {
+    transform: scale(1.12);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 .hero-word {
-  animation: hero-word 1300ms var(--ease-out) both;
-  animation-delay: calc(650ms + var(--i, 0) * 110ms);
+  animation: hero-word 1400ms var(--ease-out) both;
+  animation-delay: calc(250ms + var(--i, 0) * 110ms);
 }
 .hero-fade {
-  animation: hero-fade 900ms ease both;
-  animation-delay: calc(1200ms + var(--i, 0) * 90ms);
+  animation: hero-fade 1000ms ease both;
+  animation-delay: calc(900ms + var(--i, 0) * 100ms);
+}
+.hero-settle {
+  animation: hero-settle 2600ms var(--ease-out) both;
+}
+
+/* A short line that travels down, inviting a scroll. */
+@keyframes scroll-cue {
+  0% {
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+  45% {
+    transform: scaleY(1);
+    transform-origin: top;
+  }
+  55% {
+    transform: scaleY(1);
+    transform-origin: bottom;
+  }
+  100% {
+    transform: scaleY(0);
+    transform-origin: bottom;
+  }
+}
+.scroll-cue {
+  animation: scroll-cue 2400ms var(--ease-in-out) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-fill,
-  .hero-settle,
-  .hero-word {
+  .hero-word,
+  .hero-settle {
     animation: hero-fade 600ms ease both;
   }
-  .js [data-inview] .rise > span,
-  .js [data-inview] .rise-word > span,
-  .js [data-inview] .unveil img,
-  .js [data-inview] .grow-x {
-    transform: none;
-    transition: none;
-  }
-  .js [data-inview] .unveil {
-    clip-path: none;
-    opacity: 0;
-    transition: opacity 600ms ease;
-  }
-  .js [data-inview="true"] .unveil {
-    opacity: 1;
+  .scroll-cue {
+    animation: none;
   }
 }
 
-/*
- * Hero arch window geometry. --open runs from 0 (arched window) to 1 (full bleed).
- * Registered as non-inheriting so a change only restyles this one element.
- * The clip-path repaint is a deliberate exception to transform-only motion:
- * it is the page's single signature moment, it runs only inside the hero,
- * and the photo beneath it sits on its own transformed layer.
- */
-@property --open {
-  syntax: "<number>";
-  inherits: false;
-  initial-value: 0;
-}
-.hero-window {
-  --open: 0;
-  --top: 30%;
-  --side: 15%;
-  --bottom: 12%;
-  --arch: 35vw;
-  clip-path: inset(
-    calc(var(--top) * (1 - var(--open))) calc(var(--side) * (1 - var(--open)))
-      calc(var(--bottom) * (1 - var(--open))) calc(var(--side) * (1 - var(--open)))
-      round calc(var(--arch) * (1 - var(--open))) calc(var(--arch) * (1 - var(--open))) 0 0
-  );
-}
-@media (min-width: 768px) {
-  .hero-window {
-    --top: 16%;
-    --side: 36%;
-    --bottom: 9%;
-    --arch: 14vw;
+/* Running list of names that never stops, for the activities strip. */
+@keyframes marquee {
+  to {
+    transform: translate3d(-50%, 0, 0);
   }
 }
-
-/* The arch outline sits exactly where the closed arch will be. */
-.hero-window-frame {
-  --top: 30%;
-  --side: 15%;
-  --bottom: 12%;
-  --arch: 35vw;
-  top: var(--top);
-  bottom: var(--bottom);
-  left: var(--side);
-  right: var(--side);
-  border: 1px solid rgb(20 43 36 / 0.28);
-  border-bottom: 0;
-  border-radius: var(--arch) var(--arch) 0 0;
+.marquee {
+  animation: marquee 60s linear infinite;
 }
-@media (min-width: 768px) {
-  .hero-window-frame {
-    --top: 16%;
-    --side: 36%;
-    --bottom: 9%;
-    --arch: 14vw;
+@media (prefers-reduced-motion: reduce) {
+  .marquee {
+    animation: none;
   }
-}
-/* Fades in while the photo loads and stays on the arch's edge (hero.tsx fades it on scroll). */
-.hero-outline {
-  opacity: 0;
-}
-.js .hero .hero-outline {
-  animation: hero-fade 900ms ease 400ms both;
-}
-html:not(.js) .hero-outline {
-  display: none;
 }
 
 .no-scrollbar {
@@ -423,33 +554,36 @@ html:not(.js) .hero-outline {
   display: none;
 }
 
-/* Mobile menu sheet: native <dialog>, animated in and out with CSS. */
+/* ------------------------------------------------------------------ */
+/* Menu sheet: native <dialog>, animated in and out with CSS.          */
+/* ------------------------------------------------------------------ */
+
 .menu-sheet {
   opacity: 0;
-  transform: translate3d(0, -1.5%, 0);
+  clip-path: inset(0 0 100% 0);
   transition:
-    opacity 280ms ease,
-    transform 420ms var(--ease-out),
-    overlay 420ms allow-discrete,
-    display 420ms allow-discrete;
+    opacity 300ms ease,
+    clip-path 700ms var(--ease-film),
+    overlay 700ms allow-discrete,
+    display 700ms allow-discrete;
 }
 .menu-sheet[open] {
   opacity: 1;
-  transform: none;
+  clip-path: inset(0 0 0 0);
 }
 @starting-style {
   .menu-sheet[open] {
     opacity: 0;
-    transform: translate3d(0, -1.5%, 0);
+    clip-path: inset(0 0 100% 0);
   }
 }
 .menu-sheet .menu-item {
   opacity: 0;
-  transform: translate3d(0, 18px, 0);
+  transform: translate3d(0, 40%, 0);
   transition:
-    opacity 500ms ease,
-    transform 700ms var(--ease-out);
-  transition-delay: calc(120ms + var(--i, 0) * 55ms);
+    opacity 600ms ease,
+    transform 900ms var(--ease-out);
+  transition-delay: calc(220ms + var(--i, 0) * 60ms);
 }
 .menu-sheet[open] .menu-item {
   opacity: 1;
@@ -458,12 +592,128 @@ html:not(.js) .hero-outline {
 @starting-style {
   .menu-sheet[open] .menu-item {
     opacity: 0;
-    transform: translate3d(0, 18px, 0);
+    transform: translate3d(0, 40%, 0);
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .menu-sheet,
+  .menu-sheet {
+    clip-path: none;
+  }
   .menu-sheet .menu-item {
     transform: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Booking drawer: a native modal <dialog>. The panel slides in from    */
+/* the right on larger screens and rises from the bottom on phones.     */
+/* ------------------------------------------------------------------ */
+
+.drawer {
+  transition:
+    overlay 700ms allow-discrete,
+    display 700ms allow-discrete;
+}
+.drawer::backdrop {
+  background: rgb(11 24 19 / 0);
+  transition:
+    background-color 500ms ease,
+    overlay 700ms allow-discrete,
+    display 700ms allow-discrete;
+}
+.drawer[open]::backdrop {
+  background: rgb(11 24 19 / 0.55);
+}
+@starting-style {
+  .drawer[open]::backdrop {
+    background: rgb(11 24 19 / 0);
+  }
+}
+.drawer .drawer-panel {
+  transform: translate3d(0, 100%, 0);
+  transition: transform 700ms var(--ease-film);
+}
+.drawer[open] .drawer-panel {
+  transform: none;
+}
+@starting-style {
+  .drawer[open] .drawer-panel {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+@media (min-width: 640px) {
+  .drawer .drawer-panel {
+    transform: translate3d(100%, 0, 0);
+  }
+  .drawer[open] .drawer-panel {
+    transform: none;
+  }
+  @starting-style {
+    .drawer[open] .drawer-panel {
+      transform: translate3d(100%, 0, 0);
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .drawer .drawer-panel,
+  .drawer[open] .drawer-panel {
+    transform: none;
+    transition: opacity 300ms ease;
+  }
+  .drawer:not([open]) .drawer-panel {
+    opacity: 0;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Page transitions (React <ViewTransition>, see page-transition.tsx). */
+/* The old page sinks back and dims; the new one rises over it like a  */
+/* curtain. The header holds still, so the eye has an anchor.          */
+/* ------------------------------------------------------------------ */
+
+::view-transition-old(.page-exit) {
+  animation: 600ms var(--ease-in-out) both page-recede;
+}
+::view-transition-new(.page-enter) {
+  animation: 900ms var(--ease-film) both page-rise;
+}
+@keyframes page-recede {
+  to {
+    opacity: 0.25;
+    transform: translate3d(0, -4vh, 0) scale(0.97);
+  }
+}
+@keyframes page-rise {
+  from {
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(site-header) {
+  display: none;
+}
+::view-transition-new(site-header) {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(.page-exit),
+  ::view-transition-new(.page-enter) {
+    animation: 300ms ease both hero-fade;
+  }
+  ::view-transition-old(.page-exit) {
+    animation-direction: reverse;
+  }
+}
+
+/* Over elements with their own cursor label (cursor.tsx), hide the system pointer. */
+@media (hover: hover) and (pointer: fine) {
+  .js [data-cursor] {
+    cursor: none;
   }
 }
