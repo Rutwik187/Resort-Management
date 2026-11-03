@@ -1,5 +1,6 @@
 import { Hero } from "@/components/home/hero";
 import { Welcome } from "@/components/home/welcome";
+import { BookBar } from "@/components/home/book-bar";
 import { Cottages } from "@/components/home/cottages";
 import { Packages } from "@/components/home/packages";
 import { Seasons } from "@/components/home/seasons";
@@ -47,6 +48,7 @@ export default function HomePage() {
     <PageTransition>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(resortJsonLd) }} />
       <Hero />
+      <BookBar />
       <Welcome />
       <Cottages />
       <Packages />

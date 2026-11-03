@@ -5,10 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useLenis } from "lenis/react";
+import { otherProperties } from "@repo/sites";
 import { contact, nav } from "@/content/resort";
 import { photos } from "@/content/photos";
 import { OPEN_BOOKING } from "./booking-drawer";
 import { Logo } from "./logo";
+import { OurResortsMenu } from "./our-resorts-menu";
 
 type Tone = "film" | "card" | "dark" | "light" | "top";
 
@@ -109,7 +111,7 @@ export function SiteHeader() {
             <Logo variant="mark" alt="" sizes="(min-width: 768px) 128px, 104px" preload className="w-[104px] md:w-[128px]" />
           </Link>
 
-          <nav aria-label="Main" className="hidden items-center gap-9 md:flex">
+          <nav aria-label="Main" className="hidden items-center gap-8 lg:flex">
             {nav.map((item) => {
               const active = pathname.startsWith(item.href);
               return (
@@ -131,6 +133,7 @@ export function SiteHeader() {
                 </Link>
               );
             })}
+            <OurResortsMenu />
           </nav>
 
           <div className="flex items-center gap-3">
@@ -140,17 +143,17 @@ export function SiteHeader() {
             >
               {contact.phone.display}
             </a>
-            <a
-              href="#enquire"
+            <Link
+              href="/stays#book"
               className={`btn min-h-10 px-4 py-2 text-[0.86rem] sm:min-h-11 sm:px-5 ${light ? "btn-mist" : "btn-laterite"} xl:ml-5`}
             >
-              <span className="sm:hidden">Enquire</span>
-              <span className="hidden sm:inline">Plan a stay</span>
-            </a>
+              <span className="sm:hidden">Book</span>
+              <span className="hidden sm:inline">Book now</span>
+            </Link>
             <button
               type="button"
               onClick={openMenu}
-              className="flex min-h-11 items-center gap-3 pl-3 text-[0.92rem] font-medium md:hidden"
+              className="flex min-h-11 items-center gap-3 pl-3 text-[0.92rem] font-medium lg:hidden"
               aria-haspopup="dialog"
               aria-expanded={menuOpen}
               aria-controls="site-menu"
@@ -207,17 +210,30 @@ export function SiteHeader() {
                 className="menu-item flex items-center justify-between border-t border-mist/12 py-3.5"
                 style={{ "--i": i } as React.CSSProperties}
               >
-                <span className="display text-[2.4rem] leading-none">{item.label}</span>
+                <span className="display text-[2rem] leading-none">{item.label}</span>
                 <span aria-hidden className="text-[1.3rem] text-haze">
                   →
                 </span>
               </Link>
             ))}
           </nav>
-          <div className="relative flex flex-col gap-4 px-5 pb-8 pt-8">
-            <a href="#enquire" className="btn btn-laterite">
-              Plan a stay
-            </a>
+          <div className="relative px-5 pt-7">
+            <p className="label text-haze">Our other resorts</p>
+            <ul className="mt-3 grid gap-2.5">
+              {otherProperties("PV").map((property) => (
+                <li key={property.code}>
+                  <a href={property.url} className="flex items-baseline justify-between gap-4">
+                    <span className="text-[1.02rem]">{property.name}</span>
+                    <span className="shrink-0 text-[0.85rem] text-haze">{property.place}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="relative flex flex-col gap-4 px-5 pb-8 pt-7">
+            <Link href="/stays#book" className="btn btn-laterite">
+              Book a stay
+            </Link>
             <a href={contact.phone.href} className="text-center text-[0.95rem] text-haze">
               Call or WhatsApp {contact.phone.display}
             </a>

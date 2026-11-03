@@ -28,16 +28,10 @@ export const contact = {
   checkOut: "10:00 am",
 } as const;
 
-export const sisterResorts = [
-  { name: "Prathamesh Resorts", place: "Khed Shivapur, Pune", href: "https://prathameshresorts.com" },
-  { name: "Prathamesh Go Crazy Resort", place: "Ghera Sinhagad, Pune", href: "https://gocrazyadventure.com" },
-  { name: "Sinhagad Bliss", place: "Ghera Sinhagad, Pune", href: "https://sinhagadbliss.com" },
-] as const;
-
 export const nav = [
-  { label: "Stays", href: "/stays" },
-  { label: "Celebrations", href: "/celebrations" },
-  { label: "Explore", href: "/explore" },
+  { label: "Cottages and rates", href: "/stays" },
+  { label: "Weddings and events", href: "/celebrations" },
+  { label: "Explore Mahabaleshwar", href: "/explore" },
 ] as const;
 
 /* ------------------------------------------------------------------ */

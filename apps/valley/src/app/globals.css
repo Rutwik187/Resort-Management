@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@repo/booking-ui/booking.css";
 
 /*
  * Palette, from the hill station and the logo:
@@ -36,6 +37,28 @@
   --font-display: var(--font-besley), Georgia, serif;
   --font-display-italic: var(--font-besley-italic), var(--font-besley), Georgia, serif;
   --font-sans: var(--font-schibsted), "Helvetica Neue", Arial, sans-serif;
+}
+
+/* The shared booking widget, in this site's mist, laterite and Besley (see packages/booking-ui). */
+:root {
+  --bk-page: var(--color-mist);
+  --bk-card: #f8f9f7;
+  --bk-ink: var(--color-ink);
+  --bk-muted: var(--color-moss);
+  --bk-line: rgb(28 43 47 / 0.14);
+  --bk-soft: rgb(28 43 47 / 0.05);
+  --bk-accent: var(--color-laterite);
+  --bk-accent-ink: #ffffff;
+  --bk-good: #35664a;
+  --bk-alert: #8f3a1e;
+  --bk-radius: 6px;
+  --bk-control-radius: 3px;
+  --bk-display: var(--font-besley), Georgia, serif;
+  --bk-display-weight: 500;
+  --bk-display-tracking: -0.015em;
+  --bk-button-size: 0.92rem;
+  --bk-button-weight: 600;
+  --bk-sticky-top: 5.25rem;
 }
 
 /* Lenis base rules (the package does not export its stylesheet). */

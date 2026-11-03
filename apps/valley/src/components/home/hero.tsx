@@ -104,9 +104,9 @@ export function Hero() {
                 <Link href="/stays" className="arrow-link text-[0.95rem] text-mist">
                   See the cottages
                 </Link>
-                <a href="#enquire" className="btn btn-mist">
-                  Plan a stay <span aria-hidden className="btn-arrow">→</span>
-                </a>
+                <Link href="/stays#book" className="btn btn-mist">
+                  Book a stay <span aria-hidden className="btn-arrow">→</span>
+                </Link>
               </div>
             </div>
           </div>
