@@ -1,10 +1,18 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import turbo from "eslint-plugin-turbo";
 
-const eslintConfig = defineConfig([
+/**
+ * ESLint config for the Next.js apps.
+ *
+ * @type {import("eslint").Linter.Config[]}
+ */
+export const nextJsConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // Flags environment variables that turbo.json doesn't list.
+  turbo.configs["flat/recommended"],
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
@@ -14,5 +22,3 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
   ]),
 ]);
-
-export default eslintConfig;

@@ -99,18 +99,19 @@ apps/
   khed-shivapur/  go-crazy/  sinhagad-bliss/  valley/   the four resort sites
   admin/          the dashboard, all webhooks, all scheduled jobs
 packages/
-  db/          Drizzle schema, migrations, connection pool, queries that always carry a property
-  engine/      availability, holds, prices, GST, offers, booking lifecycle (sites and admin)
-  ops/         admin-only logic: changes, refunds, blocks, leads, reports, staff
-  payments/    Razorpay per company, signature checks, key encryption
-  messages/    outbox, Resend, WhatsApp and SMS adapters, React Email templates
-  auth/        Better Auth setup and the permission check
-  booking-ui/  booking widget, calendar, checkout, manage-booking page
-  sites/       each site's property code, domain and editable page text
-  blog/        Sanity client, queries and types
-  ui/          admin components
-  config/      TypeScript, ESLint and Tailwind presets
-  testing/     test data and database helpers
+  db/                 Drizzle schema, migrations, connection pool, queries that always carry a property
+  engine/             availability, holds, prices, GST, offers, booking lifecycle (sites and admin)
+  ops/                admin-only logic: changes, refunds, blocks, leads, reports, staff
+  payments/           Razorpay per company, signature checks, key encryption
+  messages/           outbox, Resend, WhatsApp and SMS adapters, React Email templates
+  auth/               Better Auth setup and the permission check
+  booking-ui/         booking widget, calendar, checkout, manage-booking page
+  sites/              each site's property code, domain and editable page text
+  blog/               Sanity client, queries and types
+  ui/                 admin components
+  typescript-config/  shared TypeScript settings
+  eslint-config/      shared ESLint rules
+  testing/            test data and database helpers
 ```
 
 - **The booking widget never imports database code.** Each site passes its server actions to `booking-ui` as props. Each site also restyles the widget with its own colours and fonts.
