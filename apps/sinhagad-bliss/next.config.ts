@@ -1,0 +1,43 @@
+import type { NextConfig } from "next";
+
+// The old WordPress pages, so links and search results keep working after the move.
+// Next.js first drops their trailing slash, then these rules send them on.
+const oldPages: [string, string][] = [
+  ["/about-us", "/"],
+  ["/all-amenities", "/stays#amenities"],
+  ["/stay_packages", "/stays"],
+  ["/cottages", "/stays"],
+  ["/gallery", "/"],
+  ["/activities", "/stays#amenities"],
+  ["/faq", "/"],
+  ["/contact-us", "/#enquire"],
+  ["/destination-wedding", "/celebrations"],
+  ["/events", "/celebrations#events"],
+  ["/cancellation-policy", "/policies#cancellation"],
+  ["/refund-policy", "/policies#refunds"],
+  ["/terms-conditions", "/policies#terms"],
+  ["/privacy-policy", "/policies#privacy"],
+];
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  images: {
+    // AVIF first: about a third smaller than WebP for the same photo.
+    formats: ["image/avif", "image/webp"],
+    qualities: [60, 75],
+  },
+  partialPrefetching: true,
+  turbopack: {
+    rules: {
+      "*.css": {
+        loaders: ["@tailwindcss/turbopack"],
+        as: "*.css",
+      },
+    },
+  },
+  async redirects() {
+    return oldPages.map(([source, destination]) => ({ source, destination, permanent: true }));
+  },
+};
+
+export default nextConfig;

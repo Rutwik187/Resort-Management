@@ -1,0 +1,583 @@
+@import "tailwindcss";
+
+/*
+ * Palette, from the logo and the resort at dusk:
+ *   mist         - morning cloud on the hills, the page background
+ *   stone        - a warmer light surface, for alternating sections
+ *   ink          - text on light surfaces
+ *   dusk         - the sky over the lawns after sunset, dark sections
+ *   dusk-soft    - a lighter dusk, for surfaces on dusk
+ *   night        - after dark, the footer
+ *   slate        - secondary text on light surfaces
+ *   haze         - secondary text on dusk
+ *   apricot      - the sun in the logo, the one accent, on dusk
+ *   apricot-deep - the same sun, deep enough for text on mist
+ *   moss         - the mountain green in the logo, for small marks
+ *   lake         - the water in the logo, for marks that mean a pool
+ */
+@theme {
+  --color-mist: #f1f0ec;
+  --color-stone: #e6e2d9;
+  --color-ink: #1e2632;
+  --color-dusk: #18212d;
+  --color-dusk-soft: #232d3b;
+  --color-night: #10161f;
+  --color-slate: #59616f;
+  --color-haze: #a9b2bf;
+  --color-apricot: #e9a46e;
+  --color-apricot-deep: #9c5226;
+  --color-moss: #64755a;
+  --color-lake: #6f9bb0;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-soft: cubic-bezier(0.45, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+@theme inline {
+  /* Jost has no rupee sign; the browser takes ₹ alone from the small rupee face. */
+  --font-sans: var(--font-jost), var(--font-rupee), "Futura", "Avenir Next", "Helvetica Neue", Arial, sans-serif;
+  --font-serif: var(--font-spectral), "Iowan Old Style", Georgia, serif;
+}
+
+/* Lenis base rules (the package does not export its stylesheet). */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis:not(.lenis-autoToggle).lenis-stopped {
+  overflow: clip;
+}
+.lenis [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
+@layer base {
+  html {
+    background: var(--color-mist);
+    color: var(--color-ink);
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  @media (min-width: 768px) {
+    body {
+      font-size: 1.125rem;
+    }
+  }
+
+  h1,
+  h2,
+  h3,
+  .display {
+    font-family: var(--font-sans);
+    font-weight: 300;
+    line-height: 1.02;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+
+  h3 {
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+  }
+
+  /*
+   * The accent: one word in a heading, in a classical italic. Spectral sits
+   * smaller than Jost at the same size, so it is set a little larger.
+   */
+  h1 em,
+  h2 em,
+  h3 em,
+  .display em,
+  .serif {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 300;
+    font-size: 1.07em;
+    letter-spacing: -0.012em;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: var(--color-apricot);
+    color: var(--color-night);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-apricot-deep);
+    outline-offset: 3px;
+  }
+
+  [data-tone="dark"] :focus-visible,
+  [data-tone="film"] :focus-visible {
+    outline-color: var(--color-apricot);
+  }
+
+  img,
+  video {
+    -webkit-user-drag: none;
+  }
+}
+
+@layer components {
+  /* Small, widely spaced capitals: section names, table heads, metadata. */
+  .kicker {
+    font-size: 0.72rem;
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* An opening paragraph, set light and large. */
+  .lede {
+    font-weight: 300;
+    font-size: clamp(1.3rem, 1.75vw, 1.65rem);
+    line-height: 1.45;
+    letter-spacing: -0.01em;
+  }
+
+  /* A square-cornered button with spaced capitals. */
+  .btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.9rem;
+    min-height: 3.25rem;
+    padding: 0 1.75rem;
+    border-radius: 2px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition:
+      background-color 400ms ease,
+      color 400ms ease,
+      box-shadow 400ms ease,
+      transform 160ms var(--ease-out);
+  }
+  .btn:active {
+    transform: scale(0.98);
+  }
+  .btn-ink {
+    background: var(--color-ink);
+    color: var(--color-mist);
+  }
+  .btn-mist {
+    background: var(--color-mist);
+    color: var(--color-ink);
+  }
+  .btn-apricot {
+    background: var(--color-apricot);
+    color: var(--color-night);
+  }
+  .btn-line {
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, currentColor 45%, transparent);
+  }
+
+  /* A text link led by a short rule, which stretches toward the words on hover. */
+  .link-rule {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.9rem;
+    min-height: 2.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .link-rule::before {
+    content: "";
+    width: 1.75rem;
+    height: 1px;
+    background: currentColor;
+    transition: width 700ms var(--ease-out);
+  }
+
+  /* An underlined link inside a sentence or a list of contacts. */
+  .link-under {
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.3em;
+    text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
+    transition: text-decoration-color 300ms ease;
+  }
+
+  /* A bigger touch area for small links, without changing how they look. */
+  .tap {
+    position: relative;
+  }
+  .tap::after {
+    content: "";
+    position: absolute;
+    inset: -12px -6px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-ink:hover {
+      background: var(--color-dusk-soft);
+    }
+    .btn-mist:hover {
+      background: #fff;
+    }
+    .btn-apricot:hover {
+      background: #f1b585;
+    }
+    .btn-line:hover {
+      box-shadow: inset 0 0 0 1px currentColor;
+    }
+    .link-rule:hover::before {
+      width: 3.25rem;
+    }
+    .link-under:hover {
+      text-decoration-color: currentColor;
+    }
+    .zoom-on-hover img {
+      transition: transform 1600ms var(--ease-out);
+    }
+    .zoom-on-hover:hover img {
+      transform: scale(1.035);
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Reveals: the mist clears                                            */
+/* Hidden only when scripts run (.js on <html>), so content never      */
+/* stays invisible if they fail.                                       */
+/* ------------------------------------------------------------------ */
+
+/* Text comes into focus, the way a hillside does when cloud lifts off it. */
+.js [data-inview] .clear {
+  opacity: 0;
+  filter: blur(10px);
+  transform: translate3d(0, 0.35em, 0);
+  transition:
+    opacity 1500ms ease,
+    filter 1500ms var(--ease-soft),
+    transform 1800ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 120ms);
+}
+.js [data-inview="true"] .clear {
+  opacity: 1;
+  filter: none;
+  transform: none;
+}
+
+/*
+ * Photos surface through a pale veil while they settle. The veil sits on
+ * top, so the photo underneath is never hidden and still lazy-loads as soon
+ * as it nears the screen.
+ */
+.surface {
+  position: relative;
+  overflow: hidden;
+}
+.js [data-inview] .surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: var(--veil, var(--color-mist));
+  transition: opacity 1800ms var(--ease-soft);
+  transition-delay: calc(var(--i, 0) * 140ms);
+}
+.js [data-inview="true"] .surface::after {
+  opacity: 0;
+}
+.js [data-inview] .surface img {
+  transform: scale(1.08);
+  transition: transform 2600ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 140ms);
+}
+.js [data-inview="true"] .surface img {
+  transform: none;
+}
+
+/* A line that draws itself, for rules and the route to the resort. */
+.js [data-inview] .draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 2600ms var(--ease-in-out);
+  transition-delay: calc(300ms + var(--i, 0) * 120ms);
+}
+.js [data-inview="true"] .draw {
+  stroke-dashoffset: 0;
+}
+.js [data-inview] .rule-x {
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 1600ms var(--ease-out);
+  transition-delay: calc(200ms + var(--i, 0) * 120ms);
+}
+.js [data-inview="true"] .rule-x {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js [data-inview] .clear,
+  .js [data-inview] .surface img,
+  .js [data-inview] .rule-x {
+    filter: none;
+    transform: none;
+    transition: opacity 600ms ease;
+  }
+  .js [data-inview] .surface::after {
+    transition: opacity 600ms ease;
+  }
+  .js [data-inview] .draw {
+    stroke-dashoffset: 0;
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Hero: from day to dusk                                              */
+/* ------------------------------------------------------------------ */
+
+/* First paint: the words come into focus before any script runs. */
+@keyframes focus-in {
+  from {
+    opacity: 0;
+    filter: blur(12px);
+    transform: translate3d(0, 0.25em, 0);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes settle {
+  from {
+    transform: scale(1.1);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.hero-focus {
+  animation: focus-in 1800ms var(--ease-soft) both;
+  animation-delay: calc(300ms + var(--i, 0) * 160ms);
+}
+.hero-fade {
+  animation: fade-in 1400ms ease both;
+  animation-delay: calc(1100ms + var(--i, 0) * 120ms);
+}
+.hero-settle {
+  animation: settle 3200ms var(--ease-out) both;
+}
+
+/* The sun from the logo: a soft disc with a little glow. */
+.sun {
+  border-radius: 999px;
+  background: radial-gradient(circle at 50% 45%, #f6c79a 0%, var(--color-apricot) 55%, #d98a52 100%);
+  box-shadow: 0 0 40px 6px rgb(233 164 110 / 0.35);
+}
+
+/* A slow drift for stills that stand in for film. */
+@keyframes drift {
+  from {
+    transform: scale(1.02) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.1) translate3d(-1.2%, -0.8%, 0);
+  }
+}
+.drift {
+  animation: drift 26s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-focus,
+  .hero-settle {
+    animation: fade-in 600ms ease both;
+  }
+  .drift {
+    animation: none;
+  }
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Menu: a native <dialog> that fades in through a soft blur.          */
+/* ------------------------------------------------------------------ */
+
+.menu-sheet {
+  opacity: 0;
+  transition:
+    opacity 700ms var(--ease-soft),
+    overlay 700ms allow-discrete,
+    display 700ms allow-discrete;
+}
+.menu-sheet[open] {
+  opacity: 1;
+}
+@starting-style {
+  .menu-sheet[open] {
+    opacity: 0;
+  }
+}
+.menu-sheet .menu-item {
+  opacity: 0;
+  filter: blur(8px);
+  transition:
+    opacity 900ms ease,
+    filter 900ms var(--ease-soft);
+  transition-delay: calc(200ms + var(--i, 0) * 80ms);
+}
+.menu-sheet[open] .menu-item {
+  opacity: 1;
+  filter: none;
+}
+@starting-style {
+  .menu-sheet[open] .menu-item {
+    opacity: 0;
+    filter: blur(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .menu-sheet .menu-item {
+    filter: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Booking drawer: a native modal <dialog>. The panel slides in from    */
+/* the right on larger screens and rises from the bottom on phones.     */
+/* ------------------------------------------------------------------ */
+
+.drawer {
+  transition:
+    overlay 800ms allow-discrete,
+    display 800ms allow-discrete;
+}
+.drawer::backdrop {
+  background: rgb(16 22 31 / 0);
+  transition:
+    background-color 600ms ease,
+    overlay 800ms allow-discrete,
+    display 800ms allow-discrete;
+}
+.drawer[open]::backdrop {
+  background: rgb(16 22 31 / 0.5);
+}
+@starting-style {
+  .drawer[open]::backdrop {
+    background: rgb(16 22 31 / 0);
+  }
+}
+.drawer .drawer-panel {
+  transform: translate3d(0, 100%, 0);
+  transition: transform 800ms var(--ease-in-out);
+}
+.drawer[open] .drawer-panel {
+  transform: none;
+}
+@starting-style {
+  .drawer[open] .drawer-panel {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+@media (min-width: 640px) {
+  .drawer .drawer-panel {
+    transform: translate3d(100%, 0, 0);
+  }
+  .drawer[open] .drawer-panel {
+    transform: none;
+  }
+  @starting-style {
+    .drawer[open] .drawer-panel {
+      transform: translate3d(100%, 0, 0);
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .drawer .drawer-panel,
+  .drawer[open] .drawer-panel {
+    transform: none;
+    transition: opacity 300ms ease;
+  }
+  .drawer:not([open]) .drawer-panel {
+    opacity: 0;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Page transitions (React <ViewTransition>, see page-transition.tsx). */
+/* The old page goes out of focus as the new one comes into it. The   */
+/* header holds still.                                                 */
+/* ------------------------------------------------------------------ */
+
+::view-transition-old(.page-exit) {
+  animation: 500ms var(--ease-soft) both page-out;
+}
+::view-transition-new(.page-enter) {
+  animation: 900ms var(--ease-soft) 120ms both page-in;
+}
+@keyframes page-out {
+  to {
+    opacity: 0;
+    filter: blur(10px);
+  }
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+  }
+}
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(site-header) {
+  display: none;
+}
+::view-transition-new(site-header) {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(.page-exit),
+  ::view-transition-new(.page-enter) {
+    animation: 250ms ease both fade-in;
+  }
+  ::view-transition-old(.page-exit) {
+    animation-direction: reverse;
+  }
+}

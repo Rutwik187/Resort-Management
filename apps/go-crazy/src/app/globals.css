@@ -1,0 +1,691 @@
+@import "tailwindcss";
+
+/*
+ * Palette, from the logo and the park:
+ *   chalk     - the page, a clean daylight white
+ *   bone      - a second light surface, dry-season ground
+ *   ink       - text, and the darkest surfaces
+ *   pine      - the logo's deep green ribbon, for dark sections
+ *   lime      - the logo's lime ribbon, the loud brand colour (fills, never small text on light)
+ *   olive     - lime deep enough to read as text on chalk
+ *   sun       - the logo's yellow sun, for stamps and small marks
+ *   brick     - the laterite cottages, warm text and marks on chalk
+ *   stone     - secondary text on light surfaces
+ *   mist      - secondary text on dark surfaces
+ */
+@theme {
+  --color-chalk: #f6f5ef;
+  --color-bone: #e9e6d8;
+  --color-ink: #0e1a14;
+  --color-pine: #173a29;
+  --color-pine-deep: #0f2a1d;
+  --color-lime: #c9df35;
+  --color-olive: #4f6512;
+  --color-sun: #f5c518;
+  --color-brick: #a4481f;
+  --color-stone: #59635a;
+  --color-mist: #a9b9ad;
+
+  --ease-snap: cubic-bezier(0.2, 0.9, 0.1, 1);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+@theme inline {
+  --font-sans: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
+}
+
+@layer base {
+  html {
+    /* Clip sideways overflow at the root too: on phones, body alone does not stop the page widening. */
+    overflow-x: clip;
+    background: var(--color-chalk);
+    color: var(--color-ink);
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.6;
+    font-weight: 400;
+    font-stretch: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: clip;
+  }
+
+  @media (min-width: 768px) {
+    body {
+      font-size: 1.125rem;
+    }
+  }
+
+  /* Headings are condensed heavy capitals, set tight, like a trail sign. */
+  h1,
+  h2,
+  h3,
+  .display {
+    font-weight: 850;
+    font-stretch: 62%;
+    line-height: 0.86;
+    letter-spacing: -0.004em;
+    text-transform: uppercase;
+    text-wrap: balance;
+  }
+
+  h3 {
+    line-height: 0.92;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: var(--color-lime);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-sun);
+    outline-offset: 3px;
+  }
+
+  img,
+  video {
+    -webkit-user-drag: none;
+  }
+}
+
+@layer components {
+  /* Small tracked capitals: section labels and metadata. */
+  .label {
+    font-size: 0.75rem;
+    font-weight: 650;
+    font-stretch: 100%;
+    line-height: 1.4;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* A section label with a solid square in front, like a trail marker. */
+  .marker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7em;
+  }
+  .marker::before {
+    content: "";
+    width: 0.62em;
+    height: 0.62em;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+  .marker-lime::before {
+    background: var(--color-lime);
+  }
+  .marker-brick::before {
+    background: var(--color-brick);
+  }
+
+  /* Prices and big numbers: condensed, heavy, tabular. */
+  .figure {
+    font-weight: 820;
+    font-stretch: 68%;
+    font-variant-numeric: tabular-nums lining-nums;
+    letter-spacing: -0.01em;
+    line-height: 0.9;
+  }
+
+  .lead {
+    font-size: clamp(1.25rem, 1.7vw, 1.6rem);
+    line-height: 1.38;
+    font-weight: 450;
+    letter-spacing: -0.008em;
+  }
+
+  /* A text link whose underline thickens on hover. */
+  .link-line {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    padding-block: 0.35em;
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.3em;
+    transition:
+      text-decoration-thickness 160ms ease,
+      text-underline-offset 160ms ease;
+  }
+  .link-line:hover {
+    text-decoration-thickness: 3px;
+    text-underline-offset: 0.22em;
+  }
+  /* Bigger touch area for text links, without changing how they look. */
+  .link-line::after,
+  .tap::after {
+    content: "";
+    position: absolute;
+    inset: -6px -4px;
+  }
+  .tap {
+    position: relative;
+  }
+  .tap::after {
+    inset: -12px -6px;
+  }
+
+  /*
+   * Square-cornered button in condensed capitals. On hover a darker fill
+   * sweeps in from the left and the arrow steps forward.
+   */
+  .btn {
+    position: relative;
+    isolation: isolate;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.7rem;
+    min-height: 3rem;
+    padding: 0.85rem 1.35rem 0.8rem;
+    border-radius: 3px;
+    overflow: hidden;
+    font-size: 1.02rem;
+    font-weight: 780;
+    font-stretch: 72%;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition:
+      color 220ms ease,
+      box-shadow 220ms ease,
+      transform 140ms var(--ease-out);
+  }
+  .btn::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 320ms var(--ease-snap);
+  }
+  .btn:active {
+    transform: scale(0.97);
+  }
+  .btn .arrow {
+    transition: transform 240ms var(--ease-snap);
+  }
+  .btn-lime {
+    background: var(--color-lime);
+    color: var(--color-ink);
+  }
+  .btn-lime::before {
+    background: var(--color-ink);
+  }
+  .btn-ink {
+    background: var(--color-ink);
+    color: var(--color-chalk);
+  }
+  .btn-ink::before {
+    background: var(--color-pine);
+  }
+  .btn-chalk {
+    background: var(--color-chalk);
+    color: var(--color-ink);
+  }
+  .btn-chalk::before {
+    background: var(--color-lime);
+  }
+  .btn-ghost {
+    box-shadow: inset 0 0 0 1.5px currentColor;
+  }
+  .btn-ghost::before {
+    background: color-mix(in oklab, currentColor 14%, transparent);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn:hover::before {
+      transform: scaleX(1);
+    }
+    .btn-lime:hover {
+      color: var(--color-lime);
+    }
+    .btn:hover .arrow {
+      transform: translate3d(4px, 0, 0);
+    }
+  }
+
+  /*
+   * Ticket: a card with a half-circle notch on each side where the stub tears
+   * off. --cut is the height of the perforation from the top.
+   */
+  .ticket {
+    --cut: 7.5rem;
+    --notch: 14px;
+    -webkit-mask:
+      radial-gradient(circle var(--notch) at 0 var(--cut), transparent 98%, #000) top left / 51% 100% no-repeat,
+      radial-gradient(circle var(--notch) at 100% var(--cut), transparent 98%, #000) top right / 51% 100% no-repeat;
+    mask:
+      radial-gradient(circle var(--notch) at 0 var(--cut), transparent 98%, #000) top left / 51% 100% no-repeat,
+      radial-gradient(circle var(--notch) at 100% var(--cut), transparent 98%, #000) top right / 51% 100% no-repeat;
+  }
+  .perforation {
+    background-image: linear-gradient(to right, currentColor 50%, transparent 0);
+    background-size: 10px 1.5px;
+    background-repeat: repeat-x;
+    background-position: 0 50%;
+    height: 2px;
+  }
+
+  /* Large photo frames zoom very slightly on hover, as a cue that they lead somewhere. */
+  @media (hover: hover) and (pointer: fine) {
+    .zoom-on-hover img {
+      transition: transform 700ms var(--ease-out);
+    }
+    .zoom-on-hover:hover img {
+      transform: scale(1.04);
+    }
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/*
+ * A ticket torn top to bottom: the notches sit on the top and bottom edges,
+ * --stub from the right. Used from md up, where the stub sits beside the pass.
+ */
+@utility ticket-v {
+  --notch: 16px;
+  -webkit-mask:
+    radial-gradient(circle var(--notch) at calc(100% - var(--stub, 22rem)) 0, transparent 98%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--notch) at calc(100% - var(--stub, 22rem)) 100%, transparent 98%, #000) bottom / 100% 51% no-repeat;
+  mask:
+    radial-gradient(circle var(--notch) at calc(100% - var(--stub, 22rem)) 0, transparent 98%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--notch) at calc(100% - var(--stub, 22rem)) 100%, transparent 98%, #000) bottom / 100% 51% no-repeat;
+}
+
+/* ------------------------------------------------------------------ */
+/* Scroll reveals                                                      */
+/* Only hidden when JS has run (.js on <html>), so content never        */
+/* stays invisible if scripts fail. Quick and short: this park moves.  */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Snap headlines never wrap, so each one sizes itself to its own column: the
+ * heading is a size container, and a line is never wider than the column allows
+ * for the longest line (--n characters at about 0.47em each, measured on the font).
+ */
+:where(h1, h2, h3):has(> .snap) {
+  container-type: inline-size;
+}
+.snap {
+  display: block;
+  font-size: min(1em, calc(100cqi / (var(--n, 10) * 0.47)));
+  white-space: nowrap;
+}
+
+/* Headlines pull tight: each line starts a little wider and snaps to condensed. */
+.js [data-inview] .snap {
+  opacity: 0;
+  font-stretch: 82%;
+  transform: translate3d(0, 0.18em, 0);
+  transition:
+    opacity 380ms ease,
+    transform 700ms var(--ease-snap),
+    font-stretch 800ms var(--ease-snap);
+  transition-delay: calc(var(--i, 0) * 70ms);
+}
+.js [data-inview="true"] .snap {
+  opacity: 1;
+  font-stretch: 62%;
+  transform: none;
+}
+
+.js [data-inview] .up {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+  transition:
+    opacity 450ms ease,
+    transform 600ms var(--ease-snap);
+  transition-delay: calc(120ms + var(--i, 0) * 55ms);
+}
+.js [data-inview="true"] .up {
+  opacity: 1;
+  transform: none;
+}
+
+/*
+ * Photos wipe in from the left, like a pass pulled from its book. Until then
+ * they are hidden with opacity, not a clip, so they still lazy-load early.
+ */
+.js [data-inview] .wipe {
+  opacity: 0;
+}
+.js [data-inview="true"] .wipe {
+  opacity: 1;
+  animation: wipe 760ms var(--ease-in-out) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+@keyframes wipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.js [data-inview] .grow-x {
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 700ms var(--ease-snap);
+  transition-delay: calc(150ms + var(--i, 0) * 60ms);
+}
+.js [data-inview="true"] .grow-x {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js [data-inview] .snap,
+  .js [data-inview] .up,
+  .js [data-inview] .grow-x {
+    font-stretch: 62%;
+    transform: none;
+    transition: opacity 400ms ease;
+  }
+  .js [data-inview] .grow-x {
+    opacity: 0;
+  }
+  .js [data-inview="true"] .grow-x {
+    opacity: 1;
+  }
+  .js [data-inview="true"] .wipe {
+    animation: fade-in 400ms ease both;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Hero                                                                */
+/* ------------------------------------------------------------------ */
+
+/* First paint: the headline pulls tight and the details follow, before any script runs. */
+@keyframes hero-snap {
+  from {
+    font-stretch: 100%;
+    opacity: 0;
+    transform: translate3d(0, 0.12em, 0);
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    font-stretch: 62%;
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes hero-panel {
+  from {
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+.hero-snap {
+  animation: hero-snap 1100ms var(--ease-snap) both;
+  animation-delay: calc(350ms + var(--i, 0) * 90ms);
+}
+.hero-panel {
+  animation: hero-panel 900ms var(--ease-in-out) both;
+  animation-delay: calc(var(--i, 0) * 110ms);
+}
+.hero-fade {
+  animation: fade-in 700ms ease both;
+  animation-delay: calc(900ms + var(--i, 0) * 90ms);
+}
+
+/* Until a film plays, each still breathes: a slow zoom and drift, offset per panel. */
+@keyframes drift {
+  from {
+    transform: scale(1.06) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.16) translate3d(-1.5%, -2%, 0);
+  }
+}
+.hero-drift {
+  animation: drift 16s ease-in-out infinite alternate both;
+  animation-delay: calc(var(--i, 0) * -5s);
+}
+
+/* The bar that fills while a phone shows one pass of the hero. */
+@keyframes story {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.story-bar {
+  transform-origin: left center;
+  animation: story var(--story, 5200ms) linear both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-drift {
+    animation: none;
+    transform: scale(1.06);
+  }
+  .hero-snap,
+  .hero-panel {
+    animation: fade-in 500ms ease both;
+  }
+  .hero-snap {
+    font-stretch: 62%;
+  }
+  .story-bar {
+    animation: none;
+    transform: scaleX(1);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Signposts: boards swing a little on hover, like the painted ones    */
+/* at the park's gate.                                                 */
+/* ------------------------------------------------------------------ */
+
+.board {
+  transform-origin: var(--hinge, left) center;
+  transition: transform 500ms var(--ease-snap);
+}
+@media (hover: hover) and (pointer: fine) {
+  .board:hover {
+    transform: rotate(var(--swing, -2deg));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .board,
+  .board:hover {
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Menu sheet: native <dialog>, animated in and out with CSS.          */
+/* ------------------------------------------------------------------ */
+
+.menu-sheet {
+  opacity: 0;
+  clip-path: inset(0 0 0 100%);
+  transition:
+    opacity 200ms ease,
+    clip-path 480ms var(--ease-in-out),
+    overlay 480ms allow-discrete,
+    display 480ms allow-discrete;
+}
+.menu-sheet[open] {
+  opacity: 1;
+  clip-path: inset(0 0 0 0);
+}
+@starting-style {
+  .menu-sheet[open] {
+    opacity: 0;
+    clip-path: inset(0 0 0 100%);
+  }
+}
+.menu-sheet .menu-item {
+  opacity: 0;
+  transform: translate3d(24px, 0, 0);
+  transition:
+    opacity 360ms ease,
+    transform 520ms var(--ease-snap);
+  transition-delay: calc(160ms + var(--i, 0) * 45ms);
+}
+.menu-sheet[open] .menu-item {
+  opacity: 1;
+  transform: none;
+}
+@starting-style {
+  .menu-sheet[open] .menu-item {
+    opacity: 0;
+    transform: translate3d(24px, 0, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .menu-sheet {
+    clip-path: none;
+  }
+  .menu-sheet .menu-item {
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Booking drawer: a native modal <dialog>. The panel slides in from    */
+/* the right on larger screens and rises from the bottom on phones.     */
+/* ------------------------------------------------------------------ */
+
+.drawer {
+  transition:
+    overlay 520ms allow-discrete,
+    display 520ms allow-discrete;
+}
+.drawer::backdrop {
+  background: rgb(14 26 20 / 0);
+  transition:
+    background-color 360ms ease,
+    overlay 520ms allow-discrete,
+    display 520ms allow-discrete;
+}
+.drawer[open]::backdrop {
+  background: rgb(14 26 20 / 0.6);
+}
+@starting-style {
+  .drawer[open]::backdrop {
+    background: rgb(14 26 20 / 0);
+  }
+}
+.drawer .drawer-panel {
+  transform: translate3d(0, 100%, 0);
+  transition: transform 520ms var(--ease-snap);
+}
+.drawer[open] .drawer-panel {
+  transform: none;
+}
+@starting-style {
+  .drawer[open] .drawer-panel {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+@media (min-width: 640px) {
+  .drawer .drawer-panel {
+    transform: translate3d(100%, 0, 0);
+  }
+  .drawer[open] .drawer-panel {
+    transform: none;
+  }
+  @starting-style {
+    .drawer[open] .drawer-panel {
+      transform: translate3d(100%, 0, 0);
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .drawer .drawer-panel,
+  .drawer[open] .drawer-panel {
+    transform: none;
+    transition: opacity 250ms ease;
+  }
+  .drawer:not([open]) .drawer-panel {
+    opacity: 0;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Page transitions (React <ViewTransition>, see page-transition.tsx). */
+/* A quick wipe: the new page slides in over the old one from the      */
+/* right, and the header holds still.                                  */
+/* ------------------------------------------------------------------ */
+
+::view-transition-old(.page-exit) {
+  animation: 420ms var(--ease-in-out) both page-out;
+}
+::view-transition-new(.page-enter) {
+  animation: 560ms var(--ease-in-out) both page-in;
+}
+@keyframes page-out {
+  to {
+    opacity: 0.4;
+    transform: translate3d(-6vw, 0, 0);
+  }
+}
+@keyframes page-in {
+  from {
+    clip-path: inset(0 0 0 100%);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(site-header) {
+  display: none;
+}
+::view-transition-new(site-header) {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(.page-exit),
+  ::view-transition-new(.page-enter) {
+    animation: 250ms ease both fade-in;
+  }
+  ::view-transition-old(.page-exit) {
+    animation-direction: reverse;
+  }
+}
