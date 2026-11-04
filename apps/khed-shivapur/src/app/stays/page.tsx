@@ -23,8 +23,8 @@ export default function StaysPage() {
               Rooms and <em>rates</em>
             </h1>
             <p className="max-w-xl text-fern lg:col-span-6">
-              {stays.length} ways to stay, from glass houses on stilts to a private-pool villa. Choose your dates, add a room and
-              say who stays in it, then add as many more as you need. Our team confirms on WhatsApp.
+              {stays.length} ways to stay, from glass houses on stilts to a private-pool villa. Add as many rooms as your group
+              needs, of any kind.
             </p>
           </div>
         </header>

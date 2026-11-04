@@ -58,7 +58,13 @@
   --bk-display-tracking: -0.015em;
   --bk-button-size: 0.92rem;
   --bk-button-weight: 600;
-  --bk-sticky-top: 5.25rem;
+  /* The header's height: 72px on phones, 84px from md up. */
+  --bk-sticky-top: 4.5rem;
+}
+@media (min-width: 48rem) {
+  :root {
+    --bk-sticky-top: 5.25rem;
+  }
 }
 
 /* Lenis base rules (the package does not export its stylesheet). */

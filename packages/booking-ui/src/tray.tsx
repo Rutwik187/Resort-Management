@@ -2,8 +2,10 @@
 
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { plural } from "./dates";
+import { FieldError, contactErrors, type ContactErrors } from "./form-fields";
 import { formatRupees } from "./pricing";
 import { openWhatsApp, type GuestDetails, type RequestLine } from "./request";
+import { Sheet } from "./sheet";
 import type { Desk } from "./types";
 
 type Step = "pick" | "details" | "sent";
@@ -24,7 +26,13 @@ type TrayProps = {
   lines: RequestLine[];
   /** Places still to fill, such as "Room 2", from the number of rooms searched for. */
   emptySlots: string[];
+  /** Shown when nothing is added and no place waits to be filled. */
+  emptyNote?: string;
   onRemove: (key: string) => void;
+  /** Opens the panel to change who stays in, or comes on, one line. */
+  onEdit?: (key: string) => void;
+  /** The line added a moment ago, marked for a moment so the eye finds it. */
+  fresh?: string | null;
   coverage?: { placed: number; wanted: number };
   /** Null when a line has no published rate. */
   total: number | null;
@@ -46,7 +54,7 @@ const field =
  * places still to fill, the estimate, and the way to send it. Then the
  * guest's details, and the request goes to the resort on WhatsApp.
  */
-export function Tray({ heading, when, lines, emptySlots, onRemove, coverage, total, pending = false, notes = [], blocker, desk, message, checkout }: TrayProps) {
+export function Tray({ heading, when, lines, emptySlots, emptyNote, onRemove, onEdit, fresh, coverage, total, pending = false, notes = [], blocker, desk, message, checkout }: TrayProps) {
   const id = useId();
   const { step, setStep, guest, setGuest } = checkout;
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -61,8 +69,17 @@ export function Tray({ heading, when, lines, emptySlots, onRemove, coverage, tot
     setStep(next);
   };
 
+  // Shown under the name and phone once the guest tries to send without them.
+  const [errors, setErrors] = useState<ContactErrors>({});
+
   function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const found = contactErrors(guest.name, guest.phone);
+    setErrors(found);
+    if (found.name || found.phone) {
+      (event.currentTarget.elements.namedItem(found.name ? "name" : "phone") as HTMLInputElement | null)?.focus();
+      return;
+    }
     openWhatsApp(desk.whatsapp.number, message(guest));
     go("sent");
   }
@@ -106,31 +123,45 @@ export function Tray({ heading, when, lines, emptySlots, onRemove, coverage, tot
           Your details
         </h2>
         <p className="mt-2 text-[0.9rem] text-bk-muted">We send your request on WhatsApp to {desk.whatsapp.display}. Nothing is charged now.</p>
-        <form onSubmit={send} className="mt-5 grid gap-4">
-          <label className="block text-[0.9rem] text-bk-muted">
-            Your name
-            <input
-              required
-              autoComplete="name"
-              value={guest.name}
-              onChange={(event) => setGuest({ ...guest, name: event.target.value })}
-              className={field}
-            />
-          </label>
-          <label className="block text-[0.9rem] text-bk-muted">
-            Phone number
-            <input
-              required
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              pattern="[0-9+\s\-]{8,}"
-              title="A phone number with at least 8 digits"
-              value={guest.phone}
-              onChange={(event) => setGuest({ ...guest, phone: event.target.value })}
-              className={field}
-            />
-          </label>
+        <form onSubmit={send} noValidate className="mt-5 grid gap-4">
+          <div>
+            <label className="block text-[0.9rem] text-bk-muted">
+              Your name
+              <input
+                name="name"
+                autoComplete="name"
+                value={guest.name}
+                aria-invalid={Boolean(errors.name) || undefined}
+                aria-describedby={errors.name ? `${id}-name-error` : undefined}
+                onChange={(event) => {
+                  setGuest({ ...guest, name: event.target.value });
+                  if (errors.name) setErrors({ ...errors, name: undefined });
+                }}
+                className={`${field} ${errors.name ? "border-bk-alert" : ""}`}
+              />
+            </label>
+            <FieldError id={`${id}-name-error`} message={errors.name} />
+          </div>
+          <div>
+            <label className="block text-[0.9rem] text-bk-muted">
+              Phone number
+              <input
+                name="phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                value={guest.phone}
+                aria-invalid={Boolean(errors.phone) || undefined}
+                aria-describedby={errors.phone ? `${id}-phone-error` : undefined}
+                onChange={(event) => {
+                  setGuest({ ...guest, phone: event.target.value });
+                  if (errors.phone) setErrors({ ...errors, phone: undefined });
+                }}
+                className={`${field} ${errors.phone ? "border-bk-alert" : ""}`}
+              />
+            </label>
+            <FieldError id={`${id}-phone-error`} message={errors.phone} />
+          </div>
           <label className="block text-[0.9rem] text-bk-muted">
             Anything we should know <span className="text-bk-muted/70">(optional)</span>
             <textarea
@@ -156,18 +187,31 @@ export function Tray({ heading, when, lines, emptySlots, onRemove, coverage, tot
       </h2>
       <div className="mt-1.5 text-[0.92rem] text-bk-muted">{when}</div>
 
-      <ol className="mt-5 grid gap-2.5">
+      {lines.length === 0 && emptySlots.length === 0 && emptyNote && (
+        <p className="mt-5 rounded-[calc(var(--bk-radius)*0.7)] border border-dashed border-bk-line px-3 py-3.5 text-[0.9rem] text-bk-muted">{emptyNote}</p>
+      )}
+      <ol className="mt-5 grid gap-2.5 empty:hidden">
         {lines.map((line, i) => (
-          <li key={line.key} className="flex items-start gap-3 rounded-[calc(var(--bk-radius)*0.7)] border border-bk-line bg-bk-soft/60 p-3">
+          <li
+            key={line.key}
+            className={`flex items-start gap-3 rounded-[calc(var(--bk-radius)*0.7)] border border-bk-line bg-bk-soft/60 p-3 ${line.key === fresh ? "bk-flash" : ""}`}
+          >
             <span aria-hidden className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-bk-ink text-[0.72rem] font-semibold tabular-nums text-bk-card">
               {i + 1}
             </span>
             <div className="min-w-0 flex-1">
               <p className="leading-snug">{line.title}</p>
               <p className="mt-0.5 text-[0.82rem] leading-snug text-bk-muted">{line.detail}</p>
-              <p className="mt-1.5 text-[0.92rem] tabular-nums">
-                {pending ? <span className="text-bk-muted">Add dates for the price</span> : line.amount === null ? <span className="text-bk-muted">Rate to confirm</span> : formatRupees(line.amount)}
-              </p>
+              <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <p className="text-[0.92rem] tabular-nums">
+                  {pending ? <span className="text-bk-muted">Add dates for the price</span> : line.amount === null ? <span className="text-bk-muted">Rate to confirm</span> : formatRupees(line.amount)}
+                </p>
+                {onEdit && (
+                  <button type="button" onClick={() => onEdit(line.key)} className="min-h-8 text-[0.84rem] text-bk-ink underline underline-offset-4">
+                    Change guests
+                  </button>
+                )}
+              </div>
             </div>
             <button
               type="button"
@@ -181,7 +225,7 @@ export function Tray({ heading, when, lines, emptySlots, onRemove, coverage, tot
         ))}
         {emptySlots.map((slot) => (
           <li key={slot} className="rounded-[calc(var(--bk-radius)*0.7)] border border-dashed border-bk-line px-3 py-3.5 text-[0.9rem] text-bk-muted">
-            {slot}: not chosen yet
+            {slot}: choose one from the list
           </li>
         ))}
       </ol>
@@ -234,72 +278,53 @@ export function Tray({ heading, when, lines, emptySlots, onRemove, coverage, tot
 }
 
 type TrayDockProps = {
-  /** "2 rooms" or "No rooms yet" */
+  /** "2 rooms · 4 guests" */
   summary: string;
-  total: number | null;
+  /** The estimate, or what stands in for it, such as "Add dates for the price". */
+  total: string;
+  /** False until something is added: there is nothing to review before that. */
+  visible: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   children: ReactNode;
 };
 
 /**
- * On phones the tray waits in a bar at the foot of the screen and opens as
- * a sheet. On large screens the page shows the tray beside the list instead.
+ * On phones the tray waits in a bar at the foot of the screen, once something
+ * is in it, and opens as a sheet. On large screens the page shows the tray
+ * beside the list instead.
  */
-export function TrayDock({ summary, total, children }: TrayDockProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+export function TrayDock({ summary, total, visible, open, onOpenChange, children }: TrayDockProps) {
   const [bump, setBump] = useState(0);
   const [lastSummary, setLastSummary] = useState(summary);
 
-  // A short pulse when the selection changes, so the guest sees where it went.
+  // A short lift when the selection changes, so the guest sees where it went.
   if (summary !== lastSummary) {
     setLastSummary(summary);
     setBump((n) => n + 1);
   }
 
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const onClose = () => {
-      document.documentElement.style.overflow = "";
-    };
-    dialog.addEventListener("close", onClose);
-    return () => dialog.removeEventListener("close", onClose);
-  }, []);
-
-  const open = () => {
-    dialogRef.current?.showModal();
-    document.documentElement.style.overflow = "hidden";
-  };
-
   return (
     <>
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-bk-line bg-bk-card/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-bk-ink backdrop-blur lg:hidden">
+      <div
+        inert={!visible}
+        className={`fixed inset-x-0 bottom-0 z-40 border-t border-bk-line bg-bk-card/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 text-bk-ink shadow-[0_-12px_30px_-20px_rgb(0_0_0/0.35)] backdrop-blur transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] lg:hidden ${
+          visible ? "translate-y-0" : "translate-y-full"
+        }`}
+      >
         <div className="mx-auto flex max-w-xl items-center justify-between gap-4">
           <p key={bump} className="bk-pulse min-w-0">
-            <span className="block truncate text-[0.9rem]">{summary}</span>
-            {total !== null && <span className="bk-display block text-[1.25rem] leading-tight tabular-nums">{formatRupees(total)}</span>}
+            <span className="block truncate text-[0.85rem] text-bk-muted">{summary}</span>
+            <span className="bk-display block truncate text-[1.25rem] leading-tight tabular-nums">{total}</span>
           </p>
-          <button type="button" onClick={open} className="min-h-12 shrink-0 rounded-bk-control bg-bk-accent px-6 bk-button text-bk-accent-ink">
-            View and book
+          <button type="button" onClick={() => onOpenChange(true)} className="min-h-12 shrink-0 rounded-bk-control bg-bk-accent px-6 bk-button text-bk-accent-ink">
+            Review and book
           </button>
         </div>
       </div>
-      <dialog
-        ref={dialogRef}
-        aria-label="Your selection"
-        className="bk-sheet m-0 mt-auto max-h-[88dvh] w-full max-w-none overflow-hidden rounded-t-[calc(var(--bk-radius)*1.4)] bg-bk-card p-0 text-bk-ink lg:hidden"
-        onClick={(event) => {
-          if (event.target === event.currentTarget) event.currentTarget.close();
-        }}
-      >
-        <div data-lenis-prevent className="max-h-[88dvh] overflow-y-auto overscroll-contain px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3">
-          <div className="sticky top-0 z-10 -mx-5 flex justify-end bg-bk-card px-3 pb-1">
-            <button type="button" onClick={() => dialogRef.current?.close()} className="flex min-h-11 items-center gap-2 px-2 text-[0.9rem] text-bk-muted">
-              Close <span aria-hidden>×</span>
-            </button>
-          </div>
-          {children}
-        </div>
-      </dialog>
+      <Sheet open={open} onClose={() => onOpenChange(false)} label="Your selection" className="lg:hidden">
+        {children}
+      </Sheet>
     </>
   );
 }

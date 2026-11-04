@@ -48,6 +48,8 @@
   --bk-accent-ink: var(--color-ink);
   --bk-good: var(--color-olive);
   --bk-alert: var(--color-brick);
+  /* Lime is light, so the nights of a stay need more of it to show. */
+  --bk-band: color-mix(in srgb, var(--color-lime) 45%, transparent);
   --bk-radius: 6px;
   --bk-control-radius: 3px;
   --bk-display: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
@@ -60,7 +62,13 @@
   --bk-button-stretch: 72%;
   --bk-button-case: uppercase;
   --bk-button-tracking: 0.04em;
-  --bk-sticky-top: 5rem;
+  /* The header's height: 68px on phones, 78px from md up. */
+  --bk-sticky-top: 4.25rem;
+}
+@media (min-width: 48rem) {
+  :root {
+    --bk-sticky-top: 4.875rem;
+  }
 }
 
 @layer base {

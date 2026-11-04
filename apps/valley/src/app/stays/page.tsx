@@ -24,8 +24,8 @@ export default function StaysPage() {
               Cottages and <em>rates</em>
             </h1>
             <p className="max-w-xl text-moss lg:col-span-6">
-              Every cottage is built in lal chira, the red laterite stone of the Konkan. Choose your dates, add a cottage and say
-              who stays in it, or choose a package with every meal included. Our team confirms on WhatsApp.
+              Every cottage is built in lal chira, the red laterite stone of the Konkan. Or choose a package with every meal
+              included.
             </p>
           </div>
         </header>

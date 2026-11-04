@@ -27,7 +27,7 @@ export default function DayPackagesPage() {
             <h1 className="text-[clamp(3.6rem,8vw,7.6rem)] lg:col-span-5">Day passes</h1>
             <p className="max-w-xl text-stone lg:col-span-5">
               Come in the morning, after lunch or for the evening. Every pass includes the games, the adventure course and
-              the meals for your hours. Choose your date, add a pass and say who is coming. Our team confirms on WhatsApp.
+              the meals for your hours.
             </p>
             <OfferStamp className="lg:col-span-2 lg:justify-self-end" />
           </div>

@@ -49,12 +49,12 @@ Turborepo passes a task only the environment variables that `turbo.json` lists. 
 
 ## Booking
 
-Every site books with the shared widget in `packages/booking-ui`, the way MakeMyTrip does it. The guest chooses dates, rooms and guests, adds a room and says who stays in it, then adds other rooms of any type. A tray keeps the rooms, the guests still to place and the estimate. Day passes work the same way, by date.
+Every site books with the shared widget in `packages/booking-ui`, the way MakeMyTrip does it. The guest chooses dates, rooms and guests, adds a room and says who stays in it, then adds other rooms of any type. A bar under the site header names every room type and jumps to it. Adding a room opens a panel for its guests, which is a sheet from the foot of the screen on phones. A tray keeps the rooms, the guests still to place and the estimate; on phones it waits in a bar at the foot of the screen. Day passes work the same way, by date.
 
 Until the booking engine and Razorpay arrive, the tray sends the request on WhatsApp, to the resort's own number.
 
 - A site describes its rooms, packages and day passes in `src/content/booking.ts`, from the facts in `src/content/resort.ts`.
-- A site styles the widget with the `--bk-*` values in its `globals.css`. `packages/booking-ui/src/booking.css` lists them.
+- A site styles the widget with the `--bk-*` values in its `globals.css`. `packages/booking-ui/src/booking.css` lists them. `--bk-sticky-top` is the site header's height, set once for phones and once from md up, so the room bar and the tray stick just below the header.
 - Friday and Saturday nights take the weekend rate. Every other night takes the weekday rate.
 - When a resort doesn't publish a rate that the guests need, the widget leaves that price for the team to quote. It never guesses one.
 

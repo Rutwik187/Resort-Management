@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState, type CSSProperties, type FormEvent } from "react";
+import { CountInput, DateInput, FieldError, contactErrors, formatLong, type ContactErrors } from "@repo/booking-ui";
 import { contact } from "@/content/resort";
 
 export const purposes = [
@@ -35,19 +36,29 @@ type EnquiryFormProps = {
 export function EnquiryForm({ defaultPurpose = "stay", compact = false, className = "", style }: EnquiryFormProps) {
   const id = useId();
   const [purpose, setPurpose] = useState<Purpose>(defaultPurpose);
+  const [date, setDate] = useState("");
+  const [guests, setGuests] = useState("");
+  const [errors, setErrors] = useState<ContactErrors>({});
   const to = destination(purpose);
   const dateLabel = purpose === "wedding" ? "Wedding date" : purpose === "event" ? "Event date" : "Check-in date";
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const found = contactErrors(String(data.get("name") ?? ""), String(data.get("phone") ?? ""));
+    setErrors(found);
+    if (found.name || found.phone) {
+      (form.elements.namedItem(found.name ? "name" : "phone") as HTMLInputElement | null)?.focus();
+      return;
+    }
     const label = purposes.find((p) => p.value === purpose)?.label ?? "A room";
     const lines = [
       "Hello Sinhagad Bliss, I would like to plan:",
       label,
       `Name: ${data.get("name")}`,
       `Phone: ${data.get("phone")}`,
-      data.get("date") ? `${dateLabel}: ${data.get("date")}` : "",
+      date ? `${dateLabel}: ${formatLong(date)}` : "",
       data.get("guests") ? `Guests: ${data.get("guests")}` : "",
       data.get("note") ? `Note: ${data.get("note")}` : "",
     ].filter(Boolean);
@@ -55,7 +66,7 @@ export function EnquiryForm({ defaultPurpose = "stay", compact = false, classNam
   }
 
   return (
-    <form onSubmit={onSubmit} className={`grid ${compact ? "gap-7" : "gap-8"} ${className}`} style={style}>
+    <form onSubmit={onSubmit} noValidate className={`grid ${compact ? "gap-7" : "gap-8"} ${className}`} style={style}>
       <fieldset>
         <legend className="kicker mb-4 text-slate">What would you like to plan?</legend>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -83,7 +94,16 @@ export function EnquiryForm({ defaultPurpose = "stay", compact = false, classNam
           <label htmlFor={`${id}-name`} className="kicker mb-2 block text-slate">
             Your name
           </label>
-          <input id={`${id}-name`} name="name" required autoComplete="name" className={field} />
+          <input
+            id={`${id}-name`}
+            name="name"
+            autoComplete="name"
+            aria-invalid={Boolean(errors.name) || undefined}
+            aria-describedby={errors.name ? `${id}-name-error` : undefined}
+            onChange={() => errors.name && setErrors({ ...errors, name: undefined })}
+            className={field}
+          />
+          <FieldError id={`${id}-name-error`} message={errors.name} />
         </div>
         <div>
           <label htmlFor={`${id}-phone`} className="kicker mb-2 block text-slate">
@@ -93,25 +113,26 @@ export function EnquiryForm({ defaultPurpose = "stay", compact = false, classNam
             id={`${id}-phone`}
             name="phone"
             type="tel"
-            required
             autoComplete="tel"
             inputMode="tel"
-            pattern="[0-9+\s\-]{8,}"
-            title="Enter a phone number with at least 8 digits"
+            aria-invalid={Boolean(errors.phone) || undefined}
+            aria-describedby={errors.phone ? `${id}-phone-error` : undefined}
+            onChange={() => errors.phone && setErrors({ ...errors, phone: undefined })}
             className={field}
           />
+          <FieldError id={`${id}-phone-error`} message={errors.phone} />
         </div>
         <div>
           <label htmlFor={`${id}-date`} className="kicker mb-2 block text-slate">
             {dateLabel}
           </label>
-          <input id={`${id}-date`} name="date" type="date" className={field} />
+          <DateInput id={`${id}-date`} label={dateLabel} name="date" value={date} onChange={setDate} className={field} />
         </div>
         <div>
           <label htmlFor={`${id}-guests`} className="kicker mb-2 block text-slate">
             Guests
           </label>
-          <input id={`${id}-guests`} name="guests" type="number" min={1} inputMode="numeric" className={field} />
+          <CountInput id={`${id}-guests`} label="Guests" name="guests" value={guests} onChange={setGuests} min={1} className={field} />
         </div>
       </div>
 

@@ -22,7 +22,7 @@ export default function StaysPage() {
             <h1 className="text-[clamp(3.6rem,8vw,7.6rem)] lg:col-span-6">Stay the night</h1>
             <p className="max-w-xl text-stone lg:col-span-6">
               Laterite stone cottages under the palms, painted cottages, cottages for couples and villas for groups. Every stay
-              includes the activities and the games. Choose your dates, add a cottage and say who stays in it.
+              includes the activities and the games.
             </p>
           </div>
         </header>

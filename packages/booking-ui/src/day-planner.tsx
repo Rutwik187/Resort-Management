@@ -1,13 +1,17 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { formatDay, isDate, plural, pluralOf, todayInIndia } from "./dates";
-import { PartyPicker } from "./party-picker";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { Calendar } from "./calendar";
+import { DateField, useToday } from "./date-field";
+import { formatDay, isDate, plural, pluralOf } from "./dates";
+import { PickDialog } from "./pick-dialog";
 import { describeParty, formatRupees, headcount, priceForPass } from "./pricing";
 import { requestMessage, type RequestLine } from "./request";
 import { dayParam, passParam } from "./params";
 import { newKey } from "./saved";
+import { Sheet } from "./sheet";
+import { Steps } from "./steps";
 import { useSessionValue } from "./store";
 import { Tray, TrayDock, useCheckout } from "./tray";
 import type { Desk, Party, Pass } from "./types";
@@ -26,7 +30,12 @@ type PickedPass = { key: string; passId: string; party: Party };
 
 type DayPlan = { date: string; items: PickedPass[] };
 
+/** The pass in the panel, who comes on it, and, when changing a line already added, that line's key. */
+type Picking = { passId: string; party: Party; key?: string };
+
 const emptyDay: DayPlan = { date: "", items: [] };
+
+const startParty: Party = { adults: 2, children5to11: 0, children3to5: 0, under3: 0 };
 
 const noop = () => () => {};
 
@@ -41,7 +50,7 @@ const dateFromAddress = () => {
  */
 export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day pass" }: DayPlannerProps) {
   const byId = new Map(passes.map((pass) => [pass.id, pass]));
-  const today = useSyncExternalStore(noop, () => todayInIndia(), () => "");
+  const today = useToday();
   const [announcement, setAnnouncement] = useState("");
   const checkout = useCheckout();
   const key = `booking:${storageKey}:day`;
@@ -60,8 +69,6 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
     }
   });
   const { date, items: picked } = plan;
-  // The pass a link asked for, such as /day-packages?pass=morning. Read in the browser only.
-  const invited = useSyncExternalStore(noop, () => new URLSearchParams(window.location.search).get(passParam), () => null);
 
   // A new date from the home page, after this tab already saved a plan, replaces the saved date.
   useEffect(() => {
@@ -73,6 +80,52 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
   const setDate = (next: string) => setPlan({ date: next, items: picked });
   const setPicked = (items: PickedPass[]) => setPlan({ date, items });
 
+  // The panels: adding or changing a pass, the phone tray, and the date.
+  const [picking, setPicking] = useState<Picking | null>(null);
+  const [pickOpen, setPickOpen] = useState(false);
+  const [pickCount, setPickCount] = useState(0);
+  const [trayOpen, setTrayOpen] = useState(false);
+  const [dateOpen, setDateOpen] = useState(false);
+  const [fresh, setFresh] = useState<string | null>(null);
+
+  // A link can ask for one pass, such as /day-packages?pass=morning. Its panel opens once, until the guest closes it.
+  const invited = useSyncExternalStore(noop, () => new URLSearchParams(window.location.search).get(passParam), () => null);
+  const [inviteDone, setInviteDone] = useState(false);
+  const invitedPass = invited && !inviteDone ? byId.get(invited) : undefined;
+  useEffect(() => {
+    if (invitedPass) document.getElementById(`pass-${invitedPass.id}`)?.scrollIntoView({ block: "center" });
+  }, [invitedPass]);
+  const current: Picking | null = invitedPass && !pickOpen ? { passId: invitedPass.id, party: startParty } : picking;
+  const currentOpen = pickOpen || Boolean(invitedPass);
+
+  function openPick(next: Picking) {
+    setPicking(next);
+    setPickCount((n) => n + 1);
+    setPickOpen(true);
+    setInviteDone(true);
+  }
+
+  function closePick() {
+    setPickOpen(false);
+    setInviteDone(true);
+  }
+
+  function confirmPick() {
+    const pass = current && byId.get(current.passId);
+    if (!current || !pass) return;
+    if (current.key) {
+      setPicked(picked.map((item) => (item.key === current.key ? { ...item, party: current.party } : item)));
+      setAnnouncement(`${pass.name} ${noun} is now for ${describeParty(current.party)}.`);
+    } else {
+      const itemKey = newKey(pass.id);
+      setPicked([...picked, { key: itemKey, passId: pass.id, party: current.party }]);
+      setFresh(itemKey);
+      setAnnouncement(`${pass.name} ${noun} added for ${describeParty(current.party)}.`);
+    }
+    checkout.setStep("pick");
+    closePick();
+  }
+
   const lines: RequestLine[] = picked.flatMap((item) => {
     const pass = byId.get(item.passId);
     return pass ? [{ key: item.key, title: `${pass.name} ${noun}`, detail: describeParty(item.party), amount: priceForPass(pass, item.party) }] : [];
@@ -81,13 +134,33 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
   const people = picked.reduce((sum, item) => sum + headcount(item.party), 0);
   const blocker = picked.length === 0 ? `Add a ${noun} to continue.` : !date ? "Choose your date to continue." : null;
 
+  const when = date ? (
+    <>
+      {formatDay(date)}
+      {people ? ` · ${plural(people, "guest")}` : ""}{" "}
+      <button type="button" onClick={() => setDateOpen(true)} className="ml-1 text-bk-ink underline underline-offset-4">
+        Change
+      </button>
+    </>
+  ) : (
+    <button type="button" onClick={() => setDateOpen(true)} className="text-bk-ink underline underline-offset-4">
+      Choose your date
+    </button>
+  );
+
   const tray = (
     <Tray
       heading="Your day"
-      when={date ? `${formatDay(date)}${people ? ` · ${plural(people, "guest")}` : ""}` : <a href="#visit-date" className="underline underline-offset-4">Choose your date</a>}
+      when={when}
       lines={lines}
       emptySlots={[]}
+      emptyNote={`Nothing added yet. Choose a ${noun} from the list.`}
       onRemove={(itemKey) => setPicked(picked.filter((item) => item.key !== itemKey))}
+      onEdit={(itemKey) => {
+        const item = picked.find((p) => p.key === itemKey);
+        if (item) openPick({ passId: item.passId, party: item.party, key: item.key });
+      }}
+      fresh={fresh}
       total={total}
       notes={notes}
       blocker={blocker}
@@ -99,34 +172,31 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
     />
   );
 
+  const shownPass = current ? byId.get(current.passId) : undefined;
+
   return (
     <div className="pb-28 lg:pb-0">
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start xl:gap-12">
-        <div>
-          <label id="visit-date" className="flex scroll-mt-28 flex-col rounded-bk border border-bk-line bg-bk-card px-5 py-3 text-bk-ink sm:max-w-sm">
-            <span className="text-[0.78rem] text-bk-muted">Date of your visit</span>
-            <input
-              type="date"
-              required
-              min={today || undefined}
-              value={date}
-              onChange={(event) => setDate(event.target.value)}
-              className="mt-1.5 min-h-8 w-full appearance-none bg-transparent text-[1rem] outline-none [color-scheme:light]"
-            />
-          </label>
+      <Steps
+        steps={[
+          { label: "Choose the date", done: Boolean(date) },
+          { label: `Add ${pluralOf(noun)} and guests`, done: picked.length > 0 },
+          { label: "Send the request on WhatsApp", done: checkout.step === "sent" },
+        ]}
+      />
+
+      <div className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start xl:gap-12">
+        <div className="min-w-0">
+          <div id="visit-date" className="relative z-10 scroll-mt-28 rounded-bk border border-bk-line bg-bk-card text-bk-ink sm:max-w-sm">
+            <DateField label="Date of your visit" value={date} min={today || undefined} onChange={setDate} className="rounded-[calc(var(--bk-radius)-1px)]" />
+          </div>
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             {passes.map((pass) => (
               <PassCard
                 key={pass.id}
                 pass={pass}
                 noun={noun}
-                invited={invited === pass.id}
                 count={picked.filter((item) => item.passId === pass.id).length}
-                onAdd={(party) => {
-                  setPicked([...picked, { key: newKey(pass.id), passId: pass.id, party }]);
-                  setAnnouncement(`${pass.name} ${noun} added for ${describeParty(party)}.`);
-                  checkout.setStep("pick");
-                }}
+                onPick={() => openPick({ passId: pass.id, party: startParty })}
               />
             ))}
           </div>
@@ -139,9 +209,55 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
         </aside>
       </div>
 
-      <TrayDock summary={picked.length ? `${plural(picked.length, noun)} · ${plural(people, "guest")}` : `No ${pluralOf(noun)} added yet`} total={picked.length ? total : null}>
+      <TrayDock
+        summary={`${plural(picked.length, noun)} · ${plural(people, "guest")}`}
+        total={`${formatRupees(total)} + GST`}
+        visible={picked.length > 0}
+        open={trayOpen}
+        onOpenChange={setTrayOpen}
+      >
         {tray}
       </TrayDock>
+
+      {current && shownPass && (
+        <PickDialog
+          open={currentOpen}
+          onClose={closePick}
+          eyebrow={current.key ? `Change who is coming` : `Add a ${noun}`}
+          name={shownPass.name}
+          photo={shownPass.photo}
+          when={<DayDate key={pickCount} date={date} onChange={setDate} />}
+          question="Who is coming?"
+          party={current.party}
+          onParty={(party) => {
+            setPicking({ ...current, party });
+            setPickOpen(true);
+            setInviteDone(true);
+          }}
+          price={
+            <span>
+              <span className="bk-display block text-[1.45rem] leading-tight tabular-nums">{formatRupees(priceForPass(shownPass, current.party))}</span>
+              <span className="text-[0.82rem] text-bk-muted">plus GST · {shownPass.hours}</span>
+            </span>
+          }
+          confirmLabel={current.key ? "Save" : `Add ${noun}`}
+          onConfirm={confirmPick}
+        />
+      )}
+
+      <Sheet open={dateOpen} onClose={() => setDateOpen(false)} label="Date of your visit" center>
+        <h2 data-autofocus tabIndex={-1} className="bk-display pr-10 outline-none text-[1.6rem]">Date of your visit</h2>
+        <div className="mt-4">
+          <Calendar
+            start={date}
+            min={today || undefined}
+            onPick={(next) => {
+              setDate(next);
+              setDateOpen(false);
+            }}
+          />
+        </div>
+      </Sheet>
 
       <p aria-live="polite" className="sr-only">
         {announcement}
@@ -150,34 +266,45 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
   );
 }
 
-function PassCard({ pass, noun, invited, count, onAdd }: { pass: Pass; noun: string; invited: boolean; count: number; onAdd: (party: Party) => void }) {
-  const [opened, setOpened] = useState(false);
-  // A link that asked for this pass opens its picker once, until the guest closes it.
-  const [settled, setSettled] = useState(false);
-  const picking = opened || (invited && !settled);
-  const cardRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    if (invited) cardRef.current?.scrollIntoView({ block: "center" });
-  }, [invited]);
-  const [party, setParty] = useState<Party>({ adults: 2, children5to11: 0, children3to5: 0, under3: 0 });
-  const [added, setAdded] = useState(false);
-  const addRef = useRef<HTMLButtonElement>(null);
-  const close = () => {
-    setOpened(false);
-    setSettled(true);
-    requestAnimationFrame(() => addRef.current?.focus());
-  };
-
+/** The visit's date in the panel: a line with "Change", or the calendar when there is no date yet. */
+function DayDate({ date, onChange }: { date: string; onChange: (date: string) => void }) {
+  const today = useToday();
+  const [editing, setEditing] = useState(!date);
+  if (!editing && date) {
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-[calc(var(--bk-radius)*0.6)] bg-bk-soft px-4 py-3 text-[0.92rem]">
+        <span>{formatDay(date)}</span>
+        <button type="button" onClick={() => setEditing(true)} className="min-h-10 shrink-0 text-bk-ink underline underline-offset-4">
+          Change
+        </button>
+      </div>
+    );
+  }
   return (
-    <article ref={cardRef} aria-labelledby={`pass-${pass.id}`} className={`rounded-bk border border-bk-line bg-bk-card p-3 text-bk-ink sm:p-4 ${picking ? "md:col-span-2" : ""}`}>
+    <div className="rounded-bk border border-bk-line px-3 pb-3 pt-2">
+      <p className="px-1 pt-1 text-[0.85rem] text-bk-muted">Date of your visit</p>
+      <Calendar
+        start={date}
+        min={today || undefined}
+        onPick={(next) => {
+          onChange(next);
+          setEditing(false);
+        }}
+      />
+    </div>
+  );
+}
+
+function PassCard({ pass, noun, count, onPick }: { pass: Pass; noun: string; count: number; onPick: () => void }) {
+  return (
+    <article id={`pass-${pass.id}`} aria-labelledby={`pass-${pass.id}-name`} className="flex flex-col rounded-bk border border-bk-line bg-bk-card p-3 text-bk-ink sm:p-4">
       {pass.photo && (
         <div className="relative aspect-[16/9] overflow-hidden rounded-[calc(var(--bk-radius)*0.75)] bg-bk-soft">
           <Image src={pass.photo.src} alt={pass.photo.alt} fill sizes="(min-width: 768px) 30vw, 100vw" placeholder="blur" className="object-cover" />
         </div>
       )}
-      <div className="px-1 pt-4">
-        <h3 id={`pass-${pass.id}`} className="bk-display text-[1.7rem]">
+      <div className="flex flex-1 flex-col px-1 pt-4">
+        <h3 id={`pass-${pass.id}-name`} className="bk-display text-[1.7rem]">
           {pass.name}
         </h3>
         <p className="mt-1 text-[0.95rem] tabular-nums">{pass.hours}</p>
@@ -197,47 +324,22 @@ function PassCard({ pass, noun, invited, count, onAdd }: { pass: Pass; noun: str
           </div>
         </dl>
         <p className="mt-2 text-[0.8rem] text-bk-muted">Per person, plus GST. Under 3 free.</p>
-        {!picking && (
-          <>
-            <button
-              ref={addRef}
-              type="button"
-              onClick={() => {
-                setOpened(true);
-                setAdded(false);
-              }}
-              className="mt-4 min-h-12 w-full rounded-bk-control bg-bk-accent px-5 bk-button text-bk-accent-ink transition-opacity hover:opacity-90"
-            >
-              {count > 0 ? "Add more guests" : `Add ${noun}`}
-            </button>
-            <p aria-live="polite" className="mt-2 min-h-[1.25rem] text-center text-[0.82rem] text-bk-good">
-              {added ? "Added. See it in your selection." : count > 0 ? `${count} in your selection` : ""}
+        <div className="mt-auto pt-4">
+          <button
+            type="button"
+            onClick={onPick}
+            className="min-h-12 w-full rounded-bk-control bg-bk-accent px-5 bk-button text-bk-accent-ink transition-opacity hover:opacity-90"
+          >
+            {count > 0 ? `Add another ${noun}` : `Add ${noun}`}
+          </button>
+          {count > 0 && (
+            <p className="mt-2 text-center text-[0.84rem] text-bk-good">
+              <span aria-hidden>✓ </span>
+              {count} in your day
             </p>
-          </>
-        )}
-      </div>
-      {picking && (
-        <div className="mt-4">
-          <PartyPicker
-            title={`Who is coming on the ${pass.name.toLowerCase()} ${noun}?`}
-            party={party}
-            onChange={setParty}
-            price={
-              <span>
-                <span className="bk-display text-[1.45rem] tabular-nums">{formatRupees(priceForPass(pass, party))}</span>
-                <span className="text-bk-muted"> plus GST</span>
-              </span>
-            }
-            confirmLabel={`Add ${noun}`}
-            onCancel={close}
-            onConfirm={() => {
-              onAdd(party);
-              setAdded(true);
-              close();
-            }}
-          />
+          )}
         </div>
-      )}
+      </div>
     </article>
   );
 }

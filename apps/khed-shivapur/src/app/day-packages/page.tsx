@@ -24,8 +24,7 @@ export default function DayPackagesPage() {
               Day <em>packages</em>
             </h1>
             <p className="max-w-xl text-fern lg:col-span-6">
-              Four ways to spend a day here, each with meals and every activity included. Choose your date, add a package and
-              say who is coming. Our team confirms on WhatsApp.
+              Four ways to spend a day here, each with meals and every activity included.
             </p>
           </div>
         </header>

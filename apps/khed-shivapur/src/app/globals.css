@@ -55,7 +55,13 @@
   --bk-display: var(--font-newsreader), "Iowan Old Style", Georgia, serif;
   --bk-display-weight: 300;
   --bk-display-tracking: -0.02em;
-  --bk-sticky-top: 5rem;
+  /* The header's height: 72px on phones, 80px from md up. */
+  --bk-sticky-top: 4.5rem;
+}
+@media (min-width: 48rem) {
+  :root {
+    --bk-sticky-top: 5rem;
+  }
 }
 
 /* Lenis base rules (the package does not export its stylesheet). */
