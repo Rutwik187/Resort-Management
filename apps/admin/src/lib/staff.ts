@@ -23,12 +23,12 @@ export async function requirePermission(permission: Permission, propertyId?: str
   return staff;
 }
 
-/** A resort from its code in the address, such as /ks/rooms, if this person works there. */
-export async function propertyFromCode(code: string, staff: StaffAccess) {
+/** A resort from its code in the address, such as /ks/rooms, if this person works there. Read once per request. */
+export const propertyFromCode = cache(async (code: string, staff: StaffAccess) => {
   const [property] = await getDb().select().from(properties).where(eq(properties.code, code.toUpperCase()));
   if (!property || !canAccessProperty(staff, property.id)) notFound();
   return property;
-}
+});
 
 /** Records a change in the audit log: who, when, from where, and the values before and after (USR-05). */
 export async function audit(entry: { userId: string; propertyId?: string | null; action: string; entity: string; entityId?: string; before?: unknown; after?: unknown }) {

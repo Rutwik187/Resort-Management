@@ -29,8 +29,7 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
 
   return (
     <div>
-      <p className="text-[0.75rem] font-semibold tracking-[0.12em] text-muted">{property.code}</p>
-      <h1 className="mt-1 text-[1.6rem] font-semibold">Rooms and units at {property.name}</h1>
+      <h1 className="text-[1.35rem] font-semibold">Rooms and units</h1>
       <p className="mt-1 text-muted">
         {types.length} room types, {allUnits.filter((u) => u.status === "active").length} units in use. A room type is a kind of room, such as Garden Cottage; its units are the rooms themselves.
       </p>

@@ -1,16 +1,18 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { and, count, eq, inArray } from "drizzle-orm";
-import { accessibleProperties, can } from "@repo/auth";
+import { accessibleProperties } from "@repo/auth";
 import { getDb, roomTypes, units } from "@repo/db";
 import { requireStaffPage } from "@/lib/staff";
 
 export const metadata = { title: "Home" };
 
-/** The resorts this person works for, with their rooms at a glance. */
+/** The resorts this person works for, with their rooms at a glance. Someone at one resort goes straight to it. */
 export default async function HomePage() {
   const staff = await requireStaffPage();
   const db = getDb();
   const resorts = await accessibleProperties(db, staff);
+  if (resorts.length === 1) redirect(`/${resorts[0].code.toLowerCase()}`);
   const ids = resorts.map((r) => r.id);
   const typeCounts = ids.length
     ? await db.select({ propertyId: roomTypes.propertyId, n: count() }).from(roomTypes).where(and(inArray(roomTypes.propertyId, ids), eq(roomTypes.status, "active"))).groupBy(roomTypes.propertyId)
@@ -33,11 +35,9 @@ export default async function HomePage() {
             <p className="mt-1 text-muted">
               {typeCounts.find((c) => c.propertyId === resort.id)?.n ?? 0} room types · {unitCounts.find((c) => c.propertyId === resort.id)?.n ?? 0} units in use
             </p>
-            {can(staff, "rooms.manage", resort.id) || can(staff, "inventory.view", resort.id) ? (
-              <Link href={`/${resort.code.toLowerCase()}/rooms`} className="button-quiet mt-4">
-                Rooms and units
-              </Link>
-            ) : null}
+            <Link href={`/${resort.code.toLowerCase()}`} className="button-quiet mt-4">
+              Open {resort.name}
+            </Link>
           </li>
         ))}
       </ul>

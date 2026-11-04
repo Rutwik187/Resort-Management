@@ -15,6 +15,9 @@
   --color-good: #2c6a43;
   --color-warn: #93481a;
   --color-danger: #a1271f;
+  /* Columns in charts: a step of the group green that passes the dataviz
+     guide's checks for a data mark (lightness, chroma, 3:1 on white). */
+  --color-chart: #2a9160;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 

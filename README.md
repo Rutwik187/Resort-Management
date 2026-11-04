@@ -12,7 +12,7 @@ The plan for the whole platform is in [`docs/implementation-plan.md`](docs/imple
 | `apps/go-crazy` | `go-crazy` | Prathamesh Go Crazy Resort, Sinhagad: gocrazyadventure.com |
 | `apps/sinhagad-bliss` | `sinhagad-bliss` | Sinhagad Bliss: sinhagadbliss.com |
 | `apps/valley` | `valley` | Prathamesh Valley Resorts, Mahabaleshwar: prathameshvalleyresorts.com |
-| `apps/admin` | `admin` | The staff dashboard: sign-in, rooms and units, and staff. Runs at http://localhost:3010 |
+| `apps/admin` | `admin` | The staff dashboard: sign-in, each resort's day (arrivals, sales, rooms booked), bookings with offline booking and the front desk, rooms and units, and staff. Runs at http://localhost:3010 |
 | `packages/booking-ui` | `@repo/booking-ui` | The booking widget that all four sites share: the search bar, the room and day-pass lists, and the tray |
 | `packages/db` | `@repo/db` | The database: Drizzle tables, migrations, the seed, and the roles and permissions |
 | `packages/auth` | `@repo/auth` | Staff sign-in with Better Auth, and the permission check `can()` |

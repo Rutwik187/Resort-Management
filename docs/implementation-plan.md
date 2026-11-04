@@ -26,6 +26,7 @@
 | 3 November 2026 | Each site redirects the old WordPress pages to the new ones. prathameshresorts.com links to the other three resorts from its menu and home page |
 | 4 November 2026 | The backend's foundation: `packages/db` (every table from section 4 for resorts, staff, the catalogue, stock and bookings, plus offerings sold by the seat, such as day packages, activities and restaurant sittings), `packages/auth` (Better Auth for staff, invitation only, with `can()`), `packages/engine` (availability, holds, prices, bookings, blocks and the expiry job, with 21 tests including the race for the last room) and `apps/admin` (sign-in, rooms and units, staff) |
 | 4 November 2026 | The database runs on Neon: project `withered-fire-71704216`, branch `production`, Singapore. Migrations and the seed are applied. Neon Auth is provisioned on the branch but unused: the admin keeps its own Better Auth (section 7). Neon object storage is not set up yet: it needs `neon login` with the account that owns the project |
+| 4 November 2026 | The admin's bookings and front desk: each resort's day (ADM-01) with charts for sales and rooms booked (ADM-02), the booking list with filters and search (ADM-03), the booking page with its timeline (ADM-04), check-in, check-out, no-show, cancel, room changes, notes and printing (ADM-05), and offline bookings through the engine (ADM-06) with a price set by hand and a reason (ADM-07). Payments taken at the resort go in `offline_payments`. The engine now books a part-paid booking's rooms, not just a confirmed one's |
 
 ## Architecture
 
