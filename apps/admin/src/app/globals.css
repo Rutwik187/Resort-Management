@@ -92,4 +92,8 @@
   .button-quiet:hover {
     border-color: var(--color-ink);
   }
+  /* Blocked nights in the calendar: stripes as well as grey, so the state never rests on colour alone. */
+  .blocked-cell {
+    background: repeating-linear-gradient(135deg, rgb(23 32 27 / 0.1) 0 4px, rgb(23 32 27 / 0.03) 4px 9px);
+  }
 }

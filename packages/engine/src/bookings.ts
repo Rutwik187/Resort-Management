@@ -278,6 +278,11 @@ export async function changeBookingStatus(db: Database, input: { bookingId: stri
       throw new RuleError(`The guest is due on ${due}. Check-in and no-show open on that day.`);
     }
 
+    // A guest who leaves early, or never comes, frees the nights still ahead, so they can be sold again.
+    if (input.to === "checked_out" || input.to === "no_show") {
+      await releaseNightsFrom(tx, booking, input.today ?? todayInIndia(), input.to === "no_show" ? "No-show" : "Left early", input.userId);
+    }
+
     if (releasesStock(input.to)) {
       const [hold] = await tx.select().from(holds).where(eq(holds.bookingId, booking.id)).for("update");
       if (hold?.status === "active") {
@@ -290,6 +295,28 @@ export async function changeBookingStatus(db: Database, input: { bookingId: stri
     await tx.update(bookings).set({ status: input.to }).where(eq(bookings.id, booking.id));
     await tx.insert(bookingEvents).values({ propertyId: booking.propertyId, bookingId: booking.id, type: "status", fromStatus: booking.status, toStatus: input.to, userId: input.userId ?? null, note: input.note ?? null });
   });
+}
+
+/** Gives back a booking's rooms from `today` on, and for a no-show its seats from today on too. */
+async function releaseNightsFrom(tx: Tx, booking: typeof bookings.$inferSelect, today: string, reason: string, userId?: string) {
+  const rooms = await tx
+    .delete(unitNights)
+    .where(and(eq(unitNights.bookingId, booking.id), sql`${unitNights.night} >= ${today}`))
+    .returning({ unitId: unitNights.unitId, night: unitNights.night });
+  for (const unitId of new Set(rooms.map((r) => r.unitId))) {
+    const own = rooms.filter((r) => r.unitId === unitId).map((r) => r.night).sort();
+    await tx.insert(inventoryLog).values({ propertyId: booking.propertyId, action: "cancel", unitId, fromDate: own[0], toDate: own[own.length - 1], bookingId: booking.id, userId: userId ?? null, reason });
+  }
+  if (reason !== "No-show") return;
+  for (const line of (booking.quote as Quote).lines) {
+    if (line.kind !== "offering" || line.day < today) continue;
+    const guests = headcount(line.party);
+    await tx
+      .update(capacityDays)
+      .set({ sold: sql`greatest(${capacityDays.sold} - ${guests}, 0)` })
+      .where(and(eq(capacityDays.slotId, line.slotId), eq(capacityDays.day, line.day)));
+    await tx.insert(inventoryLog).values({ propertyId: booking.propertyId, action: "cancel", slotId: line.slotId, fromDate: line.day, toDate: line.day, bookingId: booking.id, userId: userId ?? null, reason, data: { guests } });
+  }
 }
 
 /** Gives back the rooms and seats a booking holds as booked. */

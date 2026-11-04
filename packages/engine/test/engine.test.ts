@@ -378,3 +378,31 @@ describe("quotes", () => {
     expect(live.holdId).toBeDefined();
   });
 });
+
+describe("leaving early and no-shows", () => {
+  const guest = { name: "Meera Joshi", phone: "90000 11111" };
+
+  it("frees the nights ahead when a guest leaves early, and keeps the nights stayed", async () => {
+    const stay = { propertyId, checkIn: "2027-12-20", checkOut: "2027-12-23", rooms: [{ roomTypeId: lastRoomId, party: couple }] };
+    const hold = await holdStay(db, stay);
+    const { bookingId } = await createBooking(db, { holdId: hold.holdId, guest, source: "phone", confirm: true });
+    await changeBookingStatus(db, { bookingId, to: "checked_in", today: "2027-12-20" });
+    await changeBookingStatus(db, { bookingId, to: "checked_out", today: "2027-12-21" });
+    const kept = await db.select().from(unitNights).where(eq(unitNights.bookingId, bookingId));
+    expect(kept.map((n) => n.night)).toEqual(["2027-12-20"]);
+    await expect(holdStay(db, { ...stay, checkIn: "2027-12-21" })).resolves.toBeDefined();
+  });
+
+  it("frees the room and the seats when a guest doesn't come", async () => {
+    const hold = await holdStay(db, { propertyId, checkIn: "2027-12-27", checkOut: "2027-12-29", rooms: [{ roomTypeId: lastRoomId, party: couple }] });
+    const { bookingId } = await createBooking(db, { holdId: hold.holdId, guest, source: "phone", confirm: true });
+    await changeBookingStatus(db, { bookingId, to: "no_show", today: "2027-12-27" });
+    expect(await db.select().from(unitNights).where(eq(unitNights.bookingId, bookingId))).toHaveLength(0);
+
+    const seats = await holdSeats(db, { propertyId, day: "2027-12-26", seats: [{ slotId: lunchSlotId, party: { adults: 5, children: {} } }] });
+    const day = await createBooking(db, { holdId: seats.holdId, guest, source: "walk_in", confirm: true });
+    await changeBookingStatus(db, { bookingId: day.bookingId, to: "no_show", today: "2027-12-26" });
+    const [row] = await db.select().from(capacityDays).where(eq(capacityDays.day, "2027-12-26"));
+    expect(row).toMatchObject({ sold: 0, held: 0 });
+  });
+});

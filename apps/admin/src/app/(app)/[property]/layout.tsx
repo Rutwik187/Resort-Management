@@ -13,6 +13,7 @@ export default async function ResortLayout({ children, params }: LayoutProps<"/[
   const tabs = [
     { href: base, label: "Today", segment: null, show: allowed("dashboard.view") },
     { href: `${base}/bookings`, label: "Bookings", segment: "bookings", show: allowed("bookings.view") },
+    { href: `${base}/calendar`, label: "Calendar", segment: "calendar", show: allowed("inventory.view") },
     { href: `${base}/rooms`, label: "Rooms", segment: "rooms", show: allowed("rooms.manage", "inventory.view") },
   ].filter((tab) => tab.show);
 
