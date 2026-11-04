@@ -3,7 +3,7 @@
  * availability, holds that make double booking impossible, prices, and the
  * booking lifecycle. The resort sites and the admin both use it.
  */
-export { freeUnits, searchStays, stayRuleProblem, type StayOption } from "./availability";
+export { freeUnits, searchStays, seatsLeft, stayRuleProblem, type SeatOption, type StayOption } from "./availability";
 export { createBlock, liftBlock, type BlockReason } from "./blocks";
 export {
   addBookingNote,
@@ -23,7 +23,21 @@ export {
 export { loadBands, loadRoomPricing, type RoomTypeInfo } from "./catalogue";
 export { addDays, dayOfWeek, isDate, nightsOf, todayInIndia } from "./dates";
 export { NotFoundError, RuleError, SoldOutError, TransitionError } from "./errors";
-export { holdSeats, holdStay, releaseHold, type HoldResult, type OfferingQuoteLine, type Quote, type SeatRequest, type StayQuoteLine, type StayRequest } from "./holds";
+export {
+  holdSeats,
+  holdStay,
+  quoteSeats,
+  quoteStay,
+  releaseHold,
+  type HoldResult,
+  type OfferingQuoteLine,
+  type Quote,
+  type SeatRequest,
+  type SeatsInput,
+  type StayInput,
+  type StayQuoteLine,
+  type StayRequest,
+} from "./holds";
 export { expireHolds } from "./jobs";
 export { recordPayment, type PaymentInput, type PaymentMethod } from "./payments";
 export { headcount, payingGuests, priceNight, priceOffering, priceStay, type AgeBand, type NightPrice, type Party, type Rate, type RoomPricing, type Season } from "./pricing";

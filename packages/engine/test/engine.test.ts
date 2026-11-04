@@ -32,9 +32,12 @@ import {
   holdSeats,
   holdStay,
   liftBlock,
+  quoteSeats,
+  quoteStay,
   recordPayment,
   RuleError,
   searchStays,
+  seatsLeft,
   setBookingPrice,
   SoldOutError,
   TransitionError,
@@ -347,5 +350,31 @@ describe("payments and the front desk", () => {
     const timeline = await db.select().from(bookingEvents).where(eq(bookingEvents.bookingId, bookingId)).orderBy(bookingEvents.id);
     expect(timeline.at(-1)).toMatchObject({ type: "note", note: "Late arrival, around 9 pm." });
     expect((await statusOf(bookingId)).status).toBe("checked_in");
+  });
+});
+
+describe("quotes", () => {
+  it("prices a stay exactly as a hold would, and keeps nothing", async () => {
+    const stay = { propertyId, checkIn: "2027-12-06", checkOut: "2027-12-08", rooms: [{ roomTypeId: lastRoomId, party: { adults: 3, children: { child_5_11: 1 } } }] };
+    const quote = await quoteStay(db, stay);
+    expect(quote.lines).toHaveLength(1);
+    expect(await db.select().from(unitNights).where(eq(unitNights.night, "2027-12-06"))).toHaveLength(0);
+    const hold = await holdStay(db, stay);
+    expect(hold.quote.totalPaise).toBe(quote.totalPaise);
+    // With the only unit held, the quote says sold out, as a hold would.
+    await expect(quoteStay(db, stay)).rejects.toBeInstanceOf(SoldOutError);
+  });
+
+  it("counts a day's seats left, without holds that have run out", async () => {
+    const day = "2027-12-12";
+    const quote = await quoteSeats(db, { propertyId, day, seats: [{ slotId: lunchSlotId, party: couple }] });
+    expect(quote.totalPaise).toBe(120_000);
+    expect((await seatsLeft(db, propertyId, day)).find((s) => s.slotId === lunchSlotId)).toMatchObject({ capacity: 10, sold: 0, held: 0, left: 10 });
+
+    const live = await holdSeats(db, { propertyId, day, seats: [{ slotId: lunchSlotId, party: { adults: 4, children: {} } }] });
+    const gone = await holdSeats(db, { propertyId, day, seats: [{ slotId: lunchSlotId, party: { adults: 3, children: {} } }] });
+    await db.update(holds).set({ expiresAt: new Date(Date.now() - 1000) }).where(eq(holds.id, gone.holdId));
+    expect((await seatsLeft(db, propertyId, day)).find((s) => s.slotId === lunchSlotId)).toMatchObject({ held: 4, left: 6 });
+    expect(live.holdId).toBeDefined();
   });
 });
