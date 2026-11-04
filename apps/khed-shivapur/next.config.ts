@@ -21,12 +21,12 @@ const oldPages: [string, string][] = [
  * Temporary redirects, so the group can reuse a path later without browsers holding on to it.
  */
 const otherResorts: [string, string][] = [
-  ["/go-crazy", "https://gocrazyadventure.com"],
-  ["/gocrazy", "https://gocrazyadventure.com"],
+  ["/go-crazy", "https://www.gocrazyadventure.com"],
+  ["/gocrazy", "https://www.gocrazyadventure.com"],
   ["/sinhagad-bliss", "https://sinhagadbliss.com"],
   ["/bliss", "https://sinhagadbliss.com"],
-  ["/valley", "https://prathameshvalleyresorts.com"],
-  ["/mahabaleshwar", "https://prathameshvalleyresorts.com"],
+  ["/valley", "https://www.prathameshvalleyresorts.com"],
+  ["/mahabaleshwar", "https://www.prathameshvalleyresorts.com"],
 ];
 
 const nextConfig: NextConfig = {

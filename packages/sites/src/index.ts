@@ -31,7 +31,7 @@ export const properties: Property[] = [
     name: "Prathamesh Go Crazy Resort",
     shortName: "Go Crazy",
     place: "Ghera Sinhagad, Pune",
-    url: "https://gocrazyadventure.com",
+    url: "https://www.gocrazyadventure.com",
     pitch: "An adventure park with more than 70 activities, day passes and cottages",
   },
   {
@@ -47,7 +47,7 @@ export const properties: Property[] = [
     name: "Prathamesh Valley Resorts",
     shortName: "Valley Resorts",
     place: "Bhilar, Mahabaleshwar",
-    url: "https://prathameshvalleyresorts.com",
+    url: "https://www.prathameshvalleyresorts.com",
     pitch: "Red laterite cottages in the hills of Mahabaleshwar",
   },
 ];

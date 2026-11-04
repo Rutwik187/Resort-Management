@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-export const siteUrl = "https://gocrazyadventure.com";
+export const siteUrl = "https://www.gocrazyadventure.com";
 export const siteName = "Prathamesh Go Crazy";
 export const legalName = "Prathamesh Go Crazy Adventure Park & Resort";
 export const defaultTitle = "Prathamesh Go Crazy | Adventure park and resort at Sinhagad, Pune";

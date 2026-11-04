@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-export const siteUrl = "https://prathameshvalleyresorts.com";
+export const siteUrl = "https://www.prathameshvalleyresorts.com";
 export const siteName = "Prathamesh Valley Resorts";
 export const defaultTitle = "Prathamesh Valley Resorts | A hill-station holiday at Bhilar, Mahabaleshwar";
 

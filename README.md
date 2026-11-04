@@ -60,13 +60,19 @@ Until the booking engine and Razorpay arrive, the tray sends the request on What
 
 ## Deploy
 
-Each app is its own Vercel project. Its Root Directory setting is its own folder.
+Each app is its own Vercel project in the team "rutwik187's projects", linked to this repo. Its Root Directory setting is its own folder. A push to `main` deploys to production; any other branch makes a preview.
 
-| Vercel project | Root Directory | Domain |
-|---|---|---|
-| `prathameshresorts` | `apps/khed-shivapur` | prathameshresorts.com |
-| To create | `apps/go-crazy` | gocrazyadventure.com |
-| To create | `apps/sinhagad-bliss` | sinhagadbliss.com |
-| To create | `apps/valley` | prathameshvalleyresorts.com |
+| Vercel project | Root Directory | Main address | Also answers |
+|---|---|---|---|
+| `prathameshresorts` | `apps/khed-shivapur` | prathameshresorts.com | www, redirected |
+| `gocrazyadventure` | `apps/go-crazy` | www.gocrazyadventure.com | the bare domain, redirected |
+| `sinhagadbliss` | `apps/sinhagad-bliss` | sinhagadbliss.com | www, redirected |
+| `prathameshvalleyresorts` | `apps/valley` | www.prathameshvalleyresorts.com | the bare domain, redirected |
+
+The main addresses are the ones the old WordPress sites used, so search results keep their links. Each app's `siteUrl` in `src/content/site.ts` matches.
+
+- Every project runs `npx turbo-ignore` as its Ignored Build Step: a push builds only the sites it changes, through their own files or a shared package.
+- Never set a custom Install Command: Vercel would fall back to pnpm 6. The root `package.json` pins pnpm 12 with `packageManager`.
+- The domains are registered at Hostinger, which also runs their DNS and their Google Workspace mail. To move a site, change only its A record and its `www` record to the values Vercel shows. Keep the nameservers and the MX and TXT records, or the resort's email stops.
 
 Each app's `next.config.ts` redirects the old WordPress site's pages to their new homes, so old links and search results keep working when a domain moves to Vercel. prathameshresorts.com also sends `/go-crazy`, `/sinhagad-bliss` and `/valley` to the other resorts.
