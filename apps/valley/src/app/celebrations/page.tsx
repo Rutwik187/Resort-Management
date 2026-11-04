@@ -1,5 +1,6 @@
 import { contact, eventTypes, weddingMoments } from "@/content/resort";
 import { pageMetadata } from "@/content/site";
+import { Email } from "@/components/email";
 import { Enquiry } from "@/components/enquiry";
 import { InView, Words } from "@/components/in-view";
 import { PageIntro } from "@/components/page-intro";
@@ -58,8 +59,10 @@ export default function CelebrationsPage() {
                 <span className="text-haze">, call or WhatsApp</span>
               </p>
               <p className="mt-2">
-                <a href={`mailto:${contact.weddingEmail}`} className="arrow-link break-all">
-                  {contact.weddingEmail}
+                <a href={`mailto:${contact.weddingEmail}`} className="arrow-link min-w-0 [overflow-wrap:anywhere]">
+                  <span className="min-w-0">
+                    <Email address={contact.weddingEmail} />
+                  </span>
                 </a>
               </p>
             </div>
