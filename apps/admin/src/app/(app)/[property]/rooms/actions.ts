@@ -1,10 +1,11 @@
 "use server";
 
-import { desc, eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { asc, desc, eq } from "drizzle-orm";
+import { refresh, revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ForbiddenError } from "@repo/auth";
 import { getDb, properties, roomTypes, units } from "@repo/db";
+import { filled } from "@/lib/forms";
 import { audit, requirePermission } from "@/lib/staff";
 
 /** What a form gets back: an error to show, or a short success note. */
@@ -16,24 +17,32 @@ const checkbox = z.literal("on").optional().transform((value) => value === "on")
 const count = (label: string, min: number, max: number) =>
   z.coerce.number({ error: `${label} must be a number.` }).int(`${label} must be a whole number.`).min(min, `${label} can't be below ${min}.`).max(max, `${label} can't be above ${max}.`);
 
-const roomTypeInput = z
-  .object({
-    name: z.string().trim().min(2, "Give the room type a name.").max(80),
+const roomTypeFields = z.object({
+  name: z.string().trim().min(2, "Give the room type a name.").max(80),
+  category: z.enum(categories),
+  baseOccupancy: count("Guests in the base price", 1, 50),
+  minGuests: count("The fewest guests", 1, 200),
+  maxAdults: count("The most adults", 1, 200),
+  maxChildren: count("The most children", 0, 200),
+  maxGuests: count("The most guests", 1, 200),
+  extraBedAllowed: checkbox,
+  bedType: z.string().trim().max(60).optional(),
+  sizeSqft: count("The size", 1, 100_000).optional(),
+});
+const guestLimits = (v: { baseOccupancy: number; minGuests: number; maxGuests: number }, ctx: z.RefinementCtx) => {
+  if (v.maxGuests < v.baseOccupancy) ctx.addIssue({ code: "custom", message: "The most guests can't be fewer than the guests in the base price." });
+  if (v.maxGuests < v.minGuests) ctx.addIssue({ code: "custom", message: "The most guests can't be fewer than the fewest." });
+};
+const roomTypeInput = roomTypeFields
+  .extend({
     code: z
       .string()
       .trim()
       .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "The code uses small letters, numbers and dashes, such as garden-cottage."),
-    category: z.enum(categories),
-    baseOccupancy: count("Guests in the base price", 1, 50),
-    minGuests: count("The fewest guests", 1, 200),
-    maxAdults: count("The most adults", 1, 200),
-    maxChildren: count("The most children", 0, 200),
-    maxGuests: count("The most guests", 1, 200),
-    extraBedAllowed: checkbox,
-    bedType: z.string().trim().max(60).optional(),
   })
-  .refine((v) => v.maxGuests >= v.baseOccupancy, { error: "The most guests can't be fewer than the guests in the base price." })
-  .refine((v) => v.maxGuests >= v.minGuests, { error: "The most guests can't be fewer than the fewest." });
+  .superRefine(guestLimits);
+/** The code stays: it links the room type's photos and text. */
+const roomTypeEdit = roomTypeFields.superRefine(guestLimits);
 
 /** The first problem, in words, or a general message. */
 function problem(error: unknown): FormState {
@@ -46,14 +55,14 @@ function problem(error: unknown): FormState {
 export async function createRoomType(propertyId: string, _state: FormState, form: FormData): Promise<FormState> {
   try {
     const staff = await requirePermission("rooms.manage", propertyId);
-    const input = roomTypeInput.parse(Object.fromEntries(form));
+    const input = roomTypeInput.parse(filled(form));
     const db = getDb();
     const [property] = await db.select({ code: properties.code }).from(properties).where(eq(properties.id, propertyId));
     // New room types go to the end of the list.
     const [last] = await db.select({ sortOrder: roomTypes.sortOrder }).from(roomTypes).where(eq(roomTypes.propertyId, propertyId)).orderBy(desc(roomTypes.sortOrder)).limit(1);
     const [created] = await db
       .insert(roomTypes)
-      .values({ propertyId, ...input, bedType: input.bedType || null, sortOrder: (last?.sortOrder ?? 0) + 1, createdBy: staff.userId })
+      .values({ propertyId, ...input, bedType: input.bedType ?? null, sizeSqft: input.sizeSqft ?? null, sortOrder: (last?.sortOrder ?? 0) + 1, createdBy: staff.userId })
       .onConflictDoNothing({ target: [roomTypes.propertyId, roomTypes.code] })
       .returning();
     if (!created) return { error: `This resort already has a room type with the code ${input.code}.` };
@@ -132,4 +141,46 @@ export async function setRoomTypeStatus(roomTypeId: string, status: "active" | "
   await audit({ userId: staff.userId, propertyId: roomType.propertyId, action: "room_type.status", entity: "room_types", entityId: roomTypeId, before: { status: roomType.status }, after: { status } });
   const [property] = await db.select({ code: properties.code }).from(properties).where(eq(properties.id, roomType.propertyId));
   revalidatePath(`/${property.code.toLowerCase()}/rooms`);
+}
+
+/** Changes a room type's name, kind, guest limits, bed and size (RM-01). Its code stays. */
+export async function editRoomType(roomTypeId: string, _state: FormState, form: FormData): Promise<FormState> {
+  try {
+    z.uuid().parse(roomTypeId);
+    const db = getDb();
+    const [before] = await db.select().from(roomTypes).where(eq(roomTypes.id, roomTypeId));
+    if (!before) return { error: "That room type no longer exists." };
+    const staff = await requirePermission("rooms.manage", before.propertyId);
+    const input = roomTypeEdit.parse(filled(form));
+    const [after] = await db
+      .update(roomTypes)
+      .set({ ...input, bedType: input.bedType ?? null, sizeSqft: input.sizeSqft ?? null })
+      .where(eq(roomTypes.id, roomTypeId))
+      .returning();
+    await audit({ userId: staff.userId, propertyId: before.propertyId, action: "room_type.update", entity: "room_types", entityId: roomTypeId, before, after });
+    refresh();
+    return { done: "Saved." };
+  } catch (error) {
+    return problem(error);
+  }
+}
+
+/** Moves a room type one place up or down the list, which is the order guests see (RM-01). */
+export async function moveRoomType(roomTypeId: string, direction: "up" | "down") {
+  z.uuid().parse(roomTypeId);
+  z.enum(["up", "down"]).parse(direction);
+  const db = getDb();
+  const [type] = await db.select().from(roomTypes).where(eq(roomTypes.id, roomTypeId));
+  if (!type) return;
+  const staff = await requirePermission("rooms.manage", type.propertyId);
+  await db.transaction(async (tx) => {
+    const list = await tx.select({ id: roomTypes.id }).from(roomTypes).where(eq(roomTypes.propertyId, type.propertyId)).orderBy(asc(roomTypes.sortOrder), asc(roomTypes.name));
+    const from = list.findIndex((t) => t.id === roomTypeId);
+    const to = direction === "up" ? from - 1 : from + 1;
+    if (to < 0 || to >= list.length) return;
+    [list[from], list[to]] = [list[to], list[from]];
+    for (const [i, t] of list.entries()) await tx.update(roomTypes).set({ sortOrder: i + 1 }).where(eq(roomTypes.id, t.id));
+  });
+  await audit({ userId: staff.userId, propertyId: type.propertyId, action: "room_type.move", entity: "room_types", entityId: roomTypeId, after: { direction } });
+  refresh();
 }

@@ -17,6 +17,7 @@ export default async function ResortLayout({ children, params }: LayoutProps<"/[
     { href: `${base}/rooms`, label: "Rooms", segment: "rooms", show: allowed("rooms.manage", "inventory.view") },
     { href: `${base}/prices`, label: "Prices", segment: "prices", show: allowed("prices.view") },
     { href: `${base}/packages`, label: "Packages", segment: "packages", show: allowed("prices.view") },
+    { href: `${base}/settings`, label: "Settings", segment: "settings", show: allowed("settings.manage") },
   ].filter((tab) => tab.show);
 
   return (

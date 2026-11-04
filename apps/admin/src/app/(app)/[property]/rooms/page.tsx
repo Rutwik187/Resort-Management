@@ -2,8 +2,8 @@ import { asc, eq, inArray, isNull, and } from "drizzle-orm";
 import { can } from "@repo/auth";
 import { getDb, rates, roomTypes, units } from "@repo/db";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
-import { setRoomTypeStatus, setUnitStatus } from "./actions";
-import { AddUnitsForm, RoomTypeForm } from "./forms";
+import { moveRoomType, setRoomTypeStatus, setUnitStatus } from "./actions";
+import { AddUnitsForm, RoomTypeEditForm, RoomTypeForm } from "./forms";
 
 export const metadata = { title: "Rooms and units" };
 
@@ -37,7 +37,7 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
       {manage && <RoomTypeForm propertyId={property.id} />}
 
       <ul className="mt-8 grid gap-4">
-        {types.map((type) => {
+        {types.map((type, index) => {
           const own = allUnits.filter((u) => u.roomTypeId === type.id);
           const typeRates = baseRates.filter((r) => r.roomTypeId === type.id);
           return (
@@ -51,14 +51,28 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
                   <p className="mt-0.5 text-[0.88rem] text-muted">
                     {type.category} · code {type.code} · base price covers {type.baseOccupancy} · {type.minGuests > 1 ? `${type.minGuests} to ` : "up to "}
                     {type.maxGuests} guests{type.extraBedAllowed ? " · extra bed" : ""}
+                    {type.bedType ? ` · ${type.bedType}` : ""}
+                    {type.sizeSqft ? ` · ${type.sizeSqft} sq ft` : ""}
                   </p>
                 </div>
                 {manage && (
-                  <form action={setRoomTypeStatus.bind(null, type.id, type.status === "active" ? "inactive" : "active")}>
-                    <button type="submit" className="button-quiet">
-                      {type.status === "active" ? "Take off sale" : "Put on sale"}
-                    </button>
-                  </form>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <form action={moveRoomType.bind(null, type.id, "up")}>
+                      <button type="submit" disabled={index === 0} aria-label={`Move ${type.name} up`} title="Move up" className="button-quiet disabled:opacity-40">
+                        ↑
+                      </button>
+                    </form>
+                    <form action={moveRoomType.bind(null, type.id, "down")}>
+                      <button type="submit" disabled={index === types.length - 1} aria-label={`Move ${type.name} down`} title="Move down" className="button-quiet disabled:opacity-40">
+                        ↓
+                      </button>
+                    </form>
+                    <form action={setRoomTypeStatus.bind(null, type.id, type.status === "active" ? "inactive" : "active")}>
+                      <button type="submit" className="button-quiet">
+                        {type.status === "active" ? "Take off sale" : "Put on sale"}
+                      </button>
+                    </form>
+                  </div>
                 )}
               </div>
 
@@ -101,6 +115,12 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
                     </li>
                   ))}
                 </ul>
+              )}
+              {manage && (
+                <details className="mt-4 border-t border-line pt-3">
+                  <summary className="cursor-pointer text-[0.9rem] font-semibold">Change {type.name}</summary>
+                  <RoomTypeEditForm type={type} />
+                </details>
               )}
               {manage && <AddUnitsForm roomTypeId={type.id} suggestion={type.category === "room" ? "Room" : type.category[0].toUpperCase() + type.category.slice(1)} />}
             </li>

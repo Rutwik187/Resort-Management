@@ -75,7 +75,7 @@ export default async function BookingPage({ params }: PageProps<"/[property]/boo
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_20rem] lg:grid-rows-[auto_1fr]">
         <aside className="grid content-start gap-5 lg:col-start-2 lg:row-start-1">
           <GuestCard guest={guest} />
-          {open.includes(booking.status) && (
+          {open.includes(booking.status) && (may("bookings.modify") || may("bookings.cancel") || may("prices.manage")) && (
             <section className="card grid gap-3 p-5 print:hidden" aria-labelledby="actions-heading">
               <h2 id="actions-heading" className="font-semibold">
                 Front desk

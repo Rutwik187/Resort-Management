@@ -10,7 +10,7 @@ import { SignOutButton } from "./sign-out-button";
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const staff = await requireStaffPage();
   const resorts = await accessibleProperties(getDb(), staff);
-  const extra = [...(can(staff, "users.manage") ? [{ href: "/staff", label: "Staff" }] : [])];
+  const extra = [...(can(staff, "users.manage") ? [{ href: "/staff", label: "Staff" }] : []), ...(can(staff, "audit.view") ? [{ href: "/audit", label: "Audit log" }] : [])];
 
   return (
     <div className="min-h-svh">
@@ -28,13 +28,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               <label htmlFor="header-search" className="sr-only">
                 Find a booking
               </label>
-              <input id="header-search" name="q" type="search" placeholder="Number, phone or name" className="field min-h-9 py-1 md:w-60" />
+              <input id="header-search" name="q" type="search" placeholder="Number, phone or name" className="field min-h-9 py-1 md:w-52" />
             </form>
           )}
           <div className="order-2 ml-auto flex shrink-0 items-center gap-3 text-[0.88rem] md:order-4 md:ml-0">
             <span className="text-muted">
               {staff.name}
-              <span className="hidden xl:inline"> · {staff.role.name}</span>
+              <span className="hidden 2xl:inline"> · {staff.role.name}</span>
             </span>
             <SignOutButton />
           </div>
