@@ -31,7 +31,7 @@ export const bookingStatus = pgEnum("booking_status", [
   "refunded",
   "expired",
 ]);
-export const bookingSource = pgEnum("booking_source", ["website", "admin", "phone", "walk_in", "whatsapp", "email", "corporate", "other"]);
+export const bookingSource = pgEnum("booking_source", ["website", "admin", "phone", "walk_in", "whatsapp", "email", "travel_agent", "corporate", "other"]);
 export const bookingItemKind = pgEnum("booking_item_kind", ["stay", "offering"]);
 
 /** Who is coming, by age band code: { adults: 2, children: { child: 1, infant: 1 } }. */

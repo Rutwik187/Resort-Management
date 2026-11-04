@@ -3,10 +3,12 @@ import { eq } from "drizzle-orm";
 import {
   ageBands,
   bookingEvents,
+  bookingItems,
   bookings,
   capacityDays,
   holds,
   offeringChildPrices,
+  offlinePayments,
   offerings,
   offeringSlots,
   properties,
@@ -20,6 +22,8 @@ import {
 } from "@repo/db";
 import { createTestDatabase } from "@repo/db/testing";
 import {
+  addBookingNote,
+  assignUnit,
   changeBookingStatus,
   confirmBooking,
   createBlock,
@@ -28,8 +32,10 @@ import {
   holdSeats,
   holdStay,
   liftBlock,
+  recordPayment,
   RuleError,
   searchStays,
+  setBookingPrice,
   SoldOutError,
   TransitionError,
 } from "../src";
@@ -247,5 +253,99 @@ describe("bookings", () => {
     expect(day).toMatchObject({ sold: 2, held: 0 });
     const [booking] = await db.select().from(bookings).where(eq(bookings.id, bookingId));
     expect(booking).toMatchObject({ status: "confirmed", visitDate: "2027-02-14", totalPaise: 120_000 });
+  });
+});
+
+describe("payments and the front desk", () => {
+  const guest = { name: "Kiran Patil", phone: "91234 56789" };
+  const statusOf = async (bookingId: string) => (await db.select().from(bookings).where(eq(bookings.id, bookingId)))[0];
+
+  it("keeps a part-paid booking's room after its hold runs out, and confirms it without booking twice", async () => {
+    const stay = { propertyId, checkIn: "2027-10-04", checkOut: "2027-10-06", rooms: [{ roomTypeId: lastRoomId, party: couple }] };
+    const hold = await holdStay(db, stay);
+    const total = hold.quote.totalPaise!;
+    const { bookingId } = await createBooking(db, { holdId: hold.holdId, guest, source: "phone" });
+
+    await recordPayment(db, { bookingId, amountPaise: 100_000, method: "upi", reference: "UPI 4411" });
+    expect(await statusOf(bookingId)).toMatchObject({ status: "part_paid", paidPaise: 100_000 });
+    // The hold's time is up, but the advance booked the room: nobody else can hold it.
+    await db.update(holds).set({ expiresAt: new Date(Date.now() - 1000) }).where(eq(holds.id, hold.holdId));
+    await expireHolds(db);
+    await expect(holdStay(db, stay)).rejects.toBeInstanceOf(SoldOutError);
+
+    await recordPayment(db, { bookingId, amountPaise: total - 100_000, method: "cash" });
+    expect(await statusOf(bookingId)).toMatchObject({ status: "confirmed", paidPaise: total });
+    expect(await db.select().from(unitNights).where(eq(unitNights.bookingId, bookingId))).toHaveLength(2);
+    expect(await db.select().from(offlinePayments).where(eq(offlinePayments.bookingId, bookingId))).toHaveLength(2);
+  });
+
+  it("sells a part-paid day booking's seats once", async () => {
+    const seats = await holdSeats(db, { propertyId, day: "2027-03-14", seats: [{ slotId: lunchSlotId, party: { adults: 3, children: {} } }] });
+    const { bookingId } = await createBooking(db, { holdId: seats.holdId, guest, source: "walk_in", payment: { amountPaise: 50_000, method: "cash" } });
+    const day = async () => (await db.select().from(capacityDays).where(eq(capacityDays.day, "2027-03-14")))[0];
+    expect(await day()).toMatchObject({ sold: 3, held: 0 });
+    await recordPayment(db, { bookingId, amountPaise: 130_000, method: "card" });
+    expect(await statusOf(bookingId)).toMatchObject({ status: "confirmed", paidPaise: 180_000 });
+    expect(await day()).toMatchObject({ sold: 3, held: 0 });
+  });
+
+  it("refuses more than the balance, and money on a cancelled booking", async () => {
+    const hold = await holdStay(db, { propertyId, checkIn: "2027-10-11", checkOut: "2027-10-12", rooms: [{ roomTypeId: pairId, party: couple }] });
+    const { bookingId } = await createBooking(db, { holdId: hold.holdId, guest, source: "whatsapp" });
+    await expect(recordPayment(db, { bookingId, amountPaise: hold.quote.totalPaise! + 1, method: "cash" })).rejects.toThrow(/more than the balance/);
+    await expect(recordPayment(db, { bookingId, amountPaise: 0, method: "cash" })).rejects.toBeInstanceOf(RuleError);
+    await changeBookingStatus(db, { bookingId, to: "cancelled" });
+    await expect(recordPayment(db, { bookingId, amountPaise: 100, method: "cash" })).rejects.toThrow(/can't take a payment/);
+  });
+
+  it("books at a price staff set, with the reason, and takes the full payment at the desk", async () => {
+    const hold = await holdStay(db, { propertyId, checkIn: "2027-10-18", checkOut: "2027-10-19", rooms: [{ roomTypeId: pairId, party: couple }] });
+    await expect(
+      createBooking(db, { holdId: hold.holdId, guest, source: "walk_in", priceOverride: { totalPaise: 400_000, reason: " " } }),
+    ).rejects.toThrow(/Say why/);
+    const { bookingId } = await createBooking(db, {
+      holdId: hold.holdId,
+      guest,
+      source: "travel_agent",
+      priceOverride: { totalPaise: 400_000, reason: "Agent rate agreed by the manager" },
+      payment: { amountPaise: 400_000, method: "bank_transfer", reference: "NEFT 7781" },
+    });
+    expect(await statusOf(bookingId)).toMatchObject({ status: "confirmed", totalPaise: 400_000, paidPaise: 400_000, source: "travel_agent" });
+    const timeline = await db.select().from(bookingEvents).where(eq(bookingEvents.bookingId, bookingId)).orderBy(bookingEvents.id);
+    expect(timeline.map((event) => event.type)).toEqual(["created", "price_override", "payment", "status"]);
+    expect(timeline[1]).toMatchObject({ note: "Agent rate agreed by the manager", data: { fromPaise: hold.quote.totalPaise, toPaise: 400_000 } });
+    // A later price can't fall below what was paid.
+    await expect(setBookingPrice(db, { bookingId, totalPaise: 300_000, reason: "Discount" })).rejects.toThrow(/less than what the guest has paid/);
+  });
+
+  it("moves a stay to another free room of the same type, and refuses a taken one", async () => {
+    const dates = { propertyId, checkIn: "2027-11-08", checkOut: "2027-11-10" };
+    const first = await holdStay(db, { ...dates, rooms: [{ roomTypeId: pairId, party: couple }] });
+    const second = await holdStay(db, { ...dates, rooms: [{ roomTypeId: pairId, party: couple }] });
+    const a = await createBooking(db, { holdId: first.holdId, guest, source: "phone", confirm: true });
+    const b = await createBooking(db, { holdId: second.holdId, guest, source: "phone", confirm: true });
+    const [itemA] = await db.select().from(bookingItems).where(eq(bookingItems.bookingId, a.bookingId));
+    const [itemB] = await db.select().from(bookingItems).where(eq(bookingItems.bookingId, b.bookingId));
+
+    await expect(assignUnit(db, { bookingItemId: itemA.id, unitId: itemB.unitId! })).rejects.toBeInstanceOf(SoldOutError);
+    await changeBookingStatus(db, { bookingId: b.bookingId, to: "cancelled" });
+    await assignUnit(db, { bookingItemId: itemA.id, unitId: itemB.unitId! });
+
+    const nights = await db.select().from(unitNights).where(eq(unitNights.bookingId, a.bookingId));
+    expect(nights.map((n) => n.unitId)).toEqual([itemB.unitId, itemB.unitId]);
+    // The old room is free again.
+    await expect(holdStay(db, { ...dates, rooms: [{ roomTypeId: pairId, party: couple }] })).resolves.toMatchObject({ quote: { lines: [{ unitId: itemA.unitId }] } });
+  });
+
+  it("opens check-in on the day the guest is due, and keeps notes on the timeline", async () => {
+    const hold = await holdStay(db, { propertyId, checkIn: "2027-12-01", checkOut: "2027-12-02", rooms: [{ roomTypeId: lastRoomId, party: couple }] });
+    const { bookingId } = await createBooking(db, { holdId: hold.holdId, guest, source: "phone", confirm: true });
+    await expect(changeBookingStatus(db, { bookingId, to: "checked_in", today: "2027-11-30" })).rejects.toThrow(/due on 2027-12-01/);
+    await changeBookingStatus(db, { bookingId, to: "checked_in", today: "2027-12-01" });
+    await addBookingNote(db, { bookingId, note: "  Late arrival, around 9 pm. " });
+    await expect(addBookingNote(db, { bookingId, note: " " })).rejects.toBeInstanceOf(RuleError);
+    const timeline = await db.select().from(bookingEvents).where(eq(bookingEvents.bookingId, bookingId)).orderBy(bookingEvents.id);
+    expect(timeline.at(-1)).toMatchObject({ type: "note", note: "Late arrival, around 9 pm." });
+    expect((await statusOf(bookingId)).status).toBe("checked_in");
   });
 });

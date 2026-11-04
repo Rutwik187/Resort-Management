@@ -5,3 +5,4 @@ export * from "./catalogue";
 export * from "./bookings";
 export * from "./stock";
 export * from "./system";
+export * from "./money";
