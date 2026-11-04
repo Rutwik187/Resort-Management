@@ -11,22 +11,21 @@ type DateButtonProps = {
   label: string;
   value: string;
   placeholder?: string;
-  /** The calendar is open for this field, or, in a panel, this is the date the next tap sets. */
+  /** The calendar is open for this field. */
   active?: boolean;
-  /** In a panel the calendar is always there, and the button only says which date to set. */
-  inPanel?: boolean;
   onClick: () => void;
   className?: string;
 };
 
 /** A date as people say it, "Thu, 12 Nov", in a field that opens the calendar. */
-export function DateButton({ ref, label, value, placeholder = "Add date", active = false, inPanel = false, onClick, className = "" }: DateButtonProps) {
+export function DateButton({ ref, label, value, placeholder = "Add date", active = false, onClick, className = "" }: DateButtonProps) {
   return (
     <button
       ref={ref}
       type="button"
       onClick={onClick}
-      {...(inPanel ? { "aria-pressed": active } : { "aria-haspopup": "dialog" as const, "aria-expanded": active })}
+      aria-haspopup="dialog"
+      aria-expanded={active}
       className={`relative flex min-h-[4.25rem] w-full flex-col justify-center px-4 py-2.5 text-left outline-offset-[-4px] transition-colors focus-visible:outline-2 focus-visible:outline-bk-ink ${
         active ? "bg-bk-soft" : "hover:bg-bk-soft/60"
       } ${className}`}
