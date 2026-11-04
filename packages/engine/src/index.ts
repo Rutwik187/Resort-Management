@@ -5,6 +5,7 @@
  */
 export { freeUnits, searchStays, seatsLeft, stayRuleProblem, type SeatOption, type StayOption } from "./availability";
 export { createBlock, liftBlock, type BlockReason } from "./blocks";
+export { setDayCapacity } from "./capacity";
 export {
   addBookingNote,
   allowedMoves,

@@ -304,7 +304,7 @@ async function rolledBack<T>(db: Database, work: (tx: Tx) => Promise<T>): Promis
 }
 
 /** Gives back the seats of holds that have run out on one slot and day. */
-async function releaseExpiredSeats(tx: Tx, slotId: string, day: string) {
+export async function releaseExpiredSeats(tx: Tx, slotId: string, day: string) {
   const freed = await tx.execute<{ guests: number }>(sql`
     with gone as (
       delete from ${capacityHolds} using ${holds}

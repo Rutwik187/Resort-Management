@@ -38,6 +38,7 @@ import {
   RuleError,
   searchStays,
   seatsLeft,
+  setDayCapacity,
   setBookingPrice,
   SoldOutError,
   TransitionError,
@@ -404,5 +405,21 @@ describe("leaving early and no-shows", () => {
     await changeBookingStatus(db, { bookingId: day.bookingId, to: "no_show", today: "2027-12-26" });
     const [row] = await db.select().from(capacityDays).where(eq(capacityDays.day, "2027-12-26"));
     expect(row).toMatchObject({ sold: 0, held: 0 });
+  });
+});
+
+describe("day capacity", () => {
+  it("sets a day's seats, and never below the guests already sold", async () => {
+    const day = "2028-01-09";
+    await setDayCapacity(db, { slotId: lunchSlotId, days: [day, "2028-01-10"], capacity: 3 });
+    expect((await seatsLeft(db, propertyId, day)).find((s) => s.slotId === lunchSlotId)).toMatchObject({ capacity: 3, left: 3 });
+    await expect(holdSeats(db, { propertyId, day, seats: [{ slotId: lunchSlotId, party: { adults: 4, children: {} } }] })).rejects.toBeInstanceOf(SoldOutError);
+
+    const seats = await holdSeats(db, { propertyId, day, seats: [{ slotId: lunchSlotId, party: { adults: 3, children: {} } }] });
+    await createBooking(db, { holdId: seats.holdId, guest: { name: "Ravi" }, source: "phone", confirm: true });
+    const result = await setDayCapacity(db, { slotId: lunchSlotId, days: [day, "2028-01-10"], capacity: 2 });
+    expect(result).toEqual({ changed: 1, kept: [day] });
+    expect((await seatsLeft(db, propertyId, "2028-01-10")).find((s) => s.slotId === lunchSlotId)).toMatchObject({ capacity: 2 });
+    await expect(setDayCapacity(db, { slotId: lunchSlotId, days: [day], capacity: -1 })).rejects.toBeInstanceOf(RuleError);
   });
 });
