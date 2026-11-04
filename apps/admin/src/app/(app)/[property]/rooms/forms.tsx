@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { Pencil, Plus } from "lucide-react";
-import { FormNote, useFormFeedback } from "@/components/form-note";
+import { FormNote, useToastAction } from "@/components/form-note";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -105,8 +105,7 @@ function RoomTypeFields({ prefix, type }: { prefix: string; type?: RoomTypeValue
 /** Adds a room type: what it is, and how many guests it takes (RM-01). */
 export function RoomTypeForm({ propertyId }: { propertyId: string }) {
   const [open, setOpen] = useState(false);
-  const [state, action, pending] = useActionState(createRoomType.bind(null, propertyId), undefined);
-  useFormFeedback(state, () => setOpen(false));
+  const [state, action, pending] = useToastAction(createRoomType.bind(null, propertyId), () => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -138,8 +137,7 @@ export function RoomTypeForm({ propertyId }: { propertyId: string }) {
 /** Changes a room type (RM-01). Its code stays, because it links the type's photos and text. */
 export function RoomTypeEditForm({ type }: { type: RoomTypeValues }) {
   const [open, setOpen] = useState(false);
-  const [state, action, pending] = useActionState(editRoomType.bind(null, type.id), undefined);
-  useFormFeedback(state, () => setOpen(false));
+  const [state, action, pending] = useToastAction(editRoomType.bind(null, type.id), () => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -170,8 +168,7 @@ export function RoomTypeEditForm({ type }: { type: RoomTypeValues }) {
 
 /** Adds units: one by name, or a numbered run such as Cottage 1 to 12 (RM-02). */
 export function AddUnitsForm({ roomTypeId, suggestion }: { roomTypeId: string; suggestion: string }) {
-  const [state, action, pending] = useActionState(addUnits.bind(null, roomTypeId), undefined);
-  useFormFeedback(state);
+  const [state, action, pending] = useToastAction(addUnits.bind(null, roomTypeId));
   return (
     <form action={action} className="grid gap-3 rounded-lg border bg-muted/40 p-4">
       <p className="text-sm font-medium">Add units</p>

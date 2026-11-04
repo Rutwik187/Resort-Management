@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Ban, CalendarCog, IndianRupee, Unlock } from "lucide-react";
 import { DateField } from "@/components/date-field";
-import { FormNote, useFormFeedback } from "@/components/form-note";
+import { FormNote, useToastAction } from "@/components/form-note";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
@@ -77,8 +77,7 @@ export function BlockSheet({ propertyId, types, first }: { propertyId: string; t
 }
 
 function BlockForm({ propertyId, types, first, onDone }: { propertyId: string; types: RoomType[]; first: string; onDone: () => void }) {
-  const [state, action, pending] = useActionState(blockDates.bind(null, propertyId), undefined);
-  useFormFeedback(state, onDone);
+  const [state, action, pending] = useToastAction(blockDates.bind(null, propertyId), onDone);
   return (
     <form action={action} className="grid gap-5">
       <FieldGroup>
@@ -155,8 +154,7 @@ export function RulesSheet({ propertyId, types, first }: { propertyId: string; t
 }
 
 function RulesForm({ propertyId, types, first, onDone }: { propertyId: string; types: RoomType[]; first: string; onDone: () => void }) {
-  const [state, action, pending] = useActionState(setStayRules.bind(null, propertyId), undefined);
-  useFormFeedback(state, onDone);
+  const [state, action, pending] = useToastAction(setStayRules.bind(null, propertyId), onDone);
   return (
     <form action={action} className="grid gap-5">
       <FieldGroup>
@@ -229,8 +227,7 @@ export function PricesSheet({ propertyId, types, first }: { propertyId: string; 
 }
 
 function PricesForm({ propertyId, types, first, onDone }: { propertyId: string; types: RoomType[]; first: string; onDone: () => void }) {
-  const [state, action, pending] = useActionState(setDatePrices.bind(null, propertyId), undefined);
-  useFormFeedback(state, onDone);
+  const [state, action, pending] = useToastAction(setDatePrices.bind(null, propertyId), onDone);
   return (
     <form action={action} className="grid gap-5">
       <FieldGroup>
@@ -282,8 +279,7 @@ function PricesForm({ propertyId, types, first, onDone }: { propertyId: string; 
 }
 
 export function LiftBlockButton({ blockId }: { blockId: string }) {
-  const [state, action, pending] = useActionState(liftBlockAction.bind(null, blockId), undefined);
-  useFormFeedback(state);
+  const [state, action, pending] = useToastAction(liftBlockAction.bind(null, blockId));
   return (
     <form action={action} className="grid gap-1.5">
       <Button type="submit" variant="outline" disabled={pending} className="justify-self-start">

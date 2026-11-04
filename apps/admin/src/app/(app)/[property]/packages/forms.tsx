@@ -1,10 +1,10 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { CalendarClock, Clock, Copy, Eye, EyeOff, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { DateField } from "@/components/date-field";
-import { FormNote, useFormFeedback } from "@/components/form-note";
+import { FormNote, useToastAction } from "@/components/form-note";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -45,8 +45,7 @@ const hhmm = (time: string | null) => time?.slice(0, 5) ?? "";
 /** Adds a package, activity or sitting with its first slot, or changes one (its code stays). */
 export function OfferingDialog({ propertyId, bands, offering }: { propertyId: string; bands: { id: string; label: string }[]; offering?: OfferingValues }) {
   const [open, setOpen] = useState(false);
-  const [state, action, pending] = useActionState(offering ? updateOffering.bind(null, offering.id) : createOffering.bind(null, propertyId), undefined);
-  useFormFeedback(state, () => setOpen(false));
+  const [state, action, pending] = useToastAction(offering ? updateOffering.bind(null, offering.id) : createOffering.bind(null, propertyId), () => setOpen(false));
   const key = offering?.id ?? "new";
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -198,8 +197,7 @@ export function OfferingButtons({ offeringId, active }: { offeringId: string; ac
 
 /** One slot's name, times and usual seats; or a new slot. */
 function SlotRow({ offeringId, slot }: { offeringId: string; slot?: SlotValues }) {
-  const [state, action, pending] = useActionState(slot ? updateSlot.bind(null, slot.id) : addSlot.bind(null, offeringId), undefined);
-  useFormFeedback(state);
+  const [state, action, pending] = useToastAction(slot ? updateSlot.bind(null, slot.id) : addSlot.bind(null, offeringId));
   const key = slot?.id ?? `${offeringId}-new`;
   return (
     <form action={action} className="grid gap-2">
@@ -271,8 +269,7 @@ export function SlotsDialog({ offeringId, name, slots }: { offeringId: string; n
 /** Seats for one slot on chosen days, such as more for a festival weekend (INV-09). */
 export function SeatsDialog({ slotId, label, first }: { slotId: string; label: string; first: string }) {
   const [open, setOpen] = useState(false);
-  const [state, action, pending] = useActionState(setSeats.bind(null, slotId), undefined);
-  useFormFeedback(state, () => setOpen(false));
+  const [state, action, pending] = useToastAction(setSeats.bind(null, slotId), () => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>

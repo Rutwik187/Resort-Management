@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+
 import { Save } from "lucide-react";
-import { FormNote, useFormFeedback } from "@/components/form-note";
+import { FormNote, useToastAction } from "@/components/form-note";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -24,8 +24,7 @@ type Settings = {
 };
 
 export function SettingsForm({ propertyId, settings }: { propertyId: string; settings: Settings }) {
-  const [state, action, pending] = useActionState(saveSettings.bind(null, propertyId), undefined);
-  useFormFeedback(state);
+  const [state, action, pending] = useToastAction(saveSettings.bind(null, propertyId));
   return (
     <form action={action} className="grid gap-4">
       <div className="grid gap-4 lg:grid-cols-2">

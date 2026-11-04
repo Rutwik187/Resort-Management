@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { ArrowRightLeft, Ban, IndianRupee, LogIn, LogOut, PencilLine, Printer, UserX } from "lucide-react";
 import { toast } from "sonner";
-import { FormNote, useFormFeedback } from "@/components/form-note";
+import { FormNote, useToastAction } from "@/components/form-note";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -94,8 +94,7 @@ export function NoShowButton({ bookingId }: { bookingId: string }) {
 /** Cancelling needs a reason and a second look. */
 export function CancelForm({ bookingId }: { bookingId: string }) {
   const [open, setOpen] = useState(false);
-  const [state, action, pending] = useActionState(cancelBooking.bind(null, bookingId), undefined);
-  useFormFeedback(state, () => setOpen(false));
+  const [state, action, pending] = useToastAction(cancelBooking.bind(null, bookingId), () => setOpen(false));
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
@@ -130,8 +129,7 @@ export function CancelForm({ bookingId }: { bookingId: string }) {
 
 /** Money taken at the desk or by bank transfer. */
 export function PaymentForm({ bookingId, suggested }: { bookingId: string; suggested: string }) {
-  const [state, action, pending] = useActionState(takePayment.bind(null, bookingId), undefined);
-  useFormFeedback(state);
+  const [state, action, pending] = useToastAction(takePayment.bind(null, bookingId));
   return (
     <form action={action} className="grid gap-4 rounded-lg border bg-muted/40 p-4">
       <p className="text-sm font-medium">Record a payment</p>
@@ -174,8 +172,7 @@ export function PaymentForm({ bookingId, suggested }: { bookingId: string; sugge
 /** A price set by hand needs a reason (ADM-07). */
 export function PriceForm({ bookingId, current }: { bookingId: string; current: string }) {
   const [open, setOpen] = useState(false);
-  const [state, action, pending] = useActionState(changePrice.bind(null, bookingId), undefined);
-  useFormFeedback(state, () => setOpen(false));
+  const [state, action, pending] = useToastAction(changePrice.bind(null, bookingId), () => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -215,8 +212,7 @@ export function PriceForm({ bookingId, current }: { bookingId: string; current: 
 
 /** Moves a stay to another free room of the same type (RM-04). */
 export function RoomForm({ bookingItemId, rooms }: { bookingItemId: string; rooms: { id: string; name: string }[] }) {
-  const [state, action, pending] = useActionState(changeRoom.bind(null, bookingItemId), undefined);
-  useFormFeedback(state);
+  const [state, action, pending] = useToastAction(changeRoom.bind(null, bookingItemId));
   if (rooms.length === 0) return <p className="text-xs text-muted-foreground">No other room of this type is free for these nights.</p>;
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
@@ -243,9 +239,8 @@ export function RoomForm({ bookingItemId, rooms }: { bookingItemId: string; room
 
 /** An internal note on the timeline. Guests never see it. */
 export function NoteForm({ bookingId }: { bookingId: string }) {
-  const [state, action, pending] = useActionState(noteBooking.bind(null, bookingId), undefined);
   const [text, setText] = useState("");
-  useFormFeedback(state, () => setText(""));
+  const [state, action, pending] = useToastAction(noteBooking.bind(null, bookingId), () => setText(""));
   return (
     <form action={action} className="grid gap-3">
       <Field>

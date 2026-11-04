@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { CalendarPlus, Pencil, Plus, Trash2 } from "lucide-react";
 import { DateField } from "@/components/date-field";
-import { FormNote, useFormFeedback } from "@/components/form-note";
+import { FormNote, useToastAction } from "@/components/form-note";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -41,8 +41,7 @@ const asRupees = (paise: number | null | undefined) => (paise == null ? "" : Str
 
 /** Which nights take the weekend rate (PR-02). The night of a Friday is the night from Friday to Saturday. */
 export function WeekendForm({ propertyId, nights }: { propertyId: string; nights: number[] }) {
-  const [state, action, pending] = useActionState(saveWeekendNights.bind(null, propertyId), undefined);
-  useFormFeedback(state);
+  const [state, action, pending] = useToastAction(saveWeekendNights.bind(null, propertyId));
   return (
     <form action={action} className="grid gap-4">
       <fieldset className="flex flex-wrap gap-x-5 gap-y-3">
@@ -90,8 +89,7 @@ export function RateDialog({
   title: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [state, action, pending] = useActionState(saveRate.bind(null, propertyId), undefined);
-  useFormFeedback(state, () => setOpen(false));
+  const [state, action, pending] = useToastAction(saveRate.bind(null, propertyId), () => setOpen(false));
   const [roomTypeId, setRoomTypeId] = useState(roomTypes.length === 1 ? roomTypes[0].id : "");
   const [dayKind, setDayKind] = useState<RateValues["dayKind"]>("weekday");
   const current = existing.find((r) => r.roomTypeId === roomTypeId && r.dayKind === dayKind);
@@ -216,8 +214,7 @@ export function RateDialog({
 /** A removal that asks once more before it happens. */
 function ConfirmRemove({ label, title, description, run }: { label: string; title: string; description: string; run: () => Promise<{ error?: string; done?: string } | undefined> }) {
   const [open, setOpen] = useState(false);
-  const [state, action, pending] = useActionState(run, undefined);
-  useFormFeedback(state, () => setOpen(false));
+  const [state, action, pending] = useToastAction(run, () => setOpen(false));
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
@@ -257,8 +254,7 @@ export function DeleteSeasonButton({ seasonId, name }: { seasonId: string; name:
 /** A named run of nights with its own rates (PR-03). */
 export function SeasonDialog({ propertyId }: { propertyId: string }) {
   const [open, setOpen] = useState(false);
-  const [state, action, pending] = useActionState(createSeason.bind(null, propertyId), undefined);
-  useFormFeedback(state, () => setOpen(false));
+  const [state, action, pending] = useToastAction(createSeason.bind(null, propertyId), () => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -311,8 +307,7 @@ type Band = { id: string; code: string; label: string; minAge: number; maxAge: n
 
 /** Adds a child age band, or changes one (its code stays). */
 export function BandForm({ propertyId, band }: { propertyId: string; band?: Band }) {
-  const [state, action, pending] = useActionState(saveBand.bind(null, propertyId, band?.id ?? null), undefined);
-  useFormFeedback(state);
+  const [state, action, pending] = useToastAction(saveBand.bind(null, propertyId, band?.id ?? null));
   const key = band?.id ?? "new";
   return (
     <form action={action} className="grid gap-2">

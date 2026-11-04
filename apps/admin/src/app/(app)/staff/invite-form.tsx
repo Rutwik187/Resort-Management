@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { UserPlus } from "lucide-react";
-import { FormNote, useFormFeedback } from "@/components/form-note";
+import { FormNote, useToastAction } from "@/components/form-note";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -17,9 +17,8 @@ import { inviteStaff } from "./actions";
 /** Adds a person: their Google email, one role, and their resorts (USR-01). */
 export function InviteForm({ roles, resorts }: { roles: { id: string; name: string; description: string | null }[]; resorts: { id: string; name: string; code: string }[] }) {
   const [open, setOpen] = useState(false);
-  const [state, action, pending] = useActionState(inviteStaff, undefined);
+  const [state, action, pending] = useToastAction(inviteStaff, () => setOpen(false));
   const [all, setAll] = useState(false);
-  useFormFeedback(state, () => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
