@@ -1,5 +1,6 @@
 import { databaseUrl } from "./env";
-import { createDb, runMigrations } from "../src";
+import { createDb } from "../src";
+import { runMigrations } from "../src/migrate";
 
 const db = createDb(databaseUrl(), 1);
 await runMigrations(db);

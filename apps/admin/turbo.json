@@ -1,0 +1,13 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      // Read on the server; listed so Turborepo passes them through and rebuilds when they change.
+      "env": ["DATABASE_URL", "BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_WORKSPACE_DOMAIN", "NODE_ENV"]
+    },
+    "lint": {
+      "env": ["GOOGLE_CLIENT_ID", "NODE_ENV"]
+    }
+  }
+}

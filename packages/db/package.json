@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./schema": "./src/schema/index.ts",
+    "./migrate": "./src/migrate.ts",
     "./testing": "./src/testing.ts"
   },
   "scripts": {

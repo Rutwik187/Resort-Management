@@ -66,6 +66,8 @@ function options(db: Database) {
       },
     },
     advanced: { cookiePrefix: "prathamesh-admin" },
+    // A refused Google sign-in comes back to the sign-in page, which explains it (the error is added to the address).
+    onAPIError: { errorURL: "/sign-in" },
     databaseHooks: {
       session: {
         create: {
@@ -99,7 +101,17 @@ function options(db: Database) {
         ? [
             magicLink({
               disableSignUp: true,
+              // No link for anyone who isn't active staff. The screen says the same either way, so it doesn't reveal who is.
               sendMagicLink: async ({ email, url }) => {
+                const [member] = await db
+                  .select({ active: staffMembers.active })
+                  .from(staffMembers)
+                  .innerJoin(user, eq(user.id, staffMembers.userId))
+                  .where(eq(user.email, email.toLowerCase()));
+                if (!member?.active) {
+                  console.log(`\n  No sign-in link sent: ${email} is not active staff.\n`);
+                  return;
+                }
                 console.log(`\n  Sign-in link for ${email} (development only):\n  ${url}\n`);
               },
             }),

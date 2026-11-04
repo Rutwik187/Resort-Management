@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+/*
+ * The admin's look: quiet and clear, so data reads first. One accent, the
+ * group's forest green, for the main action on each screen.
+ */
+@theme {
+  --color-page: #f5f6f4;
+  --color-card: #ffffff;
+  --color-ink: #17201b;
+  --color-muted: #5b665f;
+  --color-line: rgb(23 32 27 / 0.12);
+  --color-accent: #1f4d36;
+  --color-accent-ink: #ffffff;
+  --color-good: #2c6a43;
+  --color-warn: #93481a;
+  --color-danger: #a1271f;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+@layer base {
+  html {
+    background: var(--color-page);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .card {
+    border: 1px solid var(--color-line);
+    border-radius: 0.75rem;
+    background: var(--color-card);
+  }
+  .field {
+    width: 100%;
+    min-height: 2.5rem;
+    border: 1px solid var(--color-line);
+    border-radius: 0.5rem;
+    background: var(--color-card);
+    padding: 0.4rem 0.7rem;
+  }
+  .field:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgb(31 77 54 / 0.15);
+  }
+  .label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-muted);
+    margin-bottom: 0.3rem;
+  }
+  .button {
+    display: inline-flex;
+    min-height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    border-radius: 0.5rem;
+    padding: 0 1rem;
+    font-weight: 600;
+    background: var(--color-accent);
+    color: var(--color-accent-ink);
+  }
+  .button:disabled {
+    opacity: 0.5;
+  }
+  .button-quiet {
+    display: inline-flex;
+    min-height: 2.25rem;
+    align-items: center;
+    border-radius: 0.5rem;
+    border: 1px solid var(--color-line);
+    padding: 0 0.8rem;
+    font-weight: 500;
+    background: var(--color-card);
+  }
+  .button-quiet:hover {
+    border-color: var(--color-ink);
+  }
+}
