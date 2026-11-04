@@ -1,3 +1,4 @@
+import { attachDatabasePool } from "@vercel/functions";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as schema from "./schema";
@@ -21,13 +22,16 @@ let shared: Database | undefined;
 
 /**
  * The app's database, from DATABASE_URL (Neon's pooled address in
- * production). One pool per server instance, made on first use.
+ * production). One pool per server instance, made on first use. On Vercel's
+ * Fluid compute the pool is attached to the function, so idle connections
+ * close before it suspends, as Neon recommends for node-postgres on Vercel.
  */
 export function getDb(): Database {
   if (!shared) {
     const url = process.env.DATABASE_URL;
     if (!url) throw new Error("DATABASE_URL is not set. Copy .env.example to .env.local and fill it in.");
     shared = createDb(url);
+    attachDatabasePool(shared.pool);
   }
   return shared;
 }

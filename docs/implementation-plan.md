@@ -24,6 +24,8 @@
 | 3 November 2026 | Go Crazy, Sinhagad Bliss and Valley got their own sites in `apps/go-crazy`, `apps/sinhagad-bliss` and `apps/valley`, each with its own design and the resort's own photos |
 | 3 November 2026 | `packages/booking-ui` holds the front of the booking widget: search, the room and day-pass lists, several rooms of any type in one booking, and the tray. Until the engine and payments exist, it sends the request on WhatsApp. `packages/sites` holds the four resorts' names, places and domains |
 | 3 November 2026 | Each site redirects the old WordPress pages to the new ones. prathameshresorts.com links to the other three resorts from its menu and home page |
+| 4 November 2026 | The backend's foundation: `packages/db` (every table from section 4 for resorts, staff, the catalogue, stock and bookings, plus offerings sold by the seat, such as day packages, activities and restaurant sittings), `packages/auth` (Better Auth for staff, invitation only, with `can()`), `packages/engine` (availability, holds, prices, bookings, blocks and the expiry job, with 21 tests including the race for the last room) and `apps/admin` (sign-in, rooms and units, staff) |
+| 4 November 2026 | The database runs on Neon: project `withered-fire-71704216`, branch `production`, Singapore. Migrations and the seed are applied. Neon Auth is provisioned on the branch but unused: the admin keeps its own Better Auth (section 7). Neon object storage is not set up yet: it needs `neon login` with the account that owns the project |
 
 ## Architecture
 
