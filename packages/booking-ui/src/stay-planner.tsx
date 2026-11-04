@@ -69,6 +69,8 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
   const [pickCount, setPickCount] = useState(0);
   const [trayOpen, setTrayOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  // Counts the dates panel's openings. Its calendar stays mounted while the panel is closed, so a new key starts it on the stay's own month.
+  const [searchOpens, setSearchOpens] = useState(0);
   const [fresh, setFresh] = useState<string | null>(null);
 
   const nights = nightsOf(search.checkIn, search.checkOut);
@@ -133,7 +135,10 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
     if (count) setAnnouncement(`Prices now show ${plural(count, "night")}, from ${formatDay(next.checkIn)}.`);
   }
 
-  const changeDates = () => setSearchOpen(true);
+  const changeDates = () => {
+    setSearchOpens((n) => n + 1);
+    setSearchOpen(true);
+  };
 
   const when = pending ? (
     <button type="button" onClick={changeDates} className="text-bk-ink underline underline-offset-4">
@@ -272,7 +277,7 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
       <Sheet open={searchOpen} onClose={() => setSearchOpen(false)} label="Dates and guests" center>
         <h2 data-autofocus tabIndex={-1} className="bk-display pr-10 outline-none text-[1.6rem]">Dates and guests</h2>
         <p className="mt-1 text-[0.9rem] text-bk-muted">Prices on the page change as you choose.</p>
-        <SearchBar action={path} value={search} onSearch={applySearch} stacked className="mt-5" />
+        <SearchBar key={searchOpens} action={path} value={search} onSearch={applySearch} stacked className="mt-5" />
         <button
           type="button"
           onClick={() => setSearchOpen(false)}
