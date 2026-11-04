@@ -96,8 +96,20 @@ Each app is its own Vercel project in the team "rutwik187's projects", linked to
 | `gocrazyadventure` | `apps/go-crazy` | www.gocrazyadventure.com | the bare domain, redirected |
 | `sinhagadbliss` | `apps/sinhagad-bliss` | sinhagadbliss.com | www, redirected |
 | `prathameshvalleyresorts` | `apps/valley` | www.prathameshvalleyresorts.com | the bare domain, redirected |
+| `prathamesh-admin` | `apps/admin` | prathamesh-admin.vercel.app | none |
 
 The main addresses are the ones the old WordPress sites used, so search results keep their links. Each app's `siteUrl` in `src/content/site.ts` matches.
+
+**The admin's project** runs its functions in Singapore (`sin1`), next to the Neon database; the sites keep the default region. Its variables are `DATABASE_URL` (the pooled address), `BETTER_AUTH_SECRET` (its own, not the one in your `.env.local`), `BETTER_AUTH_URL` (https://prathamesh-admin.vercel.app), `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. A changed variable takes effect only in a new deployment. Because the Ignored Build Step skips a commit that is already deployed, redeploy after changing only variables by clearing the step for one build, then setting it back.
+
+**Google sign-in** uses one OAuth client of the "web application" kind, in the Google Cloud console:
+
+| Where | Authorized JavaScript origin | Authorized redirect URI |
+|---|---|---|
+| This machine | http://localhost:3010 | http://localhost:3010/api/auth/callback/google |
+| Vercel | https://prathamesh-admin.vercel.app | https://prathamesh-admin.vercel.app/api/auth/callback/google |
+
+If the admin moves to its own domain, add that domain to both lists and change `BETTER_AUTH_URL`. Preview deployments can't sign in with Google, because their addresses change with every build.
 
 - Every project runs `npx turbo-ignore` as its Ignored Build Step: a push builds only the sites it changes, through their own files or a shared package.
 - Never set a custom Install Command: Vercel would fall back to pnpm 6. The root `package.json` pins pnpm 12 with `packageManager`.
