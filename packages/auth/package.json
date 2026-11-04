@@ -1,0 +1,32 @@
+{
+  "name": "@repo/auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./permissions": "./src/permissions.ts",
+    "./client": "./src/client.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@repo/db": "workspace:*",
+    "better-auth": "1.7.15",
+    "drizzle-orm": "^0.45.4"
+  },
+  "peerDependencies": {
+    "next": "16.4.3",
+    "react": "19.3.0"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "next": "16.4.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "typescript": "^5"
+  }
+}

@@ -16,6 +16,11 @@
     },
     "typecheck": {
       "dependsOn": ["^typecheck"]
+    },
+    // Engine tests make their own databases on the local Postgres (packages/db/src/testing.ts).
+    "test": {
+      "env": ["TEST_DATABASE_ADMIN_URL"],
+      "outputs": []
     }
   }
 }
