@@ -89,3 +89,6 @@ export function partyLabel(party: { adults: number; children: Record<string, num
 
 /** What is left to pay, or null while the price is to be confirmed. */
 export const balance = (booking: { totalPaise: number | null; paidPaise: number }) => (booking.totalPaise === null ? null : Math.max(0, booking.totalPaise - booking.paidPaise));
+
+export const mealLabel = { EP: "Room only (EP)", CP: "With breakfast (CP)", MAP: "Breakfast and one meal (MAP)", AP: "All meals (AP)" } as const;
+export const nightsLabel = { any: "Every night", weekday: "Weekday nights", weekend: "Weekend nights" } as const;
