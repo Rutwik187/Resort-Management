@@ -86,6 +86,12 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
   const [pickCount, setPickCount] = useState(0);
   const [trayOpen, setTrayOpen] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
+  // Counts the date panel's openings. Its calendar stays mounted while the panel is closed, so a new key starts it on the visit's own month.
+  const [dateOpens, setDateOpens] = useState(0);
+  const openDate = () => {
+    setDateOpens((n) => n + 1);
+    setDateOpen(true);
+  };
   const [fresh, setFresh] = useState<string | null>(null);
 
   // A link can ask for one pass, such as /day-packages?pass=morning. Its panel opens once, until the guest closes it.
@@ -138,12 +144,12 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
     <>
       {formatDay(date)}
       {people ? ` · ${plural(people, "guest")}` : ""}{" "}
-      <button type="button" onClick={() => setDateOpen(true)} className="ml-1 text-bk-ink underline underline-offset-4">
+      <button type="button" onClick={openDate} className="ml-1 text-bk-ink underline underline-offset-4">
         Change
       </button>
     </>
   ) : (
-    <button type="button" onClick={() => setDateOpen(true)} className="text-bk-ink underline underline-offset-4">
+    <button type="button" onClick={openDate} className="text-bk-ink underline underline-offset-4">
       Choose your date
     </button>
   );
@@ -249,6 +255,7 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
         <h2 data-autofocus tabIndex={-1} className="bk-display pr-10 outline-none text-[1.6rem]">Date of your visit</h2>
         <div className="mt-4">
           <Calendar
+            key={dateOpens}
             start={date}
             min={today || undefined}
             onPick={(next) => {

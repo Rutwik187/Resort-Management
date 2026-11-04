@@ -42,6 +42,8 @@ type CalendarProps = {
   onPick: (date: string) => void;
   /** Buttons for the foot of the calendar, such as "Done". */
   actions?: ReactNode;
+  /** For a stay: lets the guest pick which date to set by tapping its box at the top. */
+  onChoose?: (choosing: Choosing) => void;
 };
 
 const weekdays = [
@@ -60,7 +62,7 @@ const weekdays = [
  * shaded; while the guest chooses check-out, the stay follows the pointer.
  * Arrow keys move by day and week, Page Up and Page Down by month.
  */
-export function Calendar({ start, end, choosing = "start", min, maxNights = 30, months = 1, weekendNights = false, autoFocus = false, onPick, actions }: CalendarProps) {
+export function Calendar({ start, end, choosing = "start", min, maxNights = 30, months = 1, weekendNights = false, autoFocus = false, onPick, actions, onChoose }: CalendarProps) {
   const id = useId();
   const today = useToday();
   const first = min || today;
@@ -138,18 +140,35 @@ export function Calendar({ start, end, choosing = "start", min, maxNights = 30, 
     onPick(date);
   }
 
-  const status = !stay
-    ? null
-    : !start
-      ? "Choose your check-in date."
-      : choosingEnd && !shownEnd
-        ? `Check-in ${formatDay(start)}. Now choose check-out, up to ${maxNights} nights later.`
-        : shownEnd
-          ? `${formatDay(start)} to ${formatDay(shownEnd)} · ${plural(nightsOf(start, shownEnd).length, "night")}`
-          : `Check-in ${formatDay(start)}.`;
+  // What to do next, in words, at the top of a stay's calendar.
+  const nights = start && shownEnd ? nightsOf(start, shownEnd).length : 0;
+  const prompt = !start
+    ? "Select your check-in date."
+    : choosingEnd
+      ? `Now select your check-out date, up to ${maxNights} nights later.`
+      : end
+        ? `${plural(nightsOf(start, end).length, "night")}. Tap a date to change check-in.`
+        : "Select your check-in date.";
 
   return (
     <div className="text-bk-ink">
+      {stay && (
+        <div className="mb-4">
+          <div className="grid grid-cols-2 gap-2">
+            <Slot step={1} label="Check-in" value={start ? formatDay(start) : ""} active={!choosingEnd} onClick={onChoose ? () => onChoose("start") : undefined} />
+            <Slot
+              step={2}
+              label="Check-out"
+              value={shownEnd ? `${formatDay(shownEnd)} · ${plural(nights, "night")}` : ""}
+              active={choosingEnd}
+              onClick={onChoose && start ? () => onChoose("end") : undefined}
+            />
+          </div>
+          <p aria-live="polite" className="mt-3 text-[0.95rem] font-semibold leading-snug text-bk-ink">
+            {prompt}
+          </p>
+        </div>
+      )}
       <div className="relative">
         <div ref={gridRef} onKeyDown={onKeyDown} onMouseLeave={() => setHover("")} className={`grid gap-x-8 gap-y-5 ${months === 2 ? "grid-cols-2" : ""}`}>
           {shown.map((month, i) => (
@@ -235,16 +254,11 @@ export function Calendar({ start, end, choosing = "start", min, maxNights = 30, 
         </button>
       </div>
 
-      {(status || weekendNights || actions) && (
+      {(weekendNights || actions) && (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-bk-line pt-3 text-[0.85rem]">
           <div className="min-w-0">
-            {status && (
-              <p aria-live="polite" className="text-bk-ink">
-                {status}
-              </p>
-            )}
             {weekendNights && (
-              <p className="mt-0.5 text-bk-muted">
+              <p className="text-bk-muted">
                 <span className="text-bk-alert">Fri</span> and <span className="text-bk-alert">Sat</span> nights take the weekend rate
               </p>
             )}
@@ -253,5 +267,37 @@ export function Calendar({ start, end, choosing = "start", min, maxNights = 30, 
         </div>
       )}
     </div>
+  );
+}
+
+/** One date of a stay at the top of the calendar: its step, what it is, and the date or a prompt to select it. */
+function Slot({ step, label, value, active, onClick }: { step: number; label: string; value: string; active: boolean; onClick?: () => void }) {
+  // Ticked once its date is chosen and the guest has moved on; the box being chosen keeps its number.
+  const done = Boolean(value) && !active;
+  const look = `flex min-w-0 items-start gap-2.5 rounded-[calc(var(--bk-radius)*0.6)] border px-3 py-2.5 text-left transition-colors ${
+    active ? "border-bk-accent bg-bk-soft shadow-[inset_0_0_0_1px_var(--bk-accent)]" : "border-bk-line"
+  }`;
+  const body = (
+    <>
+      <span
+        aria-hidden
+        className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-[0.7rem] font-semibold ${
+          done ? "bg-bk-good text-white" : active ? "bg-bk-accent text-bk-accent-ink" : "border border-bk-line text-bk-muted"
+        }`}
+      >
+        {done ? "✓" : step}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-bk-muted">{label}</span>
+        <span className={`block truncate text-[0.95rem] ${value ? "text-bk-ink" : active ? "font-medium text-bk-accent" : "text-bk-muted"}`}>{value || "Select a date"}</span>
+      </span>
+    </>
+  );
+  return onClick ? (
+    <button type="button" aria-pressed={active} onClick={onClick} className={`${look} hover:border-bk-ink`}>
+      {body}
+    </button>
+  ) : (
+    <div className={look}>{body}</div>
   );
 }

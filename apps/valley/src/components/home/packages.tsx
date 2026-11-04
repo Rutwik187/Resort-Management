@@ -32,7 +32,7 @@ export function Packages() {
             <PackageCard
               key={pkg.slug}
               pkg={pkg}
-              className={`fade ${i === 1 ? "lg:-rotate-1 lg:translate-y-6" : i === 2 ? "lg:rotate-1" : "lg:-rotate-[0.6deg]"}`}
+              className="fade"
               style={{ "--i": i } as React.CSSProperties}
             />
           ))}

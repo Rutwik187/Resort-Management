@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Calendar, pickStay, type Choosing } from "./calendar";
-import { DateButton, useToday } from "./date-field";
+import { useToday } from "./date-field";
 import { formatDay, formatRange, nightsOf, plural } from "./dates";
 import { ListingCard, PartyPrice } from "./listing-card";
 import { PickDialog } from "./pick-dialog";
@@ -69,6 +69,8 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
   const [pickCount, setPickCount] = useState(0);
   const [trayOpen, setTrayOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  // Counts the dates panel's openings. Its calendar stays mounted while the panel is closed, so a new key starts it on the stay's own month.
+  const [searchOpens, setSearchOpens] = useState(0);
   const [fresh, setFresh] = useState<string | null>(null);
 
   const nights = nightsOf(search.checkIn, search.checkOut);
@@ -133,7 +135,10 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
     if (count) setAnnouncement(`Prices now show ${plural(count, "night")}, from ${formatDay(next.checkIn)}.`);
   }
 
-  const changeDates = () => setSearchOpen(true);
+  const changeDates = () => {
+    setSearchOpens((n) => n + 1);
+    setSearchOpen(true);
+  };
 
   const when = pending ? (
     <button type="button" onClick={changeDates} className="text-bk-ink underline underline-offset-4">
@@ -206,14 +211,7 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
             { label: "Send the request on WhatsApp", done: checkout.step === "sent" },
           ]}
         />
-        <SearchBar
-          key={JSON.stringify(search)}
-          action={path}
-          value={search}
-          onSearch={applySearch}
-          submitLabel={pending ? "Check prices" : "Update"}
-          className="mt-4"
-        />
+        <SearchBar action={path} value={search} onSearch={applySearch} className="mt-4" />
       </div>
 
       <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start xl:gap-12">
@@ -278,19 +276,15 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
 
       <Sheet open={searchOpen} onClose={() => setSearchOpen(false)} label="Dates and guests" center>
         <h2 data-autofocus tabIndex={-1} className="bk-display pr-10 outline-none text-[1.6rem]">Dates and guests</h2>
-        <p className="mt-1 text-[0.9rem] text-bk-muted">Prices on the page change to match.</p>
-        <SearchBar
-          key={JSON.stringify(search)}
-          action={path}
-          value={search}
-          onSearch={(next) => {
-            applySearch(next);
-            setSearchOpen(false);
-          }}
-          submitLabel={pending ? "Check prices" : "Update"}
-          stacked
-          className="mt-5"
-        />
+        <p className="mt-1 text-[0.9rem] text-bk-muted">Prices on the page change as you choose.</p>
+        <SearchBar key={searchOpens} action={path} value={search} onSearch={applySearch} stacked className="mt-5" />
+        <button
+          type="button"
+          onClick={() => setSearchOpen(false)}
+          className="mt-4 min-h-12 w-full rounded-bk-control bg-bk-accent px-6 bk-button text-bk-accent-ink transition-opacity hover:opacity-90"
+        >
+          Done
+        </button>
       </Sheet>
 
       <p aria-live="polite" className="sr-only">
@@ -335,14 +329,8 @@ function StayDates({ search, onChange }: { search: StaySearch; onChange: (search
   }
 
   return (
-    <div className="overflow-hidden rounded-bk border border-bk-line">
-      <div className="grid grid-cols-2 border-b border-bk-line">
-        <DateButton label="Check-in" value={dates.checkIn} active={choosing === "start"} inPanel onClick={() => setChoosing("start")} className="border-r border-bk-line" />
-        <DateButton label="Check-out" value={dates.checkOut} active={choosing === "end"} inPanel onClick={() => setChoosing(dates.checkIn ? "end" : "start")} />
-      </div>
-      <div className="px-3 pb-3 pt-2">
-        <Calendar start={dates.checkIn} end={dates.checkOut} choosing={choosing} min={today || undefined} weekendNights onPick={pick} />
-      </div>
+    <div className="rounded-bk border border-bk-line px-3 pb-3 pt-3">
+      <Calendar start={dates.checkIn} end={dates.checkOut} choosing={choosing} onChoose={setChoosing} min={today || undefined} weekendNights onPick={pick} />
     </div>
   );
 }

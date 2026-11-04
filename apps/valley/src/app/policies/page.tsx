@@ -1,6 +1,7 @@
 import { contact } from "@/content/resort";
 import { cancellation, privacy, terms } from "@/content/policies";
 import { pageMetadata } from "@/content/site";
+import { Email } from "@/components/email";
 import { PageTransition } from "@/components/page-transition";
 import { SectionLabel } from "@/components/section-label";
 
@@ -20,7 +21,8 @@ const sections = [
 export default function PoliciesPage() {
   return (
     <PageTransition>
-      <div className="bg-mist">
+      {/* The policy texts name long addresses, such as unsubscriber@prathameshvalleyresorts.com. On a narrow phone they break rather than widen the page. */}
+      <div className="bg-mist [overflow-wrap:anywhere]">
         <header className="mx-auto max-w-[1600px] px-5 pb-14 pt-32 md:px-10 md:pb-20 md:pt-44">
           <SectionLabel className="text-moss">Policies</SectionLabel>
           <h1 className="mt-8 max-w-4xl text-[clamp(3rem,7vw,7rem)]">
@@ -28,8 +30,8 @@ export default function PoliciesPage() {
           </h1>
           <p className="mt-8 max-w-xl text-[1.05rem] text-moss">
             The fine print, in plain words. Questions? Call or WhatsApp {contact.phone.display}, or write to{" "}
-            <a href={`mailto:${contact.email}`} className="underline underline-offset-4 hover:text-ink">
-              {contact.email}
+            <a href={`mailto:${contact.email}`} className="underline underline-offset-4 [overflow-wrap:anywhere] hover:text-ink">
+              <Email address={contact.email} />
             </a>
             .
           </p>

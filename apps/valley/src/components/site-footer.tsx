@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { otherProperties } from "@repo/sites";
 import { contact, dms, nav } from "@/content/resort";
+import { Email } from "./email";
 import { Logo } from "./logo";
 
 export function SiteFooter() {
@@ -46,7 +47,8 @@ export function SiteFooter() {
           </p>
         </div>
 
-        <div className="lg:col-span-2">
+        {/* Four columns, so the email fits at every desktop width. min-w-0 keeps a long line from widening the grid. */}
+        <div className="min-w-0 lg:col-span-4">
           <h2 className="label font-sans tracking-[0.14em] text-haze">Talk to us</h2>
           <ul className="mt-5 space-y-3">
             <li>
@@ -60,8 +62,9 @@ export function SiteFooter() {
               </a>
             </li>
             <li>
-              <a href={`mailto:${contact.email}`} className="tap break-all hover:text-clay">
-                {contact.email}
+              {/* A long address wraps after the @. Only with very large text does the domain itself break. */}
+              <a href={`mailto:${contact.email}`} className="tap [overflow-wrap:anywhere] hover:text-clay">
+                <Email address={contact.email} />
               </a>
             </li>
           </ul>
