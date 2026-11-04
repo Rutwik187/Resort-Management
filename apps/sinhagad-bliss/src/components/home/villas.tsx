@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { villas } from "@/content/resort";
-import { InView, Lines } from "../in-view";
+import { InView } from "../in-view";
+import { Lines } from "../lines";
 import { Photo } from "../photo";
 
 /** The villas, two of them with a private pool. The site publishes no rates, so the team quotes them. */

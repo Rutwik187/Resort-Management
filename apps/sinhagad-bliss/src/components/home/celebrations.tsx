@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { contact } from "@/content/resort";
-import { InView, Lines } from "../in-view";
+import { InView } from "../in-view";
+import { Lines } from "../lines";
 import { ParallaxPhoto } from "../parallax-photo";
 import { Photo } from "../photo";
 

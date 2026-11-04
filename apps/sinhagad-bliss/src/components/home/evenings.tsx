@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { photos } from "@/content/photos";
-import { InView, Lines } from "../in-view";
+import { InView } from "../in-view";
+import { Lines } from "../lines";
 import { Photo } from "../photo";
 
 const plates = [

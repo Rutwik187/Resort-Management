@@ -1,7 +1,8 @@
 import { contact, eventTypes, weddingMoments } from "@/content/resort";
 import { pageMetadata } from "@/content/site";
 import { Enquiry } from "@/components/enquiry";
-import { InView, Lines } from "@/components/in-view";
+import { InView } from "@/components/in-view";
+import { Lines } from "@/components/lines";
 import { PageIntro } from "@/components/page-intro";
 import { ParallaxPhoto } from "@/components/parallax-photo";
 import { Photo } from "@/components/photo";

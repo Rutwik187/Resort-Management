@@ -4,7 +4,8 @@ import { desk, stayGroups, stayNotes } from "@/content/booking";
 import { amenities, contact, coupleGuests } from "@/content/resort";
 import type { PhotoKey } from "@/content/photos";
 import { pageMetadata } from "@/content/site";
-import { InView, Lines } from "@/components/in-view";
+import { InView } from "@/components/in-view";
+import { Lines } from "@/components/lines";
 import { Offers } from "@/components/offers";
 import { Photo } from "@/components/photo";
 import { PageTransition } from "@/components/page-transition";
@@ -37,8 +38,8 @@ export default function StaysPage() {
               Rooms and <em>villas</em>
             </h1>
             <p className="max-w-xl text-slate lg:col-span-6">
-              Rooms that face the hills or open onto a pool, villas for more space, and a package for groups. Choose your dates,
-              add a room and say who stays in it, then add as many more as you need. Our team confirms on WhatsApp.
+              Rooms that face the hills or open onto a pool, villas for more space, and a package for groups. Add as many rooms
+              as your group needs, of any kind.
             </p>
           </div>
         </header>

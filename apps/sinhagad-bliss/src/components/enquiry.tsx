@@ -1,6 +1,7 @@
 import { ContactList } from "./contact-list";
 import { EnquiryForm, type Purpose } from "./enquiry-form";
-import { InView, Lines } from "./in-view";
+import { InView } from "./in-view";
+import { Lines } from "./lines";
 
 /**
  * The enquiry section at the foot of every page. With scripts on, links to

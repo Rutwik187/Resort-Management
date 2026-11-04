@@ -6,7 +6,8 @@ import { dayPasses, meals } from "@/content/resort";
  */
 export function MealGrid({ className = "" }: { className?: string }) {
   return (
-    <div className={`overflow-x-auto ${className}`}>
+    // Relative, so the screen-reader text in the cells stays inside the scrolling box and can't widen the page on phones.
+    <div className={`relative min-w-0 overflow-x-auto ${className}`}>
       <table className="w-full min-w-[560px] border-collapse text-left">
         <caption className="sr-only">Meals included with each day pass, with their times</caption>
         <thead>

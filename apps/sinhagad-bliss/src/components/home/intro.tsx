@@ -1,5 +1,6 @@
 import { roomKinds } from "@/content/resort";
-import { InView, Lines } from "../in-view";
+import { InView } from "../in-view";
+import { Lines } from "../lines";
 import { ParallaxPhoto } from "../parallax-photo";
 
 const facts = [

@@ -1,7 +1,8 @@
 import { contact } from "@/content/resort";
 import { policies } from "@/content/policies";
 import { pageMetadata } from "@/content/site";
-import { InView, Lines } from "@/components/in-view";
+import { InView } from "@/components/in-view";
+import { Lines } from "@/components/lines";
 import { PageTransition } from "@/components/page-transition";
 
 export const metadata = pageMetadata({

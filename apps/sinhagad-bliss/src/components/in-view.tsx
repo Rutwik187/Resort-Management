@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ComponentPropsWithoutRef, type ElementType, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentPropsWithoutRef, type ElementType } from "react";
 
 type InViewProps<T extends ElementType> = {
   as?: T;
@@ -38,17 +38,4 @@ export function InView<T extends ElementType = "div">({ as, amount = 0.25, ...re
   }, [amount, seen]);
 
   return <Tag ref={ref} data-inview={seen ? "true" : "false"} {...rest} />;
-}
-
-/** A heading set line by line, each line coming into focus after the last. */
-export function Lines({ lines, start = 0 }: { lines: ReactNode[]; start?: number }) {
-  return (
-    <>
-      {lines.map((line, i) => (
-        <span key={i} className="clear block" style={{ "--i": start + i } as React.CSSProperties}>
-          {line}
-        </span>
-      ))}
-    </>
-  );
 }

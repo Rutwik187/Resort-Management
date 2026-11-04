@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { PhotoKey } from "@/content/photos";
-import { InView, Lines } from "./in-view";
+import { InView } from "./in-view";
+import { Lines } from "./lines";
 import { Photo } from "./photo";
 
 type PageIntroProps = {

@@ -1,5 +1,6 @@
 import { offers, showOffers } from "@/content/resort";
-import { InView, Lines } from "./in-view";
+import { InView } from "./in-view";
+import { Lines } from "./lines";
 
 /** The offers on the current site, shown quietly. Switch them off in content/resort.ts. */
 export function Offers({ className = "" }: { className?: string }) {

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { InView, Lines } from "../in-view";
+import { InView } from "../in-view";
+import { Lines } from "../lines";
 import { ViewMatrix } from "../view-matrix";
 
 /** The rooms, as the choice a guest actually makes: the view and the pool. */

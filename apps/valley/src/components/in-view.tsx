@@ -42,15 +42,13 @@ export function InView<T extends ElementType = "div">({ as, amount = 0.25, ...re
 
 /**
  * Splits a heading into words that drift up into place one after another.
- * Wrap a word in *asterisks* to set it in the warm italic.
+ * Wrap a word, or several, in *asterisks* to set them in the warm italic.
  */
 export function Words({ text, start = 0 }: { text: string; start?: number }) {
-  const words = text.split(" ");
+  const words = splitWords(text);
   return (
     <>
-      {words.map((raw, i) => {
-        const italic = raw.startsWith("*") && raw.replace(/[.,!?]$/, "").endsWith("*");
-        const word = italic ? raw.replace(/^\*|\*(?=[.,!?]?$)/g, "") : raw;
+      {words.map(({ word, italic }, i) => {
         const style = { "--i": start + i } as React.CSSProperties;
         return (
           <Fragment key={i}>
@@ -69,4 +67,14 @@ export function Words({ text, start = 0 }: { text: string; start?: number }) {
       })}
     </>
   );
+}
+
+/** The words of a heading, each marked italic when it falls between stars: "*here*" or "*Western Ghats*". */
+function splitWords(text: string) {
+  let inside = false;
+  return text.split(" ").map((raw) => {
+    const italic = inside || raw.startsWith("*");
+    inside = italic && !/\*[.,!?]?$/.test(raw);
+    return { word: raw.replace(/^\*/, "").replace(/\*(?=[.,!?]?$)/, ""), italic };
+  });
 }
