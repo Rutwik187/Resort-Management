@@ -2,9 +2,14 @@ import { asc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { can } from "@repo/auth";
 import { getDb, properties, roles, staffMembers, staffProperties, user } from "@repo/db";
+import { PageHeader } from "@/components/page-header";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireStaffPage } from "@/lib/staff";
-import { setStaffActive } from "./actions";
 import { InviteForm } from "./invite-form";
+import { StaffStatusButton } from "./status-button";
 
 export const metadata = { title: "Staff" };
 
@@ -30,54 +35,74 @@ export default async function StaffPage() {
     db.select({ id: properties.id, name: properties.name, code: properties.code }).from(properties).orderBy(asc(properties.sortOrder)),
   ]);
 
-  return (
-    <div>
-      <h1 className="text-[1.6rem] font-semibold">Staff</h1>
-      <p className="mt-1 text-muted-foreground">Only people on this list can sign in. Each has one role, at one or more resorts.</p>
-      <InviteForm roles={roleRows.sort((a, b) => rank(a.key) - rank(b.key))} resorts={resorts} />
+  const initials = (name: string) =>
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((word) => word[0]!.toUpperCase())
+      .join("");
 
-      <div className="card mt-6 overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-[0.9rem]">
-          <thead className="border-b border-border text-[0.8rem] text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 font-semibold">Person</th>
-              <th className="px-4 py-3 font-semibold">Role</th>
-              <th className="px-4 py-3 font-semibold">Resorts</th>
-              <th className="px-4 py-3 font-semibold">Status</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody>
+  return (
+    <>
+      <PageHeader title="Staff" description="Only people on this list can sign in. Each has one role, at one or more resorts." actions={<InviteForm roles={roleRows.sort((a, b) => rank(a.key) - rank(b.key))} resorts={resorts} />} />
+      <Card className="gap-0 py-0">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="pl-6">Person</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Resorts</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="pr-6" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {people.map((person) => (
-              <tr key={person.userId} className="border-b border-border last:border-0">
-                <td className="px-4 py-3">
-                  <span className="block font-medium">{person.name}</span>
-                  <span className="text-muted-foreground">{person.email}</span>
-                </td>
-                <td className="px-4 py-3">{person.role}</td>
-                <td className="px-4 py-3">
-                  {person.allProperties
-                    ? "All resorts"
-                    : links
+              <TableRow key={person.userId}>
+                <TableCell className="pl-6">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="size-8">
+                      <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">{initials(person.name)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{person.name}</p>
+                      <p className="text-xs text-muted-foreground">{person.email}</p>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="secondary">{person.role}</Badge>
+                </TableCell>
+                <TableCell>
+                  {person.allProperties ? (
+                    <Badge variant="outline">All resorts</Badge>
+                  ) : (
+                    <span className="flex flex-wrap gap-1">
+                      {links
                         .filter((link) => link.userId === person.userId)
-                        .map((link) => resorts.find((r) => r.id === link.propertyId)?.code)
-                        .join(", ")}
-                </td>
-                <td className="px-4 py-3">{person.active ? <span className="text-good">Active</span> : <span className="text-muted-foreground">Deactivated</span>}</td>
-                <td className="px-4 py-3 text-right">
-                  {person.userId !== admin.userId && (
-                    <form action={setStaffActive.bind(null, person.userId, !person.active)}>
-                      <button type="submit" className="button-quiet">
-                        {person.active ? "Deactivate" : "Reactivate"}
-                      </button>
-                    </form>
+                        .map((link) => resorts.find((r) => r.id === link.propertyId))
+                        .map((resort) => resort && <Badge key={resort.id} variant="outline">{resort.code}</Badge>)}
+                    </span>
                   )}
-                </td>
-              </tr>
+                </TableCell>
+                <TableCell>
+                  {person.active ? (
+                    <Badge variant="outline" className="border-good/30 bg-good/10 text-good">
+                      Active
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-muted-foreground">
+                      Deactivated
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell className="pr-6 text-right">{person.userId !== admin.userId && <StaffStatusButton userId={person.userId} name={person.name} active={person.active} />}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+          </TableBody>
+        </Table>
+      </Card>
+    </>
   );
 }

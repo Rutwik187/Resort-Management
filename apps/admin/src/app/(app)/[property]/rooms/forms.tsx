@@ -1,127 +1,17 @@
 "use client";
 
-import { useActionState } from "react";
-import { addUnits, createRoomType, editRoomType, type FormState } from "./actions";
-
-function Note({ state }: { state: FormState }) {
-  if (!state) return null;
-  return (
-    <p role="status" className={`text-[0.88rem] ${state.error ? "text-danger" : "text-good"}`}>
-      {state.error ?? state.done}
-    </p>
-  );
-}
-
-/** Adds a room type: what it is, and how many guests it takes (RM-01). */
-export function RoomTypeForm({ propertyId }: { propertyId: string }) {
-  const [state, action, pending] = useActionState(createRoomType.bind(null, propertyId), undefined);
-  return (
-    <details className="card mt-6 p-5">
-      <summary className="cursor-pointer font-semibold">Add a room type</summary>
-      <form action={action} className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="sm:col-span-2">
-          <label className="label" htmlFor="name">
-            Name
-          </label>
-          <input id="name" name="name" required className="field" placeholder="Garden View Cottage" />
-        </div>
-        <div>
-          <label className="label" htmlFor="code">
-            Code
-          </label>
-          <input id="code" name="code" required pattern="[a-z0-9]+(-[a-z0-9]+)*" className="field" placeholder="garden-view-cottage" />
-        </div>
-        <div>
-          <label className="label" htmlFor="category">
-            Kind
-          </label>
-          <select id="category" name="category" className="field" defaultValue="room">
-            <option value="room">Room</option>
-            <option value="cottage">Cottage</option>
-            <option value="villa">Villa</option>
-            <option value="tent">Tent</option>
-            <option value="dormitory">Dormitory</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        {(
-          [
-            ["baseOccupancy", "Guests in the base price", 2],
-            ["minGuests", "Fewest guests", 1],
-            ["maxAdults", "Most adults", 3],
-            ["maxChildren", "Most children", 2],
-            ["maxGuests", "Most guests", 4],
-          ] as const
-        ).map(([name, label, value]) => (
-          <div key={name}>
-            <label className="label" htmlFor={name}>
-              {label}
-            </label>
-            <input id={name} name={name} type="number" min={0} defaultValue={value} required className="field" />
-          </div>
-        ))}
-        <div>
-          <label className="label" htmlFor="bedType">
-            Bed
-          </label>
-          <input id="bedType" name="bedType" className="field" placeholder="King bed" />
-        </div>
-        <div>
-          <label className="label" htmlFor="sizeSqft">
-            Size (sq ft)
-          </label>
-          <input id="sizeSqft" name="sizeSqft" type="number" min={1} className="field" />
-        </div>
-        <label className="flex items-center gap-2 self-end pb-2">
-          <input type="checkbox" name="extraBedAllowed" className="size-4" /> Extra bed allowed
-        </label>
-        <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-4">
-          <button type="submit" disabled={pending} className="button">
-            Add room type
-          </button>
-          <Note state={state} />
-        </div>
-      </form>
-    </details>
-  );
-}
-
-/** Adds units: one by name, or a numbered run such as Cottage 1 to 12 (RM-02). */
-export function AddUnitsForm({ roomTypeId, suggestion }: { roomTypeId: string; suggestion: string }) {
-  const [state, action, pending] = useActionState(addUnits.bind(null, roomTypeId), undefined);
-  return (
-    <form action={action} className="mt-4 flex flex-wrap items-end gap-3 border-t border-border pt-4">
-      <div>
-        <label className="label" htmlFor={`${roomTypeId}-prefix`}>
-          Unit name
-        </label>
-        <input id={`${roomTypeId}-prefix`} name="prefix" required defaultValue={suggestion} className="field w-40" />
-      </div>
-      <div>
-        <label className="label" htmlFor={`${roomTypeId}-from`}>
-          Numbered from
-        </label>
-        <input id={`${roomTypeId}-from`} name="from" type="number" min={0} className="field w-24" placeholder="1" />
-      </div>
-      <div>
-        <label className="label" htmlFor={`${roomTypeId}-to`}>
-          to
-        </label>
-        <input id={`${roomTypeId}-to`} name="to" type="number" min={0} className="field w-24" placeholder="12" />
-      </div>
-      <div>
-        <label className="label" htmlFor={`${roomTypeId}-block`}>
-          Block or floor
-        </label>
-        <input id={`${roomTypeId}-block`} name="block" className="field w-36" />
-      </div>
-      <button type="submit" disabled={pending} className="button-quiet">
-        Add units
-      </button>
-      <Note state={state} />
-    </form>
-  );
-}
+import { useActionState, useState } from "react";
+import { Pencil, Plus } from "lucide-react";
+import { FormNote, useFormFeedback } from "@/components/form-note";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { addUnits, createRoomType, editRoomType } from "./actions";
 
 type RoomTypeValues = {
   id: string;
@@ -137,63 +27,178 @@ type RoomTypeValues = {
   sizeSqft: number | null;
 };
 
+const kinds = [
+  ["room", "Room"],
+  ["cottage", "Cottage"],
+  ["villa", "Villa"],
+  ["tent", "Tent"],
+  ["dormitory", "Dormitory"],
+  ["other", "Other"],
+] as const;
+
+/** The fields of a room type (RM-01). The code is set once: it links the type's photos and text. */
+function RoomTypeFields({ prefix, type }: { prefix: string; type?: RoomTypeValues }) {
+  const id = (name: string) => `${prefix}-${name}`;
+  const numbers = [
+    ["baseOccupancy", "Guests in the base price", type?.baseOccupancy ?? 2],
+    ["minGuests", "Fewest guests", type?.minGuests ?? 1],
+    ["maxAdults", "Most adults", type?.maxAdults ?? 3],
+    ["maxChildren", "Most children", type?.maxChildren ?? 2],
+    ["maxGuests", "Most guests", type?.maxGuests ?? 4],
+  ] as const;
+  return (
+    <FieldGroup>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field className="sm:col-span-2">
+          <FieldLabel htmlFor={id("name")}>Name</FieldLabel>
+          <Input id={id("name")} name="name" required defaultValue={type?.name} placeholder="Garden View Cottage" />
+        </Field>
+        {!type && (
+          <Field>
+            <FieldLabel htmlFor={id("code")}>Code</FieldLabel>
+            <Input id={id("code")} name="code" required pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="garden-view-cottage" />
+            <FieldDescription>Small letters, numbers and dashes. It can&apos;t change later.</FieldDescription>
+          </Field>
+        )}
+        <Field>
+          <FieldLabel htmlFor={id("category")}>Kind</FieldLabel>
+          <Select name="category" defaultValue={type?.category ?? "room"}>
+            <SelectTrigger id={id("category")} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {kinds.map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={id("bedType")}>Bed</FieldLabel>
+          <Input id={id("bedType")} name="bedType" defaultValue={type?.bedType ?? ""} placeholder="King bed" />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={id("sizeSqft")}>Size (sq ft)</FieldLabel>
+          <Input id={id("sizeSqft")} name="sizeSqft" type="number" min={1} defaultValue={type?.sizeSqft ?? ""} />
+        </Field>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        {numbers.map(([name, label, value]) => (
+          <Field key={name}>
+            <FieldLabel htmlFor={id(name)}>{label}</FieldLabel>
+            <Input id={id(name)} name={name} type="number" min={0} required defaultValue={value} />
+          </Field>
+        ))}
+      </div>
+      <div className="flex items-center gap-2">
+        <Checkbox id={id("extraBed")} name="extraBedAllowed" defaultChecked={type?.extraBedAllowed} />
+        <Label htmlFor={id("extraBed")} className="font-normal">
+          Extra bed allowed
+        </Label>
+      </div>
+    </FieldGroup>
+  );
+}
+
+/** Adds a room type: what it is, and how many guests it takes (RM-01). */
+export function RoomTypeForm({ propertyId }: { propertyId: string }) {
+  const [open, setOpen] = useState(false);
+  const [state, action, pending] = useActionState(createRoomType.bind(null, propertyId), undefined);
+  useFormFeedback(state, () => setOpen(false));
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <Plus />
+          Add a room type
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-xl">
+        <form action={action} className="grid gap-5">
+          <DialogHeader>
+            <DialogTitle>Add a room type</DialogTitle>
+            <DialogDescription>A kind of room, such as Garden View Cottage. Add its units, the rooms themselves, next.</DialogDescription>
+          </DialogHeader>
+          <RoomTypeFields prefix="new-type" />
+          <FormNote state={state} />
+          <DialogFooter>
+            <Button type="submit" disabled={pending}>
+              {pending && <Spinner />}
+              Add room type
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /** Changes a room type (RM-01). Its code stays, because it links the type's photos and text. */
 export function RoomTypeEditForm({ type }: { type: RoomTypeValues }) {
+  const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(editRoomType.bind(null, type.id), undefined);
-  const id = (name: string) => `${type.id}-${name}`;
+  useFormFeedback(state, () => setOpen(false));
   return (
-    <form action={action} className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <div className="sm:col-span-2">
-        <label className="label" htmlFor={id("name")}>
-          Name
-        </label>
-        <input id={id("name")} name="name" required defaultValue={type.name} className="field" />
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          <Pencil />
+          Change
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-xl">
+        <form action={action} className="grid gap-5">
+          <DialogHeader>
+            <DialogTitle>Change {type.name}</DialogTitle>
+            <DialogDescription>Its code stays the same, because it links the room type&apos;s photos and text.</DialogDescription>
+          </DialogHeader>
+          <RoomTypeFields prefix={type.id} type={type} />
+          <FormNote state={state} />
+          <DialogFooter>
+            <Button type="submit" disabled={pending}>
+              {pending && <Spinner />}
+              Save changes
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Adds units: one by name, or a numbered run such as Cottage 1 to 12 (RM-02). */
+export function AddUnitsForm({ roomTypeId, suggestion }: { roomTypeId: string; suggestion: string }) {
+  const [state, action, pending] = useActionState(addUnits.bind(null, roomTypeId), undefined);
+  useFormFeedback(state);
+  return (
+    <form action={action} className="grid gap-3 rounded-lg border bg-muted/40 p-4">
+      <p className="text-sm font-medium">Add units</p>
+      <div className="flex flex-wrap items-end gap-3">
+        <Field className="w-40">
+          <FieldLabel htmlFor={`${roomTypeId}-prefix`}>Unit name</FieldLabel>
+          <Input id={`${roomTypeId}-prefix`} name="prefix" required defaultValue={suggestion} className="bg-background" />
+        </Field>
+        <Field className="w-24">
+          <FieldLabel htmlFor={`${roomTypeId}-from`}>From</FieldLabel>
+          <Input id={`${roomTypeId}-from`} name="from" type="number" min={0} placeholder="1" className="bg-background" />
+        </Field>
+        <Field className="w-24">
+          <FieldLabel htmlFor={`${roomTypeId}-to`}>To</FieldLabel>
+          <Input id={`${roomTypeId}-to`} name="to" type="number" min={0} placeholder="12" className="bg-background" />
+        </Field>
+        <Field className="w-36">
+          <FieldLabel htmlFor={`${roomTypeId}-block`}>Block or floor</FieldLabel>
+          <Input id={`${roomTypeId}-block`} name="block" className="bg-background" />
+        </Field>
+        <Button type="submit" variant="secondary" disabled={pending}>
+          {pending ? <Spinner /> : <Plus />}
+          Add units
+        </Button>
       </div>
-      <div>
-        <label className="label" htmlFor={id("category")}>
-          Kind
-        </label>
-        <select id={id("category")} name="category" defaultValue={type.category} className="field">
-          <option value="room">Room</option>
-          <option value="cottage">Cottage</option>
-          <option value="villa">Villa</option>
-          <option value="tent">Tent</option>
-          <option value="dormitory">Dormitory</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
-      <div>
-        <label className="label" htmlFor={id("bedType")}>
-          Bed
-        </label>
-        <input id={id("bedType")} name="bedType" defaultValue={type.bedType ?? ""} className="field" />
-      </div>
-      {(
-        [
-          ["baseOccupancy", "Guests in the base price", type.baseOccupancy],
-          ["minGuests", "Fewest guests", type.minGuests],
-          ["maxAdults", "Most adults", type.maxAdults],
-          ["maxChildren", "Most children", type.maxChildren],
-          ["maxGuests", "Most guests", type.maxGuests],
-          ["sizeSqft", "Size (sq ft)", type.sizeSqft ?? ""],
-        ] as const
-      ).map(([name, label, value]) => (
-        <div key={name}>
-          <label className="label" htmlFor={id(name)}>
-            {label}
-          </label>
-          <input id={id(name)} name={name} type="number" min={name === "sizeSqft" ? 1 : 0} required={name !== "sizeSqft"} defaultValue={value} className="field" />
-        </div>
-      ))}
-      <label className="flex items-center gap-2 self-end pb-2">
-        <input type="checkbox" name="extraBedAllowed" defaultChecked={type.extraBedAllowed} className="size-4" /> Extra bed allowed
-      </label>
-      <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-4">
-        <button type="submit" disabled={pending} className="button-quiet">
-          Save changes
-        </button>
-        <Note state={state} />
-      </div>
+      <FieldDescription>One unit by its name, or a numbered run such as Cottage 1 to Cottage 12.</FieldDescription>
+      <FormNote state={state} />
     </form>
   );
 }

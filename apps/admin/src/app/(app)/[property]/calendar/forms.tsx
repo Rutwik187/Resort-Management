@@ -1,7 +1,18 @@
 "use client";
 
-import { useActionState } from "react";
-import { FormNote } from "@/components/form-note";
+import { useActionState, useState, type ReactNode } from "react";
+import { Ban, CalendarCog, IndianRupee, Unlock } from "lucide-react";
+import { DateField } from "@/components/date-field";
+import { FormNote, useFormFeedback } from "@/components/form-note";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import { blockDates, liftBlockAction, setDatePrices, setStayRules } from "./actions";
 
 type RoomType = { id: string; name: string; units: { id: string; name: string }[] };
@@ -14,186 +25,271 @@ const reasons = [
   ["other", "Other"],
 ] as const;
 
-function Dates({ prefix, first, last, labels = ["First night", "Last night"] }: { prefix: string; first: string; last: string; labels?: [string, string] }) {
+/** The first and last night of a change, picked from the calendar. */
+function Nights({ prefix, first, names = ["from", "to"] }: { prefix: string; first: string; names?: [string, string] }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
-      <div>
-        <label className="label" htmlFor={`${prefix}-from`}>
-          {labels[0]}
-        </label>
-        <input id={`${prefix}-from`} name={prefix === "block" ? "startsOn" : "from"} type="date" required defaultValue={first} className="field" />
-      </div>
-      <div>
-        <label className="label" htmlFor={`${prefix}-to`}>
-          {labels[1]}
-        </label>
-        <input id={`${prefix}-to`} name={prefix === "block" ? "endsOn" : "to"} type="date" required defaultValue={last} className="field" />
-      </div>
+    <div className="grid grid-cols-2 gap-3">
+      <Field>
+        <FieldLabel htmlFor={`${prefix}-from`}>First night</FieldLabel>
+        <DateField id={`${prefix}-from`} name={names[0]} defaultValue={first} />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${prefix}-to`}>Last night</FieldLabel>
+        <DateField id={`${prefix}-to`} name={names[1]} defaultValue={first} />
+      </Field>
     </div>
   );
 }
 
-/** Blocks a unit, a room type or the whole resort (INV-04, INV-05). */
-export function BlockForm({ propertyId, types, first, last }: { propertyId: string; types: RoomType[]; first: string; last: string }) {
-  const [state, action, pending] = useActionState(blockDates.bind(null, propertyId), undefined);
+/** A side panel holding one form, opened from a button in the page header. */
+function FormSheet({ trigger, title, description, children }: { trigger: ReactNode; title: string; description: string; children: (close: () => void) => ReactNode }) {
+  const [open, setOpen] = useState(false);
   return (
-    <details className="card p-5">
-      <summary className="cursor-pointer font-semibold">Block rooms or the whole resort</summary>
-      <form action={action} className="mt-4 grid gap-3">
-        <div>
-          <label className="label" htmlFor="block-scope">
-            What to block
-          </label>
-          <select id="block-scope" name="scope" required defaultValue="" className="field">
-            <option value="" disabled>
-              Choose
-            </option>
-            <option value="resort">The whole resort (a wedding or a buyout)</option>
-            {types.map((type) => (
-              <optgroup key={type.id} label={type.name}>
-                <option value={`type:${type.id}`}>Every {type.name}</option>
-                {type.units.map((unit) => (
-                  <option key={unit.id} value={`unit:${unit.id}`}>
-                    {unit.name}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </div>
-        <Dates prefix="block" first={first} last={last} />
-        <div>
-          <label className="label" htmlFor="block-reason">
-            Why
-          </label>
-          <select id="block-reason" name="reason" required defaultValue="maintenance" className="field">
-            {reasons.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <input name="note" aria-label="Note" placeholder="Note, such as the OTA or the event" className="field" />
-        <button type="submit" disabled={pending} className="button justify-self-start">
-          Block
-        </button>
-        <p className="text-[0.82rem] text-muted-foreground">A night that is already held or booked can&apos;t be blocked; nothing is blocked then, and the note says how many clash.</p>
-        <FormNote state={state} />
-      </form>
-    </details>
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>{trigger}</SheetTrigger>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>{title}</SheetTitle>
+          <SheetDescription>{description}</SheetDescription>
+        </SheetHeader>
+        <div className="px-4 pb-4">{children(() => setOpen(false))}</div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
-/** Stay rules for a run of nights (INV-08). Nothing ticked or filled clears them. */
-export function RulesForm({ propertyId, types, first, last }: { propertyId: string; types: RoomType[]; first: string; last: string }) {
-  const [state, action, pending] = useActionState(setStayRules.bind(null, propertyId), undefined);
+/** Blocks a unit, a room type or the whole resort (INV-04, INV-05). */
+export function BlockSheet({ propertyId, types, first }: { propertyId: string; types: RoomType[]; first: string }) {
   return (
-    <details className="card p-5">
-      <summary className="cursor-pointer font-semibold">Stay rules</summary>
-      <form action={action} className="mt-4 grid gap-3">
-        <div>
-          <label className="label" htmlFor="rules-type">
-            Room type
-          </label>
-          <select id="rules-type" name="roomType" required defaultValue="all" className="field">
-            <option value="all">Every room type</option>
-            {types.map((type) => (
-              <option key={type.id} value={type.id}>
-                {type.name}
-              </option>
-            ))}
-          </select>
+    <FormSheet
+      title="Block rooms"
+      description="Take a room, a whole room type or the whole resort off sale for some nights. Nights already held or booked can't be blocked."
+      trigger={
+        <Button variant="outline">
+          <Ban />
+          Block rooms
+        </Button>
+      }
+    >
+      {(close) => <BlockForm propertyId={propertyId} types={types} first={first} onDone={close} />}
+    </FormSheet>
+  );
+}
+
+function BlockForm({ propertyId, types, first, onDone }: { propertyId: string; types: RoomType[]; first: string; onDone: () => void }) {
+  const [state, action, pending] = useActionState(blockDates.bind(null, propertyId), undefined);
+  useFormFeedback(state, onDone);
+  return (
+    <form action={action} className="grid gap-5">
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="block-scope">What to block</FieldLabel>
+          <Select name="scope" required>
+            <SelectTrigger id="block-scope" className="w-full">
+              <SelectValue placeholder="Choose" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="resort">The whole resort (a wedding or a buyout)</SelectItem>
+              {types.map((type) => (
+                <SelectGroup key={type.id}>
+                  <SelectLabel>{type.name}</SelectLabel>
+                  <SelectItem value={`type:${type.id}`}>Every {type.name}</SelectItem>
+                  {type.units.map((unit) => (
+                    <SelectItem key={unit.id} value={`unit:${unit.id}`}>
+                      {unit.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Nights prefix="block" first={first} names={["startsOn", "endsOn"]} />
+        <Field>
+          <FieldLabel htmlFor="block-reason">Why</FieldLabel>
+          <Select name="reason" defaultValue="maintenance">
+            <SelectTrigger id="block-reason" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {reasons.map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="block-note">Note</FieldLabel>
+          <Input id="block-note" name="note" placeholder="Such as the OTA or the event" />
+        </Field>
+      </FieldGroup>
+      <FormNote state={state} />
+      <SheetFooter className="p-0">
+        <Button type="submit" disabled={pending}>
+          {pending && <Spinner />}
+          Block
+        </Button>
+      </SheetFooter>
+    </form>
+  );
+}
+
+/** Stay rules for a run of nights (INV-08). Nothing switched on or filled clears them. */
+export function RulesSheet({ propertyId, types, first }: { propertyId: string; types: RoomType[]; first: string }) {
+  return (
+    <FormSheet
+      title="Stay rules"
+      description="Stop selling some nights, close them to arrivals, or set the fewest and most nights for stays that start then. Save with nothing on to clear the rules."
+      trigger={
+        <Button variant="outline">
+          <CalendarCog />
+          Stay rules
+        </Button>
+      }
+    >
+      {(close) => <RulesForm propertyId={propertyId} types={types} first={first} onDone={close} />}
+    </FormSheet>
+  );
+}
+
+function RulesForm({ propertyId, types, first, onDone }: { propertyId: string; types: RoomType[]; first: string; onDone: () => void }) {
+  const [state, action, pending] = useActionState(setStayRules.bind(null, propertyId), undefined);
+  useFormFeedback(state, onDone);
+  return (
+    <form action={action} className="grid gap-5">
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="rules-type">Room type</FieldLabel>
+          <Select name="roomType" defaultValue="all">
+            <SelectTrigger id="rules-type" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Every room type</SelectItem>
+              {types.map((type) => (
+                <SelectItem key={type.id} value={type.id}>
+                  {type.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Nights prefix="rules" first={first} />
+        <div className="flex items-center justify-between gap-3">
+          <Label htmlFor="rules-stop">Stop selling these nights</Label>
+          <Switch id="rules-stop" name="stopSell" />
         </div>
-        <Dates prefix="rules" first={first} last={last} />
-        <label className="flex items-center gap-2 text-[0.9rem]">
-          <input type="checkbox" name="stopSell" className="size-4" /> Stop selling these nights
-        </label>
-        <label className="flex items-center gap-2 text-[0.9rem]">
-          <input type="checkbox" name="closedToArrival" className="size-4" /> No arrivals on these nights
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="label" htmlFor="rules-min">
-              Fewest nights
-            </label>
-            <input id="rules-min" name="minNights" type="number" min={1} max={60} className="field" />
-          </div>
-          <div>
-            <label className="label" htmlFor="rules-max">
-              Most nights
-            </label>
-            <input id="rules-max" name="maxNights" type="number" min={1} max={365} className="field" />
-          </div>
+        <div className="flex items-center justify-between gap-3">
+          <Label htmlFor="rules-cta">No arrivals on these nights</Label>
+          <Switch id="rules-cta" name="closedToArrival" />
         </div>
-        <button type="submit" disabled={pending} className="button justify-self-start">
+        <div className="grid grid-cols-2 gap-3">
+          <Field>
+            <FieldLabel htmlFor="rules-min">Fewest nights</FieldLabel>
+            <Input id="rules-min" name="minNights" type="number" min={1} max={60} />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="rules-max">Most nights</FieldLabel>
+            <Input id="rules-max" name="maxNights" type="number" min={1} max={365} />
+          </Field>
+        </div>
+        <FieldDescription>The fewest and most nights apply to stays that start on a night.</FieldDescription>
+      </FieldGroup>
+      <FormNote state={state} />
+      <SheetFooter className="p-0">
+        <Button type="submit" disabled={pending}>
+          {pending && <Spinner />}
           Save rules
-        </button>
-        <p className="text-[0.82rem] text-muted-foreground">The fewest and most nights apply to stays that start on a night. Save with nothing ticked or filled to clear the rules.</p>
-        <FormNote state={state} />
-      </form>
-    </details>
+        </Button>
+      </SheetFooter>
+    </form>
   );
 }
 
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** A room type's price for chosen nights (PR-04). An empty price clears it. */
-export function PricesForm({ propertyId, types, first, last }: { propertyId: string; types: RoomType[]; first: string; last: string }) {
-  const [state, action, pending] = useActionState(setDatePrices.bind(null, propertyId), undefined);
+export function PricesSheet({ propertyId, types, first }: { propertyId: string; types: RoomType[]; first: string }) {
   return (
-    <details className="card p-5">
-      <summary className="cursor-pointer font-semibold">Prices for dates</summary>
-      <form action={action} className="mt-4 grid gap-3">
-        <div>
-          <label className="label" htmlFor="prices-type">
-            Room type
-          </label>
-          <select id="prices-type" name="roomType" required defaultValue="" className="field">
-            <option value="" disabled>
-              Choose
-            </option>
-            {types.map((type) => (
-              <option key={type.id} value={type.id}>
-                {type.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <Dates prefix="prices" first={first} last={last} />
-        <fieldset>
-          <legend className="label">Only on (leave all clear for every night)</legend>
-          <div className="flex flex-wrap gap-x-3 gap-y-1">
+    <FormSheet
+      title="Prices for dates"
+      description="Set a room type's price for chosen nights. It takes the place of the base or season price then. Leave the price empty to remove date prices."
+      trigger={
+        <Button variant="outline">
+          <IndianRupee />
+          Prices for dates
+        </Button>
+      }
+    >
+      {(close) => <PricesForm propertyId={propertyId} types={types} first={first} onDone={close} />}
+    </FormSheet>
+  );
+}
+
+function PricesForm({ propertyId, types, first, onDone }: { propertyId: string; types: RoomType[]; first: string; onDone: () => void }) {
+  const [state, action, pending] = useActionState(setDatePrices.bind(null, propertyId), undefined);
+  useFormFeedback(state, onDone);
+  return (
+    <form action={action} className="grid gap-5">
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="prices-type">Room type</FieldLabel>
+          <Select name="roomType" required>
+            <SelectTrigger id="prices-type" className="w-full">
+              <SelectValue placeholder="Choose" />
+            </SelectTrigger>
+            <SelectContent>
+              {types.map((type) => (
+                <SelectItem key={type.id} value={type.id}>
+                  {type.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Nights prefix="prices" first={first} />
+        <FieldSet>
+          <FieldLegend variant="label">Only on</FieldLegend>
+          <FieldDescription>Leave all clear for every night.</FieldDescription>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
             {weekdays.map((day, i) => (
-              <label key={day} className="flex items-center gap-1.5 text-[0.88rem]">
-                <input type="checkbox" name="weekdays" value={i} className="size-4" /> {day}
-              </label>
+              <div key={day} className="flex items-center gap-2">
+                <Checkbox id={`prices-day-${i}`} name="weekdays" value={String(i)} />
+                <Label htmlFor={`prices-day-${i}`} className="font-normal">
+                  {day}
+                </Label>
+              </div>
             ))}
           </div>
-        </fieldset>
-        <div>
-          <label className="label" htmlFor="prices-price">
-            Base price a night (₹)
-          </label>
-          <input id="prices-price" name="price" inputMode="decimal" className="field" placeholder="Leave empty to remove date prices" />
-        </div>
-        <button type="submit" disabled={pending} className="button justify-self-start">
+        </FieldSet>
+        <Field>
+          <FieldLabel htmlFor="prices-price">Base price a night (₹)</FieldLabel>
+          <Input id="prices-price" name="price" inputMode="decimal" placeholder="Leave empty to remove date prices" />
+          <FieldDescription>Extra guests and children still pay the room type&apos;s rates, so it needs a base rate on the Prices page.</FieldDescription>
+        </Field>
+      </FieldGroup>
+      <FormNote state={state} />
+      <SheetFooter className="p-0">
+        <Button type="submit" disabled={pending}>
+          {pending && <Spinner />}
           Save prices
-        </button>
-        <p className="text-[0.82rem] text-muted-foreground">A date price takes the place of the base or season price for those nights. Extra guests and children still pay the room type&apos;s rates, so it needs a base rate on the Prices tab.</p>
-        <FormNote state={state} />
-      </form>
-    </details>
+        </Button>
+      </SheetFooter>
+    </form>
   );
 }
 
 export function LiftBlockButton({ blockId }: { blockId: string }) {
   const [state, action, pending] = useActionState(liftBlockAction.bind(null, blockId), undefined);
+  useFormFeedback(state);
   return (
     <form action={action} className="grid gap-1.5">
-      <button type="submit" disabled={pending} className="button-quiet justify-self-start">
+      <Button type="submit" variant="outline" disabled={pending} className="justify-self-start">
+        {pending ? <Spinner /> : <Unlock />}
         Lift the block
-      </button>
+      </Button>
       <FormNote state={state} />
     </form>
   );

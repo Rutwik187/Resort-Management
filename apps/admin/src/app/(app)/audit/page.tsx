@@ -3,6 +3,18 @@ import { and, asc, desc, eq, gte, inArray, isNull, like, lte, or, sql } from "dr
 import { accessibleProperties, can } from "@repo/auth";
 import { auditLog, getDb, properties, staffMembers, user } from "@repo/db";
 import { isDate } from "@repo/engine";
+import { ChevronDown, ChevronLeft, ChevronRight, Lock, ScrollText } from "lucide-react";
+import { DateField } from "@/components/date-field";
+import { PageHeader } from "@/components/page-header";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { when } from "@/lib/format";
 import { requireStaffPage } from "@/lib/staff";
 
@@ -85,10 +97,15 @@ export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
   const staff = await requireStaffPage();
   if (!can(staff, "audit.view")) {
     return (
-      <div className="card p-6">
-        <h1 className="text-[1.2rem] font-semibold">Not open to your role</h1>
-        <p className="mt-1 text-muted-foreground">Only a Super Admin and Accounts can see the audit log.</p>
-      </div>
+      <Empty className="border border-dashed">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Lock />
+          </EmptyMedia>
+          <EmptyTitle>Not open to your role</EmptyTitle>
+          <EmptyDescription>Only a Super Admin and Accounts can see the audit log.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
   const db = getDb();
@@ -96,8 +113,8 @@ export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
   const query = await searchParams;
   const resort = resorts.find((r) => r.code === one(query.resort)?.toUpperCase());
   const groupOnly = one(query.resort) === "group" && staff.allProperties;
-  const person = one(query.person);
-  const kind = one(query.kind) as keyof typeof kinds | undefined;
+  const person = one(query.person) && one(query.person) !== "all" ? one(query.person) : undefined;
+  const kind = one(query.kind) && one(query.kind) !== "all" ? (one(query.kind) as keyof typeof kinds) : undefined;
   const from = isDate(one(query.from)) ? one(query.from) : undefined;
   const to = isDate(one(query.to)) ? one(query.to) : undefined;
   const page = Math.max(1, Number(one(query.page)) || 1);
@@ -134,145 +151,179 @@ export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
   const people = await db.select({ id: user.id, name: user.name }).from(staffMembers).innerJoin(user, eq(user.id, staffMembers.userId)).orderBy(asc(user.name));
   const link = (changesTo: Record<string, string | number | undefined>) => {
     const params = new URLSearchParams();
-    for (const [key, value] of Object.entries({ resort: one(query.resort), person, kind, from, to, page, ...changesTo })) if (value !== undefined && value !== "" && !(key === "page" && value === 1)) params.set(key, String(value));
+    for (const [key, value] of Object.entries({ resort: one(query.resort) === "all" ? undefined : one(query.resort), person, kind, from, to, page, ...changesTo })) if (value !== undefined && value !== "" && !(key === "page" && value === 1)) params.set(key, String(value));
     const text = params.toString();
     return text ? `/audit?${text}` : "/audit";
   };
 
   return (
-    <div>
-      <h1 className="text-[1.35rem] font-semibold">Audit log</h1>
-      <p className="mt-1 text-muted-foreground">Every change and sign-in: who, when, from which address, and the values before and after.</p>
+    <>
+      <PageHeader title="Audit log" description="Every change and sign-in: who, when, from which address, and the values before and after (USR-05)." />
 
-      <form className="card mt-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6">
-        <div>
-          <label className="label" htmlFor="audit-resort">
-            Resort
-          </label>
-          <select id="audit-resort" name="resort" defaultValue={one(query.resort) ?? ""} className="field">
-            <option value="">{staff.allProperties ? "Everything" : "My resorts"}</option>
-            {resorts.map((r) => (
-              <option key={r.id} value={r.code.toLowerCase()}>
-                {r.name}
-              </option>
-            ))}
-            {staff.allProperties && <option value="group">Group-wide only</option>}
-          </select>
-        </div>
-        <div>
-          <label className="label" htmlFor="audit-person">
-            Person
-          </label>
-          <select id="audit-person" name="person" defaultValue={person ?? ""} className="field">
-            <option value="">Anyone</option>
-            {people.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="label" htmlFor="audit-kind">
-            Kind of change
-          </label>
-          <select id="audit-kind" name="kind" defaultValue={kind ?? ""} className="field">
-            <option value="">All</option>
-            {Object.entries(kinds).map(([value, { label }]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="label" htmlFor="audit-from">
-            From
-          </label>
-          <input id="audit-from" name="from" type="date" defaultValue={from} className="field" />
-        </div>
-        <div>
-          <label className="label" htmlFor="audit-to">
-            To
-          </label>
-          <input id="audit-to" name="to" type="date" defaultValue={to} className="field" />
-        </div>
-        <div className="flex items-end gap-2">
-          <button type="submit" className="button">
-            Show
-          </button>
-          <Link href="/audit" className="button-quiet">
-            Clear
-          </Link>
-        </div>
-      </form>
+      <Card className="py-4">
+        <CardContent className="px-4">
+          <form className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto] lg:items-end">
+            <Field>
+              <FieldLabel htmlFor="audit-resort">Resort</FieldLabel>
+              <Select name="resort" defaultValue={one(query.resort) ?? "all"}>
+                <SelectTrigger id="audit-resort" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{staff.allProperties ? "Everything" : "My resorts"}</SelectItem>
+                  {resorts.map((r) => (
+                    <SelectItem key={r.id} value={r.code.toLowerCase()}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                  {staff.allProperties && <SelectItem value="group">Group-wide only</SelectItem>}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="audit-person">Person</FieldLabel>
+              <Select name="person" defaultValue={person ?? "all"}>
+                <SelectTrigger id="audit-person" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Anyone</SelectItem>
+                  {people.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="audit-kind">Kind of change</FieldLabel>
+              <Select name="kind" defaultValue={kind ?? "all"}>
+                <SelectTrigger id="audit-kind" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {Object.entries(kinds).map(([value, { label }]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="audit-from">From</FieldLabel>
+              <DateField id="audit-from" name="from" defaultValue={from} placeholder="Any day" />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="audit-to">To</FieldLabel>
+              <DateField id="audit-to" name="to" defaultValue={to} placeholder="Any day" />
+            </Field>
+            <div className="flex gap-2">
+              <Button type="submit">Show</Button>
+              <Button variant="ghost" asChild>
+                <Link href="/audit">Clear</Link>
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
       {rows.length === 0 ? (
-        <p className="mt-6 text-muted-foreground">Nothing matches.</p>
+        <Empty className="border border-dashed">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ScrollText />
+            </EmptyMedia>
+            <EmptyTitle>Nothing matches</EmptyTitle>
+            <EmptyDescription>Try another person, kind of change or dates.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
-        <ol className="card mt-4 divide-y divide-border">
-          {rows.slice(0, pageSize).map(({ entry, by, code }) => {
-            const changed = changes(entry.before, entry.after);
-            return (
-              <li key={entry.id} className="px-4 py-3">
-                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                  <p>
-                    <span className="font-medium">{by ?? "The system"}</span> <span>{(actionLabel[entry.action] ?? entry.action).replace(/^./, (c) => c.toLowerCase())}</span>
-                    {code && <span className="text-muted-foreground"> · {code}</span>}
+        <Card className="gap-0 py-0">
+          <ol className="divide-y">
+            {rows.slice(0, pageSize).map(({ entry, by, code }) => {
+              const changed = changes(entry.before, entry.after);
+              return (
+                <li key={entry.id} className="grid gap-1.5 px-6 py-4">
+                  <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="size-8">
+                        <AvatarFallback className="bg-muted text-xs font-semibold">{(by ?? "S").split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("")}</AvatarFallback>
+                      </Avatar>
+                      <p className="text-sm">
+                        <span className="font-medium">{by ?? "The system"}</span> {(actionLabel[entry.action] ?? entry.action).replace(/^./, (c) => c.toLowerCase())}
+                        {code && (
+                          <Badge variant="outline" className="ml-2 align-middle">
+                            {code}
+                          </Badge>
+                        )}
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {when(entry.at)}
+                      {entry.ip ? ` · ${entry.ip}` : ""}
+                    </p>
+                  </div>
+                  <p className="pl-11 font-mono text-xs text-muted-foreground">
+                    {entry.entity}
+                    {entry.entityId ? ` ${entry.entityId}` : ""}
                   </p>
-                  <p className="text-[0.82rem] text-muted-foreground">
-                    {when(entry.at)}
-                    {entry.ip ? ` · ${entry.ip}` : ""}
-                  </p>
-                </div>
-                <p className="text-[0.8rem] text-muted-foreground">
-                  {entry.entity}
-                  {entry.entityId ? ` ${entry.entityId}` : ""}
-                </p>
-                {changed.length > 0 && (
-                  <details className="mt-1 text-[0.85rem]">
-                    <summary className="cursor-pointer text-muted-foreground">
-                      What changed ({changed.length} {changed.length === 1 ? "field" : "fields"})
-                    </summary>
-                    <table className="mt-1 w-full table-fixed text-left">
-                      <thead className="text-[0.75rem] text-muted-foreground">
-                        <tr>
-                          <th className="w-1/5 py-1 pr-2 font-semibold">Field</th>
-                          <th className="py-1 pr-2 font-semibold">Before</th>
-                          <th className="py-1 font-semibold">After</th>
-                        </tr>
-                      </thead>
-                      <tbody className="align-top">
-                        {changed.map((change) => (
-                          <tr key={change.key} className="border-t border-border">
-                            <td className="py-1 pr-2 font-medium break-words">{change.key}</td>
-                            <td className="py-1 pr-2 break-words text-muted-foreground">{change.before ?? "—"}</td>
-                            <td className="py-1 break-words">{change.after ?? "—"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </details>
-                )}
-              </li>
-            );
-          })}
-        </ol>
-      )}
-      {(page > 1 || more) && (
-        <nav aria-label="Pages" className="mt-4 flex gap-2">
-          {page > 1 && (
-            <Link href={link({ page: page - 1 })} className="button-quiet">
-              Newer
-            </Link>
+                  {changed.length > 0 && (
+                    <Collapsible className="pl-11">
+                      <CollapsibleTrigger className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+                        <ChevronDown className="size-4" />
+                        What changed ({changed.length} {changed.length === 1 ? "field" : "fields"})
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="mt-2">
+                        <Table className="table-fixed">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-1/5">Field</TableHead>
+                              <TableHead>Before</TableHead>
+                              <TableHead>After</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {changed.map((change) => (
+                              <TableRow key={change.key} className="align-top">
+                                <TableCell className="font-medium break-words whitespace-normal">{change.key}</TableCell>
+                                <TableCell className="break-words whitespace-normal text-muted-foreground">{change.before ?? "—"}</TableCell>
+                                <TableCell className="break-words whitespace-normal">{change.after ?? "—"}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+          {(page > 1 || more) && (
+            <div className="flex gap-2 border-t px-6 py-3">
+              {page > 1 && (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={link({ page: page - 1 })}>
+                    <ChevronLeft />
+                    Newer
+                  </Link>
+                </Button>
+              )}
+              {more && (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={link({ page: page + 1 })}>
+                    Older
+                    <ChevronRight />
+                  </Link>
+                </Button>
+              )}
+            </div>
           )}
-          {more && (
-            <Link href={link({ page: page + 1 })} className="button-quiet">
-              Older
-            </Link>
-          )}
-        </nav>
+        </Card>
       )}
-    </div>
+    </>
   );
 }
