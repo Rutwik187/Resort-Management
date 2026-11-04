@@ -1,3 +1,6 @@
 packages:
   - "apps/*"
   - "packages/*"
+# esbuild, used by drizzle-kit and tsx, checks its platform binary when installed.
+allowBuilds:
+  esbuild: true

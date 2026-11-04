@@ -12,7 +12,11 @@ The plan for the whole platform is in [`docs/implementation-plan.md`](docs/imple
 | `apps/go-crazy` | `go-crazy` | Prathamesh Go Crazy Resort, Sinhagad: gocrazyadventure.com |
 | `apps/sinhagad-bliss` | `sinhagad-bliss` | Sinhagad Bliss: sinhagadbliss.com |
 | `apps/valley` | `valley` | Prathamesh Valley Resorts, Mahabaleshwar: prathameshvalleyresorts.com |
+| `apps/admin` | `admin` | The staff dashboard: sign-in, each resort's day (arrivals, sales, rooms booked), bookings with offline booking and the front desk, rooms and units, and staff. Runs at http://localhost:3010 |
 | `packages/booking-ui` | `@repo/booking-ui` | The booking widget that all four sites share: the search bar, the room and day-pass lists, and the tray |
+| `packages/db` | `@repo/db` | The database: Drizzle tables, migrations, the seed, and the roles and permissions |
+| `packages/auth` | `@repo/auth` | Staff sign-in with Better Auth, and the permission check `can()` |
+| `packages/engine` | `@repo/engine` | The booking engine: availability, holds, prices, bookings and blocks, with its tests |
 | `packages/sites` | `@repo/sites` | The group's four resorts: names, places and website addresses |
 | `packages/typescript-config` | `@repo/typescript-config` | The TypeScript settings that every package extends |
 | `packages/eslint-config` | `@repo/eslint-config` | The ESLint rules that every package uses |
@@ -38,6 +42,7 @@ Run these from the repository root. Turborepo runs the task in every package tha
 | `pnpm build` | Checks the types, then builds the apps |
 | `pnpm lint` | Checks the code with ESLint |
 | `pnpm typecheck` | Checks the TypeScript types |
+| `pnpm test` | Runs the engine's tests. They make their own Postgres databases (see Database below) |
 
 When a task's files have not changed since the last run, Turborepo skips the task and replays the saved result.
 
@@ -46,6 +51,29 @@ To run a task in one app only, add a filter, for example `pnpm dev --filter=khed
 Add each dependency to the package that uses it, for example `pnpm add lenis --filter=khed-shivapur`. The root `package.json` holds only tools for the whole repository, such as `turbo`.
 
 Turborepo passes a task only the environment variables that `turbo.json` lists. When code reads a new variable, add it to the task's `env` list. ESLint reports any variable that is missing.
+
+## Database and sign-in
+
+The database is Neon Postgres: project `withered-fire-71704216`, branch `production`, in Singapore. The resort sites, the admin and the engine share it. Drizzle writes the tables, and node-postgres (`pg`) talks to Neon, as Neon advises for Vercel. On Vercel, `attachDatabasePool` closes idle connections before a function suspends.
+
+Neon gives two addresses for the same database:
+
+- `DATABASE_URL`, the pooled address (its host ends in `-pooler`), for the apps.
+- `DATABASE_URL_UNPOOLED`, the direct address, for migrations and the seed.
+
+Use `sslmode=verify-full` in both.
+
+Staff sign in with Better Auth, run by the admin itself. Its tables are in the `public` schema next to ours. The branch also has Neon Auth (Neon's managed Better Auth, in the `neon_auth` schema), which the admin does not use: managed auth can't check the staff list before a session starts.
+
+**To work on the backend**
+
+1. Copy `.env.example` at the repo root to `.env.local` and fill it in: the two addresses and a `BETTER_AUTH_SECRET` (`openssl rand -base64 32`). Every app and script reads this one file, and git ignores it. Next.js reads env files only in an app's own folder, so the admin's `next.config.ts` loads the root file. Keep no other `.env` files.
+2. From `packages/db`: `pnpm db:migrate`, then `pnpm db:seed`. The seed adds the four resorts, the five roles from the URD and the main site's rooms. With `SEED_SUPER_ADMIN_EMAIL` set, it also adds the first Super Admin.
+3. `pnpm dev --filter=admin`, then open http://localhost:3010. Without Google keys, the sign-in page offers an emailed link, printed in the terminal, to people on the staff list.
+
+A variable set in the shell wins over the file. To work on a local database instead of Neon, start the command with `DATABASE_URL=postgresql://localhost:5432/prathamesh_dev`, for example `DATABASE_URL=postgresql://localhost:5432/prathamesh_dev pnpm db:migrate`. `pnpm db:reset` recreates a local database; it refuses any other.
+
+The engine's tests need a local Postgres, which they reach at `TEST_DATABASE_ADMIN_URL` (by default `postgresql://localhost:5432/postgres`). Each test file makes its own database and drops it.
 
 ## Booking
 
