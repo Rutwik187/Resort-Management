@@ -13,7 +13,7 @@ export default async function SettingsPage({ params }: PageProps<"/[property]/se
   return (
     <div>
       <h1 className="text-[1.35rem] font-semibold">Settings</h1>
-      <p className="mt-1 text-muted">Taxes, payment keys, cancellation rules and message templates come with payments and messages.</p>
+      <p className="mt-1 text-muted-foreground">Taxes, payment keys, cancellation rules and message templates come with payments and messages.</p>
       <SettingsForm
         propertyId={property.id}
         settings={{

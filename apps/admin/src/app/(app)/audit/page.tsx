@@ -87,7 +87,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
     return (
       <div className="card p-6">
         <h1 className="text-[1.2rem] font-semibold">Not open to your role</h1>
-        <p className="mt-1 text-muted">Only a Super Admin and Accounts can see the audit log.</p>
+        <p className="mt-1 text-muted-foreground">Only a Super Admin and Accounts can see the audit log.</p>
       </div>
     );
   }
@@ -142,7 +142,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
   return (
     <div>
       <h1 className="text-[1.35rem] font-semibold">Audit log</h1>
-      <p className="mt-1 text-muted">Every change and sign-in: who, when, from which address, and the values before and after.</p>
+      <p className="mt-1 text-muted-foreground">Every change and sign-in: who, when, from which address, and the values before and after.</p>
 
       <form className="card mt-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6">
         <div>
@@ -208,9 +208,9 @@ export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
       </form>
 
       {rows.length === 0 ? (
-        <p className="mt-6 text-muted">Nothing matches.</p>
+        <p className="mt-6 text-muted-foreground">Nothing matches.</p>
       ) : (
-        <ol className="card mt-4 divide-y divide-line">
+        <ol className="card mt-4 divide-y divide-border">
           {rows.slice(0, pageSize).map(({ entry, by, code }) => {
             const changed = changes(entry.before, entry.after);
             return (
@@ -218,24 +218,24 @@ export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                   <p>
                     <span className="font-medium">{by ?? "The system"}</span> <span>{(actionLabel[entry.action] ?? entry.action).replace(/^./, (c) => c.toLowerCase())}</span>
-                    {code && <span className="text-muted"> · {code}</span>}
+                    {code && <span className="text-muted-foreground"> · {code}</span>}
                   </p>
-                  <p className="text-[0.82rem] text-muted">
+                  <p className="text-[0.82rem] text-muted-foreground">
                     {when(entry.at)}
                     {entry.ip ? ` · ${entry.ip}` : ""}
                   </p>
                 </div>
-                <p className="text-[0.8rem] text-muted">
+                <p className="text-[0.8rem] text-muted-foreground">
                   {entry.entity}
                   {entry.entityId ? ` ${entry.entityId}` : ""}
                 </p>
                 {changed.length > 0 && (
                   <details className="mt-1 text-[0.85rem]">
-                    <summary className="cursor-pointer text-muted">
+                    <summary className="cursor-pointer text-muted-foreground">
                       What changed ({changed.length} {changed.length === 1 ? "field" : "fields"})
                     </summary>
                     <table className="mt-1 w-full table-fixed text-left">
-                      <thead className="text-[0.75rem] text-muted">
+                      <thead className="text-[0.75rem] text-muted-foreground">
                         <tr>
                           <th className="w-1/5 py-1 pr-2 font-semibold">Field</th>
                           <th className="py-1 pr-2 font-semibold">Before</th>
@@ -244,9 +244,9 @@ export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
                       </thead>
                       <tbody className="align-top">
                         {changed.map((change) => (
-                          <tr key={change.key} className="border-t border-line">
+                          <tr key={change.key} className="border-t border-border">
                             <td className="py-1 pr-2 font-medium break-words">{change.key}</td>
-                            <td className="py-1 pr-2 break-words text-muted">{change.before ?? "—"}</td>
+                            <td className="py-1 pr-2 break-words text-muted-foreground">{change.before ?? "—"}</td>
                             <td className="py-1 break-words">{change.after ?? "—"}</td>
                           </tr>
                         ))}

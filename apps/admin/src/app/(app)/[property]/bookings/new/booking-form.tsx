@@ -1,7 +1,20 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import { Calculator, ChevronDown, Minus, Plus, Trash2 } from "lucide-react";
 import { FormNote } from "@/components/form-note";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
+import { Table, TableBody, TableCell, TableFooter, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { methodLabel, plural, price, rupees, shortDate, sourceLabel, offlineSources } from "@/lib/format";
 import { createOffline, quoteOffline, type BookingRequest, type QuoteView } from "./actions";
 
@@ -13,17 +26,17 @@ type Line = { key: number; id: string; adults: number; children: Record<string, 
 function Stepper({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (value: number) => void }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-[0.88rem]">{label}</span>
+      <span className="text-sm">{label}</span>
       <span className="flex items-center gap-1">
-        <button type="button" aria-label={`Fewer: ${label}`} disabled={value <= min} onClick={() => onChange(value - 1)} className="button-quiet size-8 justify-center p-0 disabled:opacity-40">
-          −
-        </button>
-        <span className="w-7 text-center font-semibold" aria-live="polite">
+        <Button type="button" variant="outline" size="icon" className="size-8" aria-label={`Fewer: ${label}`} disabled={value <= min} onClick={() => onChange(value - 1)}>
+          <Minus />
+        </Button>
+        <span className="w-8 text-center font-semibold tabular-nums" aria-live="polite">
           {value}
         </span>
-        <button type="button" aria-label={`More: ${label}`} disabled={value >= max} onClick={() => onChange(value + 1)} className="button-quiet size-8 justify-center p-0 disabled:opacity-40">
-          +
-        </button>
+        <Button type="button" variant="outline" size="icon" className="size-8" aria-label={`More: ${label}`} disabled={value >= max} onClick={() => onChange(value + 1)}>
+          <Plus />
+        </Button>
       </span>
     </div>
   );
@@ -53,7 +66,7 @@ export function NewBookingForm({
   const [quote, setQuote] = useState<QuoteView | null>(null);
   const [quoting, startQuote] = useTransition();
   const [override, setOverride] = useState(false);
-  const [payMethod, setPayMethod] = useState("");
+  const [payMethod, setPayMethod] = useState("none");
   const [payAmount, setPayAmount] = useState("");
   const [state, action, pending] = useActionState(createOffline.bind(null, propertyId), undefined);
 
@@ -77,30 +90,32 @@ export function NewBookingForm({
       : { kind: "stay", checkIn: dates.checkIn, checkOut: dates.checkOut, lines: lines.map(({ id, adults, children, extraBeds }) => ({ id, adults, children, extraBeds })) };
 
   return (
-    <form action={action} className="mt-6 grid gap-5 lg:grid-cols-[1fr_22rem]">
+    <form action={action} className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
       <input type="hidden" name="request" value={JSON.stringify(request)} />
-      <div className="grid content-start gap-5">
+      <div className="grid min-w-0 content-start gap-4">
         {lines.length > 0 && (
-          <section className="card p-5" aria-labelledby="party-heading">
-            <h2 id="party-heading" className="font-semibold">
-              Who is coming
-            </h2>
-            <ul className="mt-3 grid gap-3">
+          <Card>
+            <CardHeader>
+              <CardTitle>Who is coming</CardTitle>
+              <CardDescription>Set the guests for each {noun}, then check the price.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3">
               {lines.map((line, index) => {
                 const option = optionOf(line.id);
                 const guests = guestsIn(line);
                 return (
-                  <li key={line.key} className="rounded-lg border border-line p-3">
-                    <div className="flex items-baseline justify-between gap-2">
+                  <div key={line.key} className="grid gap-3 rounded-lg border p-4">
+                    <div className="flex items-center justify-between gap-2">
                       <p className="font-medium">
                         {kind === "stay" ? `Room ${index + 1}: ` : ""}
                         {option.name}
                       </p>
-                      <button type="button" onClick={() => change(lines.filter((l) => l.key !== line.key))} className="text-[0.82rem] text-danger underline underline-offset-2">
+                      <Button type="button" variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => change(lines.filter((l) => l.key !== line.key))}>
+                        <Trash2 />
                         Remove
-                      </button>
+                      </Button>
                     </div>
-                    <div className="mt-2 grid gap-2 sm:max-w-sm">
+                    <div className="grid gap-2 sm:max-w-sm">
                       <Stepper label="Adults" value={line.adults} min={1} max={option.maxAdults} onChange={(adults) => update(line.key, { adults })} />
                       {bands.map((band) => (
                         <Stepper
@@ -115,185 +130,214 @@ export function NewBookingForm({
                       {option.extraBedAllowed && <Stepper label="Extra beds" value={line.extraBeds} min={0} max={2} onChange={(extraBeds) => update(line.key, { extraBeds })} />}
                     </div>
                     {guests > option.maxGuests && (
-                      <p className="mt-2 text-[0.85rem] text-danger">
-                        {kind === "stay" ? `This room takes at most ${option.maxGuests} guests.` : `Only ${option.maxGuests} seats are left.`}
-                      </p>
+                      <p className="text-sm text-destructive">{kind === "stay" ? `This room takes at most ${option.maxGuests} guests.` : `Only ${option.maxGuests} seats are left.`}</p>
                     )}
-                  </li>
+                  </div>
                 );
               })}
-            </ul>
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <button type="button" disabled={quoting} onClick={() => startQuote(async () => setQuote(await quoteOffline(propertyId, request)))} className="button-quiet">
-                {quoting ? "Checking…" : "Check the price"}
-              </button>
-              {quote?.error && (
-                <p role="status" className="text-[0.88rem] text-danger">
-                  {quote.error}
-                </p>
-              )}
-            </div>
-            {quote?.lines && (
-              <div className="mt-3 rounded-lg bg-page p-3 text-[0.9rem]" role="status">
-                <ul className="grid gap-1.5">
-                  {quote.lines.map((line, i) => (
-                    <li key={i}>
-                      <div className="flex justify-between gap-3">
-                        <span>{line.name}</span>
-                        <span className="font-medium">{price(line.totalPaise)}</span>
-                      </div>
-                      {line.nights.length > 0 && (
-                        <p className="text-[0.8rem] text-muted">
-                          {line.nights.map((n) => `${shortDate(n.night)} ${price(n.paise)}${n.source !== "base" ? ` (${n.source === "date" ? "date price" : n.source})` : ""}`).join(" · ")}
-                        </p>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-2 flex justify-between border-t border-line pt-2 font-semibold">
-                  <span>Total</span>
-                  <span>{price(quote.totalPaise)}</span>
-                </p>
-                {quote.totalPaise === null && <p className="mt-1 text-[0.82rem] text-muted">A rate these guests need is not published. Book now and set the price on the booking, or set it below.</p>}
+              <div className="flex flex-wrap items-center gap-3">
+                <Button type="button" variant="outline" disabled={quoting} onClick={() => startQuote(async () => setQuote(await quoteOffline(propertyId, request)))}>
+                  {quoting ? <Spinner /> : <Calculator />}
+                  {quoting ? "Checking…" : "Check the price"}
+                </Button>
+                {quote?.error && (
+                  <p role="status" className="text-sm text-destructive">
+                    {quote.error}
+                  </p>
+                )}
               </div>
-            )}
-          </section>
+              {quote?.lines && (
+                <div role="status" className="rounded-lg border">
+                  <Table>
+                    <TableBody>
+                      {quote.lines.map((line, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="whitespace-normal">
+                            <span className="font-medium">{line.name}</span>
+                            {line.nights.length > 0 && (
+                              <span className="block text-xs text-muted-foreground">
+                                {line.nights.map((n) => `${shortDate(n.night)} ${price(n.paise)}${n.source !== "base" ? ` (${n.source === "date" ? "date price" : n.source})` : ""}`).join(" · ")}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right align-top tabular-nums">{price(line.totalPaise)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                    <TableFooter>
+                      <TableRow>
+                        <TableCell className="font-semibold">Total</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">{price(quote.totalPaise)}</TableCell>
+                      </TableRow>
+                    </TableFooter>
+                  </Table>
+                  {quote.totalPaise === null && <p className="border-t p-3 text-xs text-muted-foreground">A rate these guests need is not published. Book now and set the price on the booking, or set it here.</p>}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
-        <section className="card p-5" aria-labelledby="choose-heading">
-          <h2 id="choose-heading" className="font-semibold">
-            {kind === "stay" ? "Rooms free for these dates" : "Tickets for this day"}
-          </h2>
-          {options.length === 0 ? (
-            <p className="mt-2 text-muted">{kind === "stay" ? "This resort has no room types on sale." : "This resort has no packages, activities or sittings on sale."}</p>
-          ) : (
-            <ul className="mt-3 grid gap-2">
-              {options.map((option) => {
-                const left = option.available - (kind === "stay" ? used(option.id) : 0);
-                const blocked = option.closedReason ?? (option.available <= 0 ? (kind === "stay" ? "Sold out." : "Full.") : kind === "day" && used(option.id) > 0 ? "Added." : left <= 0 ? "All free ones added." : null);
-                return (
-                  <li key={option.id} className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2.5">
-                    <div className="min-w-0">
-                      <p className="font-medium">{option.name}</p>
-                      <p className="text-[0.82rem] text-muted">{blocked ?? (kind === "stay" ? `${plural(left, "room")} free` : `${plural(option.available, "seat")} left`)}</p>
-                    </div>
-                    <button type="button" disabled={Boolean(blocked)} onClick={() => add(option)} className="button-quiet shrink-0 disabled:opacity-40">
-                      Add {noun}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{kind === "stay" ? "Rooms free for these dates" : "Tickets for this day"}</CardTitle>
+            <CardDescription>{kind === "stay" ? "Add a room for each room the guest needs." : "Add each package, activity or sitting the guests want."}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {options.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{kind === "stay" ? "This resort has no room types on sale." : "This resort has no packages, activities or sittings on sale."}</p>
+            ) : (
+              <ul className="divide-y rounded-lg border">
+                {options.map((option) => {
+                  const left = option.available - (kind === "stay" ? used(option.id) : 0);
+                  const blocked = option.closedReason ?? (option.available <= 0 ? (kind === "stay" ? "Sold out" : "Full") : kind === "day" && used(option.id) > 0 ? "Added" : left <= 0 ? "All free ones added" : null);
+                  return (
+                    <li key={option.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="font-medium">{option.name}</p>
+                        <div className="mt-1">
+                          {blocked ? (
+                            <Badge variant="outline" className={option.available <= 0 || option.closedReason ? "border-danger/30 bg-danger/10 text-danger" : "text-muted-foreground"}>
+                              {blocked}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="border-good/30 bg-good/10 text-good">
+                              {kind === "stay" ? `${plural(left, "room")} free` : `${plural(option.available, "seat")} left`}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" disabled={Boolean(blocked)} onClick={() => add(option)} className="shrink-0">
+                        <Plus />
+                        Add {noun}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="grid content-start gap-5">
-        <section className="card grid gap-3 p-5" aria-labelledby="guest-heading">
-          <h2 id="guest-heading" className="font-semibold">
-            Guest
-          </h2>
-          <div>
-            <label className="label" htmlFor="name">
-              Name
-            </label>
-            <input id="name" name="name" required minLength={2} autoComplete="off" className="field" />
-          </div>
-          <div>
-            <label className="label" htmlFor="phone">
-              Phone
-            </label>
-            <input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="off" className="field" placeholder="98765 43210" />
-          </div>
-          <div>
-            <label className="label" htmlFor="email">
-              Email
-            </label>
-            <input id="email" name="email" type="email" autoComplete="off" className="field" />
-          </div>
-          <details>
-            <summary className="cursor-pointer text-[0.88rem] text-muted">Company and GSTIN, for a company invoice</summary>
-            <div className="mt-2 grid gap-3">
-              <input name="companyName" aria-label="Company name" placeholder="Company name" className="field" />
-              <input name="companyGstin" aria-label="Company GSTIN" placeholder="GSTIN" className="field uppercase" />
-            </div>
-          </details>
-          <div>
-            <label className="label" htmlFor="source">
-              Booked by
-            </label>
-            <select id="source" name="source" required defaultValue="phone" className="field">
-              {offlineSources.map((source) => (
-                <option key={source} value={source}>
-                  {sourceLabel[source]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="label" htmlFor="notes">
-              Notes for the team
-            </label>
-            <textarea id="notes" name="notes" rows={2} className="field" />
-          </div>
-        </section>
+      <div className="grid content-start gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Guest</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="name">Name</FieldLabel>
+                <Input id="name" name="name" required minLength={2} autoComplete="off" />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="phone">Phone</FieldLabel>
+                <Input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="off" placeholder="98765 43210" />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="email">Email</FieldLabel>
+                <Input id="email" name="email" type="email" autoComplete="off" />
+              </Field>
+              <Collapsible>
+                <CollapsibleTrigger className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+                  <ChevronDown className="size-4" />
+                  Company and GSTIN, for a company invoice
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3 grid gap-3">
+                  <Input name="companyName" aria-label="Company name" placeholder="Company name" />
+                  <Input name="companyGstin" aria-label="Company GSTIN" placeholder="GSTIN" className="uppercase" />
+                </CollapsibleContent>
+              </Collapsible>
+              <Field>
+                <FieldLabel htmlFor="source">Booked by</FieldLabel>
+                <Select name="source" defaultValue="phone">
+                  <SelectTrigger id="source" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {offlineSources.map((source) => (
+                      <SelectItem key={source} value={source}>
+                        {sourceLabel[source]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="notes">Notes for the team</FieldLabel>
+                <Textarea id="notes" name="notes" rows={2} />
+              </Field>
+            </FieldGroup>
+          </CardContent>
+        </Card>
 
         {(canOverride || canTakePayment) && (
-          <section className="card grid gap-3 p-5" aria-labelledby="money-heading">
-            <h2 id="money-heading" className="font-semibold">
-              Price and payment
-            </h2>
-            {canOverride && (
-              <>
-                <label className="flex items-center gap-2 text-[0.9rem]">
-                  <input type="checkbox" name="override" checked={override} onChange={(e) => setOverride(e.target.checked)} className="size-4" />
-                  Use a different price
-                </label>
-                {override && (
-                  <div className="grid gap-2">
-                    <input name="overridePrice" required inputMode="decimal" aria-label="Price for the whole booking, in rupees" placeholder="Price for the whole booking (₹)" className="field" />
-                    <input name="overrideReason" required minLength={3} aria-label="Why the price is different" placeholder="Why, such as an agent rate" className="field" />
-                  </div>
-                )}
-              </>
-            )}
-            {canTakePayment && (
-              <>
-                <div>
-                  <label className="label" htmlFor="payMethod">
-                    Payment taken now
-                  </label>
-                  <select id="payMethod" name="payMethod" value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className="field">
-                    <option value="">None yet</option>
-                    {Object.entries(methodLabel).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {payMethod && (
-                  <div className="grid gap-2">
-                    <input name="payAmount" required inputMode="decimal" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} aria-label="Amount paid, in rupees" placeholder="Amount paid (₹)" className="field" />
-                    {quote?.totalPaise != null && !override && (
-                      <button type="button" onClick={() => setPayAmount(String(quote.totalPaise! / 100))} className="justify-self-start text-[0.85rem] underline underline-offset-2">
-                        The full {rupees(quote.totalPaise)}
-                      </button>
+          <Card>
+            <CardHeader>
+              <CardTitle>Price and payment</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FieldGroup>
+                {canOverride && (
+                  <>
+                    <div className="flex items-center justify-between gap-3">
+                      <Label htmlFor="override">Use a different price</Label>
+                      <Switch id="override" name="override" checked={override} onCheckedChange={setOverride} />
+                    </div>
+                    {override && (
+                      <div className="grid gap-3">
+                        <Input name="overridePrice" required inputMode="decimal" aria-label="Price for the whole booking, in rupees" placeholder="Price for the whole booking (₹)" />
+                        <Input name="overrideReason" required minLength={3} aria-label="Why the price is different" placeholder="Why, such as an agent rate" />
+                      </div>
                     )}
-                    <input name="payReference" aria-label="Reference" placeholder="UPI, card or receipt reference" className="field" />
-                  </div>
+                  </>
                 )}
-                <p className="text-[0.82rem] text-muted">
-                  {payMethod ? "The booking is confirmed when paid in full, or part paid." : "Without a payment, the rooms are held for the resort's hold time, then go back on sale."}
-                </p>
-              </>
-            )}
-          </section>
+                {canTakePayment && (
+                  <>
+                    <Field>
+                      <FieldLabel htmlFor="payMethod">Payment taken now</FieldLabel>
+                      {/* "None yet" sends nothing, so the booking waits for payment. */}
+                      <input type="hidden" name="payMethod" value={payMethod === "none" ? "" : payMethod} />
+                      <Select value={payMethod} onValueChange={setPayMethod}>
+                        <SelectTrigger id="payMethod" className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None yet</SelectItem>
+                          {Object.entries(methodLabel).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FieldDescription>{payMethod !== "none" ? "Paid in full confirms the booking; less makes it part paid." : "Without a payment, the rooms are held for the resort's hold time, then go back on sale."}</FieldDescription>
+                    </Field>
+                    {payMethod !== "none" && (
+                      <div className="grid gap-3">
+                        <Input name="payAmount" required inputMode="decimal" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} aria-label="Amount paid, in rupees" placeholder="Amount paid (₹)" />
+                        {quote?.totalPaise != null && !override && (
+                          <Button type="button" variant="link" className="h-auto justify-self-start p-0" onClick={() => setPayAmount(String(quote.totalPaise! / 100))}>
+                            The full {rupees(quote.totalPaise)}
+                          </Button>
+                        )}
+                        <Input name="payReference" aria-label="Reference" placeholder="UPI, card or receipt reference" />
+                      </div>
+                    )}
+                  </>
+                )}
+              </FieldGroup>
+            </CardContent>
+          </Card>
         )}
 
         <div className="grid gap-2">
-          <button type="submit" disabled={pending || lines.length === 0} className="button">
+          <Button type="submit" size="lg" disabled={pending || lines.length === 0}>
+            {pending && <Spinner />}
             {pending ? "Booking…" : "Create booking"}
-          </button>
+          </Button>
+          {lines.length === 0 && <p className="text-center text-xs text-muted-foreground">Add a {noun} to book.</p>}
           <FormNote state={state} />
         </div>
       </div>

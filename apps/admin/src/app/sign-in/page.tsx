@@ -1,4 +1,7 @@
 import { redirect } from "next/navigation";
+import { CircleAlert } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { currentStaff } from "@/lib/staff";
 import { SignInForm } from "./sign-in-form";
 
@@ -10,18 +13,28 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
   if (await currentStaff()) redirect(target);
 
   return (
-    <main className="grid min-h-svh place-items-center p-6">
-      <div className="card w-full max-w-sm p-8">
-        <p className="text-[0.8rem] font-semibold uppercase tracking-[0.12em] text-muted">Prathamesh Group</p>
-        <h1 className="mt-2 text-[1.6rem] font-semibold leading-tight">Sign in to the admin</h1>
-        <p className="mt-2 text-muted">For resort staff. Your Super Admin must add your email before you can sign in.</p>
-        {error && (
-          <p role="alert" className="mt-4 rounded-lg bg-danger/10 p-3 text-[0.9rem] text-danger">
-            That account can&apos;t sign in. It may not be on the staff list, or it was deactivated. Ask your Super Admin.
-          </p>
-        )}
-        <SignInForm next={target} google={Boolean(process.env.GOOGLE_CLIENT_ID)} devLink={process.env.NODE_ENV !== "production"} />
+    <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6">
+      <div className="flex items-center gap-2 font-semibold">
+        <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">PG</span>
+        Prathamesh Group
       </div>
+      <Card className="w-full max-w-sm">
+        <CardHeader className="text-center">
+          <CardTitle className="text-xl">Sign in to the admin</CardTitle>
+          <CardDescription>For resort staff. Your Super Admin must add your email before you can sign in.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-5">
+          {error && (
+            <Alert variant="destructive">
+              <CircleAlert />
+              <AlertTitle>That account can&apos;t sign in</AlertTitle>
+              <AlertDescription>It may not be on the staff list, or it was deactivated. Ask your Super Admin.</AlertDescription>
+            </Alert>
+          )}
+          <SignInForm next={target} google={Boolean(process.env.GOOGLE_CLIENT_ID)} devLink={process.env.NODE_ENV !== "production"} />
+        </CardContent>
+      </Card>
+      <p className="max-w-sm text-center text-xs text-muted-foreground">Khed Shivapur · Go Crazy · Sinhagad Bliss · Valley Resorts</p>
     </main>
   );
 }

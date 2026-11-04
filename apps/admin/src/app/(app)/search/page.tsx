@@ -34,22 +34,22 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
         </button>
       </form>
       {q && (
-        <p className="mt-5 text-[0.88rem] text-muted" role="status">
+        <p className="mt-5 text-[0.88rem] text-muted-foreground" role="status">
           {total === 0 ? `Nothing matches “${q}”.` : `${total} ${total === 1 ? "booking matches" : "bookings match"} “${q}”${total > rows.length ? `; the newest ${rows.length} are shown` : ""}.`}
         </p>
       )}
       {rows.length > 0 && (
-        <ul className="card mt-2 divide-y divide-line">
+        <ul className="card mt-2 divide-y divide-border">
           {rows.map((row) => (
             <li key={row.id}>
-              <Link href={`/${row.propertyCode.toLowerCase()}/bookings/${row.number.toLowerCase()}`} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-page">
+              <Link href={`/${row.propertyCode.toLowerCase()}/bookings/${row.number.toLowerCase()}`} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-muted">
                 <span>
                   <span className="font-medium">{row.number}</span>
-                  <span className="text-muted"> · {row.guestName}</span>
-                  {row.guestPhone && <span className="text-muted"> · +{row.guestPhone}</span>}
+                  <span className="text-muted-foreground"> · {row.guestName}</span>
+                  {row.guestPhone && <span className="text-muted-foreground"> · +{row.guestPhone}</span>}
                 </span>
                 <span className="flex items-center gap-3 text-[0.88rem]">
-                  <span className="text-muted">{row.checkIn ? `${shortDate(row.checkIn)} to ${shortDate(row.checkOut!)}` : row.visitDate ? shortDate(row.visitDate) : ""}</span>
+                  <span className="text-muted-foreground">{row.checkIn ? `${shortDate(row.checkIn)} to ${shortDate(row.checkOut!)}` : row.visitDate ? shortDate(row.visitDate) : ""}</span>
                   <span>{price(row.totalPaise)}</span>
                   <span className={`rounded-full px-2 py-0.5 text-[0.75rem] font-medium ${statusLook[row.status]}`}>{statusLabel[row.status]}</span>
                 </span>

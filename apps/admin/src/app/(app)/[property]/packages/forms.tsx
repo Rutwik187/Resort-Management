@@ -57,7 +57,7 @@ export function OfferingForm({ propertyId, bands, offering }: { propertyId: stri
           <label className="label" htmlFor={`${key}-code`}>
             Code
           </label>
-          <input id={`${key}-code`} name="code" required={!offering} readOnly={Boolean(offering)} defaultValue={offering?.code} placeholder="morning-picnic" className={`field ${offering ? "text-muted" : ""}`} />
+          <input id={`${key}-code`} name="code" required={!offering} readOnly={Boolean(offering)} defaultValue={offering?.code} placeholder="morning-picnic" className={`field ${offering ? "text-muted-foreground" : ""}`} />
         </div>
       </div>
       <div>
@@ -107,8 +107,8 @@ export function OfferingForm({ propertyId, bands, offering }: { propertyId: stri
         </div>
       </div>
       {!offering && (
-        <fieldset className="grid gap-3 rounded-lg border border-line p-3 sm:grid-cols-4">
-          <legend className="px-1 text-[0.8rem] font-semibold text-muted">Its first time slot</legend>
+        <fieldset className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-4">
+          <legend className="px-1 text-[0.8rem] font-semibold text-muted-foreground">Its first time slot</legend>
           <div>
             <label className="label" htmlFor="new-slot-label">
               Slot
@@ -135,7 +135,7 @@ export function OfferingForm({ propertyId, bands, offering }: { propertyId: stri
           </div>
         </fieldset>
       )}
-      <p className="text-[0.82rem] text-muted">Leave a child price empty when the resort hasn&apos;t published it; guests who need it see &ldquo;rate to confirm&rdquo;.</p>
+      <p className="text-[0.82rem] text-muted-foreground">Leave a child price empty when the resort hasn&apos;t published it; guests who need it see &ldquo;rate to confirm&rdquo;.</p>
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending} className="button">
           {offering ? "Save changes" : "Add"}

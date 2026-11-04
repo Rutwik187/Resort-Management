@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,7 +11,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en-IN">
-      <body>{children}</body>
+      <body>
+        <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
+        <Toaster theme="light" position="top-right" richColors={false} />
+      </body>
     </html>
   );
 }

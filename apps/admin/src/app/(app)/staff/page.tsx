@@ -33,12 +33,12 @@ export default async function StaffPage() {
   return (
     <div>
       <h1 className="text-[1.6rem] font-semibold">Staff</h1>
-      <p className="mt-1 text-muted">Only people on this list can sign in. Each has one role, at one or more resorts.</p>
+      <p className="mt-1 text-muted-foreground">Only people on this list can sign in. Each has one role, at one or more resorts.</p>
       <InviteForm roles={roleRows.sort((a, b) => rank(a.key) - rank(b.key))} resorts={resorts} />
 
       <div className="card mt-6 overflow-x-auto">
         <table className="w-full min-w-[640px] text-left text-[0.9rem]">
-          <thead className="border-b border-line text-[0.8rem] text-muted">
+          <thead className="border-b border-border text-[0.8rem] text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-semibold">Person</th>
               <th className="px-4 py-3 font-semibold">Role</th>
@@ -49,10 +49,10 @@ export default async function StaffPage() {
           </thead>
           <tbody>
             {people.map((person) => (
-              <tr key={person.userId} className="border-b border-line last:border-0">
+              <tr key={person.userId} className="border-b border-border last:border-0">
                 <td className="px-4 py-3">
                   <span className="block font-medium">{person.name}</span>
-                  <span className="text-muted">{person.email}</span>
+                  <span className="text-muted-foreground">{person.email}</span>
                 </td>
                 <td className="px-4 py-3">{person.role}</td>
                 <td className="px-4 py-3">
@@ -63,7 +63,7 @@ export default async function StaffPage() {
                         .map((link) => resorts.find((r) => r.id === link.propertyId)?.code)
                         .join(", ")}
                 </td>
-                <td className="px-4 py-3">{person.active ? <span className="text-good">Active</span> : <span className="text-muted">Deactivated</span>}</td>
+                <td className="px-4 py-3">{person.active ? <span className="text-good">Active</span> : <span className="text-muted-foreground">Deactivated</span>}</td>
                 <td className="px-4 py-3 text-right">
                   {person.userId !== admin.userId && (
                     <form action={setStaffActive.bind(null, person.userId, !person.active)}>

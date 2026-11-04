@@ -78,7 +78,7 @@ export function BlockForm({ propertyId, types, first, last }: { propertyId: stri
         <button type="submit" disabled={pending} className="button justify-self-start">
           Block
         </button>
-        <p className="text-[0.82rem] text-muted">A night that is already held or booked can&apos;t be blocked; nothing is blocked then, and the note says how many clash.</p>
+        <p className="text-[0.82rem] text-muted-foreground">A night that is already held or booked can&apos;t be blocked; nothing is blocked then, and the note says how many clash.</p>
         <FormNote state={state} />
       </form>
     </details>
@@ -129,7 +129,7 @@ export function RulesForm({ propertyId, types, first, last }: { propertyId: stri
         <button type="submit" disabled={pending} className="button justify-self-start">
           Save rules
         </button>
-        <p className="text-[0.82rem] text-muted">The fewest and most nights apply to stays that start on a night. Save with nothing ticked or filled to clear the rules.</p>
+        <p className="text-[0.82rem] text-muted-foreground">The fewest and most nights apply to stays that start on a night. Save with nothing ticked or filled to clear the rules.</p>
         <FormNote state={state} />
       </form>
     </details>
@@ -180,7 +180,7 @@ export function PricesForm({ propertyId, types, first, last }: { propertyId: str
         <button type="submit" disabled={pending} className="button justify-self-start">
           Save prices
         </button>
-        <p className="text-[0.82rem] text-muted">A date price takes the place of the base or season price for those nights. Extra guests and children still pay the room type&apos;s rates, so it needs a base rate on the Prices tab.</p>
+        <p className="text-[0.82rem] text-muted-foreground">A date price takes the place of the base or season price for those nights. Extra guests and children still pay the room type&apos;s rates, so it needs a base rate on the Prices tab.</p>
         <FormNote state={state} />
       </form>
     </details>

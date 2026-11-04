@@ -12,7 +12,7 @@ const dayLabel = { weekday: "Sun to Thu", weekend: "Fri and Sat", any: "Every ni
 const statusLook = {
   active: "bg-good/10 text-good",
   maintenance: "bg-warn/10 text-warn",
-  inactive: "bg-ink/5 text-muted",
+  inactive: "bg-foreground/5 text-muted-foreground",
 } as const;
 
 /** A resort's room types and their units (RM-01, RM-02), with each type's base rates for reference. */
@@ -30,7 +30,7 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
   return (
     <div>
       <h1 className="text-[1.35rem] font-semibold">Rooms and units</h1>
-      <p className="mt-1 text-muted">
+      <p className="mt-1 text-muted-foreground">
         {types.length} room types, {allUnits.filter((u) => u.status === "active").length} units in use. A room type is a kind of room, such as Garden Cottage; its units are the rooms themselves.
       </p>
 
@@ -46,9 +46,9 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
                 <div>
                   <h2 className="text-[1.15rem] font-semibold">
                     {type.name}
-                    {type.status === "inactive" && <span className="ml-2 rounded-full bg-ink/5 px-2 py-0.5 text-[0.75rem] font-medium text-muted">Off sale</span>}
+                    {type.status === "inactive" && <span className="ml-2 rounded-full bg-foreground/5 px-2 py-0.5 text-[0.75rem] font-medium text-muted-foreground">Off sale</span>}
                   </h2>
-                  <p className="mt-0.5 text-[0.88rem] text-muted">
+                  <p className="mt-0.5 text-[0.88rem] text-muted-foreground">
                     {type.category} · code {type.code} · base price covers {type.baseOccupancy} · {type.minGuests > 1 ? `${type.minGuests} to ` : "up to "}
                     {type.maxGuests} guests{type.extraBedAllowed ? " · extra bed" : ""}
                     {type.bedType ? ` · ${type.bedType}` : ""}
@@ -80,7 +80,7 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
                 <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-[0.88rem]">
                   {typeRates.map((rate) => (
                     <div key={rate.id}>
-                      <dt className="inline text-muted">{dayLabel[rate.dayKind]}: </dt>
+                      <dt className="inline text-muted-foreground">{dayLabel[rate.dayKind]}: </dt>
                       <dd className="inline font-medium">
                         {rupees(rate.basePaise)} {rate.basis === "person" ? "a person" : "a room"}, {rate.mealPlan}
                       </dd>
@@ -89,13 +89,13 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
                 </dl>
               )}
 
-              <h3 className="mt-4 text-[0.8rem] font-semibold text-muted">Units ({own.length})</h3>
+              <h3 className="mt-4 text-[0.8rem] font-semibold text-muted-foreground">Units ({own.length})</h3>
               {own.length === 0 ? (
-                <p className="mt-1 text-[0.88rem] text-muted">No units yet. Add them below.</p>
+                <p className="mt-1 text-[0.88rem] text-muted-foreground">No units yet. Add them below.</p>
               ) : (
                 <ul className="mt-2 flex flex-wrap gap-2">
                   {own.map((unit) => (
-                    <li key={unit.id} className="flex items-center gap-2 rounded-lg border border-line px-2.5 py-1.5 text-[0.88rem]">
+                    <li key={unit.id} className="flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-[0.88rem]">
                       <span>{unit.name}</span>
                       <span className={`rounded-full px-2 py-0.5 text-[0.72rem] font-medium ${statusLook[unit.status]}`}>{unit.status}</span>
                       {manage && unit.status !== "active" && (
@@ -107,7 +107,7 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
                       )}
                       {manage && unit.status === "active" && (
                         <form action={setUnitStatus.bind(null, unit.id, "maintenance")}>
-                          <button type="submit" className="text-[0.78rem] text-muted underline underline-offset-2">
+                          <button type="submit" className="text-[0.78rem] text-muted-foreground underline underline-offset-2">
                             Maintenance
                           </button>
                         </form>
@@ -117,7 +117,7 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
                 </ul>
               )}
               {manage && (
-                <details className="mt-4 border-t border-line pt-3">
+                <details className="mt-4 border-t border-border pt-3">
                   <summary className="cursor-pointer text-[0.9rem] font-semibold">Change {type.name}</summary>
                   <RoomTypeEditForm type={type} />
                 </details>

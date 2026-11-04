@@ -152,7 +152,7 @@ export function RateForm({
           </div>
         ))}
       </div>
-      <p className="text-[0.82rem] text-muted">Leave a price empty when the resort hasn&apos;t published it. Guests who need it see &ldquo;rate to confirm&rdquo;, never a guess.</p>
+      <p className="text-[0.82rem] text-muted-foreground">Leave a price empty when the resort hasn&apos;t published it. Guests who need it see &ldquo;rate to confirm&rdquo;, never a guess.</p>
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending} className="button">
           {current ? "Save changes" : "Add rate"}
@@ -262,7 +262,7 @@ export function BandForm({ propertyId, band }: { propertyId: string; band?: Band
         <label className="label" htmlFor={`${key}-code`}>
           Code
         </label>
-        <input id={`${key}-code`} name="code" required readOnly={Boolean(band)} defaultValue={band?.code} placeholder="child_5_11" className={`field ${band ? "text-muted" : ""}`} />
+        <input id={`${key}-code`} name="code" required readOnly={Boolean(band)} defaultValue={band?.code} placeholder="child_5_11" className={`field ${band ? "text-muted-foreground" : ""}`} />
       </div>
       <div>
         <label className="label" htmlFor={`${key}-min`}>

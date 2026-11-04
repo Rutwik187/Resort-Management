@@ -24,15 +24,15 @@ export default async function HomePage() {
   return (
     <div>
       <h1 className="text-[1.6rem] font-semibold">Hello, {staff.name.split(" ")[0]}</h1>
-      <p className="mt-1 text-muted">
+      <p className="mt-1 text-muted-foreground">
         {staff.role.name}, {staff.allProperties ? "all resorts" : resorts.length === 1 ? resorts[0].name : `${resorts.length} resorts`}.
       </p>
       <ul className="mt-6 grid gap-4 sm:grid-cols-2">
         {resorts.map((resort) => (
           <li key={resort.id} className="card p-5">
-            <p className="text-[0.75rem] font-semibold tracking-[0.12em] text-muted">{resort.code}</p>
+            <p className="text-[0.75rem] font-semibold tracking-[0.12em] text-muted-foreground">{resort.code}</p>
             <h2 className="mt-1 text-[1.2rem] font-semibold">{resort.name}</h2>
-            <p className="mt-1 text-muted">
+            <p className="mt-1 text-muted-foreground">
               {typeCounts.find((c) => c.propertyId === resort.id)?.n ?? 0} room types · {unitCounts.find((c) => c.propertyId === resort.id)?.n ?? 0} units in use
             </p>
             <Link href={`/${resort.code.toLowerCase()}`} className="button-quiet mt-4">

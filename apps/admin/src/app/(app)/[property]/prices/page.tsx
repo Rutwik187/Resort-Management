@@ -44,8 +44,8 @@ export default async function PricesPage({ params }: PageProps<"/[property]/pric
   const rateTable = (list: typeof all, showType: boolean) => (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[40rem] text-left text-[0.86rem]">
-        <thead className="text-[0.76rem] text-muted">
-          <tr className="border-b border-line">
+        <thead className="text-[0.76rem] text-muted-foreground">
+          <tr className="border-b border-border">
             {showType && <th className="py-1.5 pr-3 font-semibold">Room type</th>}
             <th className="py-1.5 pr-3 font-semibold">Nights</th>
             <th className="py-1.5 pr-3 font-semibold">Price a night</th>
@@ -58,20 +58,20 @@ export default async function PricesPage({ params }: PageProps<"/[property]/pric
         </thead>
         <tbody>
           {list.map((rate) => (
-            <tr key={rate.id} className="border-b border-line last:border-0">
+            <tr key={rate.id} className="border-b border-border last:border-0">
               {showType && <td className="py-1.5 pr-3">{types.find((t) => t.id === rate.roomTypeId)?.name}</td>}
               <td className="py-1.5 pr-3">{nightsLabel[rate.dayKind]}</td>
               <td className="py-1.5 pr-3 font-medium">
                 {rupees(rate.basePaise)} {rate.basis === "person" ? "an adult" : "a room"}
               </td>
-              <td className="py-1.5 pr-3">{rate.extraAdultPaise === null ? <span className="text-muted">Not published</span> : rupees(rate.extraAdultPaise)}</td>
-              <td className="py-1.5 pr-3">{rate.extraBedPaise === null ? <span className="text-muted">Not published</span> : rupees(rate.extraBedPaise)}</td>
+              <td className="py-1.5 pr-3">{rate.extraAdultPaise === null ? <span className="text-muted-foreground">Not published</span> : rupees(rate.extraAdultPaise)}</td>
+              <td className="py-1.5 pr-3">{rate.extraBedPaise === null ? <span className="text-muted-foreground">Not published</span> : rupees(rate.extraBedPaise)}</td>
               <td className="py-1.5 pr-3">
                 {paidBands.length === 0
                   ? ""
                   : paidBands.map((band) => (
                       <span key={band.id} className="block">
-                        {band.label}: {rate.children[band.id] === undefined ? <span className="text-muted">not published</span> : rupees(rate.children[band.id])}
+                        {band.label}: {rate.children[band.id] === undefined ? <span className="text-muted-foreground">not published</span> : rupees(rate.children[band.id])}
                       </span>
                     ))}
               </td>
@@ -91,7 +91,7 @@ export default async function PricesPage({ params }: PageProps<"/[property]/pric
   return (
     <div>
       <h1 className="text-[1.35rem] font-semibold">Prices</h1>
-      <p className="mt-1 max-w-3xl text-muted">
+      <p className="mt-1 max-w-3xl text-muted-foreground">
         Each room type has a price for weekday nights and one for weekend nights, or one for every night. A season&apos;s rates beat these on its nights, and a price set for a date in the calendar beats both. Children pay by age band; older
         guests pay as adults.
       </p>
@@ -100,7 +100,7 @@ export default async function PricesPage({ params }: PageProps<"/[property]/pric
         <h2 id="weekend-heading" className="font-semibold">
           Weekend nights
         </h2>
-        <p className="text-[0.88rem] text-muted">The nights that take the weekend rate (PR-02). The night of a Friday is the night from Friday to Saturday.</p>
+        <p className="text-[0.88rem] text-muted-foreground">The nights that take the weekend rate (PR-02). The night of a Friday is the night from Friday to Saturday.</p>
         {manage ? (
           <WeekendForm propertyId={property.id} nights={property.weekendNights} />
         ) : (
@@ -119,11 +119,11 @@ export default async function PricesPage({ params }: PageProps<"/[property]/pric
               <li key={type.id} className={`card p-5 ${type.status === "inactive" ? "opacity-70" : ""}`}>
                 <h3 className="font-semibold">
                   {type.name}
-                  {type.status === "inactive" && <span className="ml-2 text-[0.8rem] font-normal text-muted">(off sale)</span>}
+                  {type.status === "inactive" && <span className="ml-2 text-[0.8rem] font-normal text-muted-foreground">(off sale)</span>}
                 </h3>
                 {own.length === 0 ? <p className="mt-1 text-[0.9rem] text-warn">No rate yet. Guests see &ldquo;rate to confirm&rdquo; for this room type.</p> : <div className="mt-2">{rateTable(own, false)}</div>}
                 {manage && (
-                  <details className="mt-3 border-t border-line pt-3">
+                  <details className="mt-3 border-t border-border pt-3">
                     <summary className="cursor-pointer text-[0.9rem] font-semibold">{own.length ? "Change or add a rate" : "Add a rate"}</summary>
                     <div className="mt-3">
                       <RateForm propertyId={property.id} roomTypes={[{ id: type.id, name: type.name }]} bands={paidBands} existing={own} />
@@ -140,7 +140,7 @@ export default async function PricesPage({ params }: PageProps<"/[property]/pric
         <h2 id="seasons-heading" className="text-[1.15rem] font-semibold">
           Seasons
         </h2>
-        <p className="text-[0.88rem] text-muted">Named runs of nights, such as Diwali or Christmas and New Year, with their own rates (PR-03). Where seasons overlap, the higher priority wins. A room type without a season rate keeps its usual rate.</p>
+        <p className="text-[0.88rem] text-muted-foreground">Named runs of nights, such as Diwali or Christmas and New Year, with their own rates (PR-03). Where seasons overlap, the higher priority wins. A room type without a season rate keeps its usual rate.</p>
         {manage && (
           <div className="card mt-3 p-5">
             <SeasonForm propertyId={property.id} />
@@ -154,15 +154,15 @@ export default async function PricesPage({ params }: PageProps<"/[property]/pric
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <h3 className="font-semibold">
                     {season.name}{" "}
-                    <span className="font-normal text-muted">
+                    <span className="font-normal text-muted-foreground">
                       · {longDate(season.startsOn)} to {longDate(season.endsOn)} · priority {season.priority}
                     </span>
                   </h3>
                   {manage && <DeleteSeasonButton seasonId={season.id} />}
                 </div>
-                {own.length === 0 ? <p className="mt-1 text-[0.9rem] text-muted">No season rates yet, so every room type keeps its usual rate.</p> : <div className="mt-2">{rateTable(own, true)}</div>}
+                {own.length === 0 ? <p className="mt-1 text-[0.9rem] text-muted-foreground">No season rates yet, so every room type keeps its usual rate.</p> : <div className="mt-2">{rateTable(own, true)}</div>}
                 {manage && (
-                  <details className="mt-3 border-t border-line pt-3">
+                  <details className="mt-3 border-t border-border pt-3">
                     <summary className="cursor-pointer text-[0.9rem] font-semibold">Set a season rate</summary>
                     <div className="mt-3">
                       <RateForm propertyId={property.id} roomTypes={types.map(({ id, name }) => ({ id, name }))} seasonId={season.id} bands={paidBands} existing={own} />
@@ -172,7 +172,7 @@ export default async function PricesPage({ params }: PageProps<"/[property]/pric
               </li>
             );
           })}
-          {seasonRows.length === 0 && <li className="text-[0.9rem] text-muted">No seasons yet.</li>}
+          {seasonRows.length === 0 && <li className="text-[0.9rem] text-muted-foreground">No seasons yet.</li>}
         </ul>
       </section>
 
@@ -180,7 +180,7 @@ export default async function PricesPage({ params }: PageProps<"/[property]/pric
         <h2 id="bands-heading" className="font-semibold">
           Child age bands
         </h2>
-        <p className="text-[0.88rem] text-muted">Children pay by band (PR-05). Guests older than every band pay as adults. A free band never pays.</p>
+        <p className="text-[0.88rem] text-muted-foreground">Children pay by band (PR-05). Guests older than every band pay as adults. A free band never pays.</p>
         <ul className="mt-3 grid gap-3">
           {bands.map((band) =>
             manage ? (
@@ -196,7 +196,7 @@ export default async function PricesPage({ params }: PageProps<"/[property]/pric
           )}
         </ul>
         {manage && (
-          <div className="mt-4 border-t border-line pt-4">
+          <div className="mt-4 border-t border-border pt-4">
             <BandForm propertyId={property.id} />
           </div>
         )}

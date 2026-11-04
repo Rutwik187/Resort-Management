@@ -27,12 +27,12 @@ export function InviteForm({ roles, resorts }: { roles: { id: string; name: stri
           <legend className="label">Role</legend>
           <div className="grid gap-2 sm:grid-cols-2">
             {roles.map((role) => (
-              <label key={role.id} className="flex gap-2.5 rounded-lg border border-line p-3 has-[:checked]:border-accent has-[:checked]:bg-accent/5">
+              <label key={role.id} className="flex gap-2.5 rounded-lg border border-border p-3 has-[:checked]:border-primary has-[:checked]:bg-primary/5">
                 {/* No role is chosen for the person: the Super Admin picks one. */}
                 <input type="radio" name="roleId" value={role.id} required className="mt-1" />
                 <span>
                   <span className="block font-medium">{role.name}</span>
-                  <span className="text-[0.85rem] text-muted">{role.description}</span>
+                  <span className="text-[0.85rem] text-muted-foreground">{role.description}</span>
                 </span>
               </label>
             ))}
@@ -46,7 +46,7 @@ export function InviteForm({ roles, resorts }: { roles: { id: string; name: stri
           {!all && (
             <div className="mt-2 flex flex-wrap gap-3">
               {resorts.map((resort) => (
-                <label key={resort.id} className="flex items-center gap-2 rounded-lg border border-line px-3 py-2">
+                <label key={resort.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
                   <input type="checkbox" name="propertyIds" value={resort.id} /> {resort.name}
                 </label>
               ))}

@@ -23,7 +23,7 @@ export function SettingsForm({ propertyId, settings }: { propertyId: string; set
       <fieldset className="card grid content-start gap-3 p-5">
         <legend className="sr-only">Company</legend>
         <h2 className="font-semibold">Company</h2>
-        <p className="-mt-2 text-[0.85rem] text-muted">Each resort is its own company. These go on its invoices.</p>
+        <p className="-mt-2 text-[0.85rem] text-muted-foreground">Each resort is its own company. These go on its invoices.</p>
         <div>
           <label className="label" htmlFor="legalName">
             Legal name
@@ -79,14 +79,14 @@ export function SettingsForm({ propertyId, settings }: { propertyId: string; set
             Hold time, in minutes
           </label>
           <input id="holdMinutes" name="holdMinutes" type="number" min={1} max={120} required defaultValue={settings.holdMinutes} className="field" />
-          <p className="mt-1 text-[0.82rem] text-muted">How long a guest&apos;s rooms or seats stay held while they pay (INV-03). After that, they go back on sale.</p>
+          <p className="mt-1 text-[0.82rem] text-muted-foreground">How long a guest&apos;s rooms or seats stay held while they pay (INV-03). After that, they go back on sale.</p>
         </div>
         <div>
           <label className="label" htmlFor="lowStockThreshold">
             Rooms left before an alert
           </label>
           <input id="lowStockThreshold" name="lowStockThreshold" type="number" min={0} max={50} required defaultValue={settings.lowStockThreshold} className="field" />
-          <p className="mt-1 text-[0.82rem] text-muted">The Today page lists a room type when this many rooms or fewer are left for a night (INV-10).</p>
+          <p className="mt-1 text-[0.82rem] text-muted-foreground">The Today page lists a room type when this many rooms or fewer are left for a night (INV-10).</p>
         </div>
       </fieldset>
       <div className="flex flex-wrap items-center gap-3 lg:col-span-2">

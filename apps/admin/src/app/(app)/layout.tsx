@@ -1,46 +1,49 @@
-import Link from "next/link";
+import { cookies } from "next/headers";
 import { accessibleProperties, can } from "@repo/auth";
+import type { Permission } from "@repo/db";
 import { getDb } from "@repo/db";
 import { properties as sites } from "@repo/sites";
-import { HeaderNav } from "@/components/nav";
+import { AppSidebar, type Section, type SidebarData } from "@/components/app-sidebar";
+import { SiteHeader } from "@/components/site-header";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { requireStaffPage } from "@/lib/staff";
-import { SignOutButton } from "./sign-out-button";
 
-/** Every signed-in page: the resorts this person may open, one search box, their name and role, and sign out. */
+/** Each resort section, and the permissions that open it (any one is enough). */
+const sections: [Section["key"], string, Permission[]][] = [
+  ["today", "Today", ["dashboard.view"]],
+  ["bookings", "Bookings", ["bookings.view"]],
+  ["calendar", "Calendar", ["inventory.view"]],
+  ["rooms", "Rooms", ["rooms.manage", "inventory.view"]],
+  ["prices", "Prices", ["prices.view"]],
+  ["packages", "Packages", ["prices.view"]],
+  ["settings", "Settings", ["settings.manage"]],
+];
+
+/** Every signed-in page: the sidebar with this person's resorts and sections, and the bar on top. */
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const staff = await requireStaffPage();
   const resorts = await accessibleProperties(getDb(), staff);
-  const extra = [...(can(staff, "users.manage") ? [{ href: "/staff", label: "Staff" }] : []), ...(can(staff, "audit.view") ? [{ href: "/audit", label: "Audit log" }] : [])];
+  const data: SidebarData = {
+    resorts: resorts.map((resort) => ({
+      code: resort.code,
+      name: resort.name,
+      shortName: sites.find((site) => site.code === resort.code)?.shortName ?? resort.name,
+      canBook: can(staff, "bookings.create", resort.id),
+      sections: sections.filter(([, , needs]) => needs.some((permission) => can(staff, permission, resort.id))).map(([key, label]) => ({ key, label })),
+    })),
+    group: [...(can(staff, "users.manage") ? [{ key: "staff" as const, label: "Staff" }] : []), ...(can(staff, "audit.view") ? [{ key: "audit" as const, label: "Audit log" }] : [])],
+    user: { name: staff.name, email: staff.email, role: staff.role.name },
+  };
+  // The sidebar remembers whether it was open, so it doesn't jump on the next page.
+  const defaultOpen = (await cookies()).get("sidebar_state")?.value !== "false";
 
   return (
-    <div className="min-h-svh">
-      <header className="border-b border-line bg-card print:hidden">
-        {/* One row from md up. On phones: name and sign out, then the resorts, then search. */}
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-2 px-5 py-2.5 md:flex-nowrap">
-          <Link href="/" className="order-1 shrink-0 font-semibold">
-            Prathamesh admin
-          </Link>
-          <div className="order-3 min-w-0 basis-full md:order-2 md:flex-1 md:basis-auto">
-            <HeaderNav resorts={resorts.map(({ code, name }) => ({ code, name: sites.find((site) => site.code === code)?.shortName ?? name }))} extra={extra} />
-          </div>
-          {can(staff, "bookings.view") && (
-            <form action="/search" role="search" className="order-4 basis-full md:order-3 md:basis-auto">
-              <label htmlFor="header-search" className="sr-only">
-                Find a booking
-              </label>
-              <input id="header-search" name="q" type="search" placeholder="Number, phone or name" className="field min-h-9 py-1 md:w-52" />
-            </form>
-          )}
-          <div className="order-2 ml-auto flex shrink-0 items-center gap-3 text-[0.88rem] md:order-4 md:ml-0">
-            <span className="text-muted">
-              {staff.name}
-              <span className="hidden 2xl:inline"> · {staff.role.name}</span>
-            </span>
-            <SignOutButton />
-          </div>
-        </div>
-      </header>
-      <main className="mx-auto max-w-7xl px-5 py-8 print:max-w-none print:p-0">{children}</main>
-    </div>
+    <SidebarProvider defaultOpen={defaultOpen}>
+      <AppSidebar data={data} />
+      <SidebarInset className="min-w-0">
+        <SiteHeader resorts={data.resorts.map(({ code, shortName }) => ({ code, shortName }))} canSearch={can(staff, "bookings.view")} />
+        <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6 print:p-0">{children}</div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

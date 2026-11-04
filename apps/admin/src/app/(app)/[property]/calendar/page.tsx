@@ -53,7 +53,7 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-[1.35rem] font-semibold">Calendar</h1>
-          <p className="text-[0.88rem] text-muted">
+          <p className="text-[0.88rem] text-muted-foreground">
             {longDate(from)} to {longDate(last)}. Each row is a room. The shaded rows count each type&apos;s free rooms and give its price for the base number of guests.
           </p>
         </div>
@@ -89,21 +89,21 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
 
       <ul aria-label="Key" className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-[0.82rem]">
         <li className="flex items-center gap-1.5">
-          <span className="size-3.5 rounded-sm border border-line bg-card" /> Free
+          <span className="size-3.5 rounded-sm border border-border bg-card" /> Free
         </li>
         <li className="flex items-center gap-1.5">
           <span className="size-3.5 rounded-sm bg-good/20" /> Booked
         </li>
         <li className="flex items-center gap-1.5">
-          <span className="size-3.5 rounded-sm bg-accent" /> Checked in
+          <span className="size-3.5 rounded-sm bg-primary" /> Checked in
         </li>
         <li className="flex items-center gap-1.5">
           <span className="size-3.5 rounded-sm bg-warn/20" /> Held while a guest pays
         </li>
         <li className="flex items-center gap-1.5">
-          <span className="blocked-cell size-3.5 rounded-sm border border-line" /> Blocked
+          <span className="blocked-cell size-3.5 rounded-sm border border-border" /> Blocked
         </li>
-        <li className="text-muted">• a price set for the date</li>
+        <li className="text-muted-foreground">• a price set for the date</li>
       </ul>
 
       {block && (
@@ -115,7 +115,7 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
             {longDate(block.startsOn)} to {longDate(block.endsOn)} (the last night) · {reasonLabel[block.reason]}
             {block.note ? ` · ${block.note}` : ""}
           </p>
-          <p className="text-[0.82rem] text-muted">
+          <p className="text-[0.82rem] text-muted-foreground">
             Made {when(block.createdAt)}
             {blockBy ? ` by ${blockBy}` : ""}
             {block.liftedAt ? `. Lifted ${when(block.liftedAt)}.` : "."}
@@ -125,23 +125,23 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
       )}
 
       {calendar.types.length === 0 ? (
-        <p className="card mt-4 p-5 text-muted">This resort has no room types on sale. Add them on the Rooms tab.</p>
+        <p className="card mt-4 p-5 text-muted-foreground">This resort has no room types on sale. Add them on the Rooms tab.</p>
       ) : (
         <div className="card mt-4 overflow-x-auto">
           <table className="w-full border-separate border-spacing-0 text-[0.8rem]">
             <thead>
               <tr>
-                <th scope="col" className="sticky left-0 z-20 min-w-40 border-b border-line bg-card px-3 py-2 text-left font-semibold">
+                <th scope="col" className="sticky left-0 z-20 min-w-40 border-b border-border bg-card px-3 py-2 text-left font-semibold">
                   Room
                 </th>
                 {calendar.nights.map((night, i) => {
                   const weekend = property.weekendNights.includes(dayOfWeek(night));
                   const firstOfMonth = i === 0 || night.endsWith("-01");
                   return (
-                    <th key={night} scope="col" className={`min-w-16 border-b border-l border-line px-1 py-1.5 text-center font-normal ${weekend ? "bg-page" : ""} ${night === today ? "text-accent" : ""}`}>
-                      <span className="block text-[0.7rem] text-muted">{weekday(night)}</span>
+                    <th key={night} scope="col" className={`min-w-16 border-b border-l border-border px-1 py-1.5 text-center font-normal ${weekend ? "bg-muted" : ""} ${night === today ? "text-primary" : ""}`}>
+                      <span className="block text-[0.7rem] text-muted-foreground">{weekday(night)}</span>
                       <span className="block font-semibold">{Number(night.slice(8))}</span>
-                      <span className="block text-[0.68rem] text-muted">{firstOfMonth ? new Date(`${night}T00:00:00Z`).toLocaleDateString("en-IN", { month: "short", timeZone: "UTC" }) : " "}</span>
+                      <span className="block text-[0.68rem] text-muted-foreground">{firstOfMonth ? new Date(`${night}T00:00:00Z`).toLocaleDateString("en-IN", { month: "short", timeZone: "UTC" }) : " "}</span>
                     </th>
                   );
                 })}
@@ -152,10 +152,10 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
                 const active = type.units.filter((u) => u.status === "active");
                 return (
                   <Fragment key={type.id}>
-                    <tr className="bg-page">
-                      <th scope="row" className="sticky left-0 z-10 border-b border-line bg-page px-3 py-1.5 text-left">
+                    <tr className="bg-muted">
+                      <th scope="row" className="sticky left-0 z-10 border-b border-border bg-muted px-3 py-1.5 text-left">
                         <span className="block font-semibold">{type.name}</span>
-                        <span className="text-[0.72rem] font-normal text-muted">{plural(active.length, "room")} in use</span>
+                        <span className="text-[0.72rem] font-normal text-muted-foreground">{plural(active.length, "room")} in use</span>
                       </th>
                       {calendar.nights.map((night) => {
                         const free = active.filter((u) => !calendar.cell(u.id, night)).length;
@@ -163,9 +163,9 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
                         const rule = calendar.rule(type.id, night);
                         const ruleText = rule?.stopSell ? "Stop sell" : rule?.closedToArrival ? "No arrivals" : rule?.minNights ? `Min ${rule.minNights}` : rule?.maxNights ? `Max ${rule.maxNights}` : null;
                         return (
-                          <td key={night} className="border-b border-l border-line px-1 py-1 text-center align-top">
+                          <td key={night} className="border-b border-l border-border px-1 py-1 text-center align-top">
                             <span className={`block font-semibold ${free === 0 ? "text-danger" : free <= property.lowStockThreshold ? "text-warn" : ""}`}>{free === 0 ? "Full" : `${free} free`}</span>
-                            <span className="block text-[0.7rem] text-muted" title={nightPrice ? price(nightPrice.paise) : undefined}>
+                            <span className="block text-[0.7rem] text-muted-foreground" title={nightPrice ? price(nightPrice.paise) : undefined}>
                               {nightPrice?.paise == null ? "No rate" : `₹${compact.format(nightPrice.paise / 100)}`}
                               {nightPrice?.source === "date" ? " •" : ""}
                             </span>
@@ -176,15 +176,15 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
                     </tr>
                     {type.units.map((unit) => (
                       <tr key={unit.id}>
-                        <th scope="row" className="sticky left-0 z-10 border-b border-line bg-card px-3 py-1 text-left font-normal">
+                        <th scope="row" className="sticky left-0 z-10 border-b border-border bg-card px-3 py-1 text-left font-normal">
                           {unit.name}
-                          {unit.status !== "active" && <span className="ml-1.5 text-[0.7rem] text-muted">({unit.status === "maintenance" ? "maintenance" : "out of use"})</span>}
+                          {unit.status !== "active" && <span className="ml-1.5 text-[0.7rem] text-muted-foreground">({unit.status === "maintenance" ? "maintenance" : "out of use"})</span>}
                         </th>
                         {calendar.nights.map((night, i) => {
                           const cell = calendar.cell(unit.id, night);
                           const continues = i > 0 && same(calendar.cell(unit.id, calendar.nights[i - 1]), cell);
                           return (
-                            <td key={night} className={`h-9 border-b border-line p-0 ${continues ? "" : "border-l"}`}>
+                            <td key={night} className={`h-9 border-b border-border p-0 ${continues ? "" : "border-l"}`}>
                               <CellView cell={cell} label={!continues} unitActive={unit.status === "active"} bookHref={bookable ? `/${property.code.toLowerCase()}/bookings/new?checkIn=${night}&checkOut=${addDays(night, 1)}` : null} blockHref={(id) => `${at(from)}&block=${id}`} code={property.code} night={night} unit={unit.name} />
                             </td>
                           );
@@ -216,8 +216,8 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
 function CellView({ cell, label, unitActive, bookHref, blockHref, code, night, unit }: { cell: Cell | undefined; label: boolean; unitActive: boolean; bookHref: string | null; blockHref: (id: string) => string; code: string; night: string; unit: string }) {
   const box = "flex h-full w-full items-center overflow-hidden px-1.5 text-[0.72rem] whitespace-nowrap";
   if (!cell) {
-    if (!unitActive) return <span className={`${box} justify-center text-muted`}>–</span>;
-    return bookHref ? <Link href={bookHref} title={`${unit}, ${longDate(night)}: free. Book it.`} aria-label={`${unit}, ${longDate(night)}: free`} className={`${box} hover:bg-page`} /> : <span className={box} aria-label="Free" />;
+    if (!unitActive) return <span className={`${box} justify-center text-muted-foreground`}>–</span>;
+    return bookHref ? <Link href={bookHref} title={`${unit}, ${longDate(night)}: free. Book it.`} aria-label={`${unit}, ${longDate(night)}: free`} className={`${box} hover:bg-muted`} /> : <span className={box} aria-label="Free" />;
   }
   if (cell.kind === "booked") {
     const inHouse = cell.status === "checked_in";
@@ -225,7 +225,7 @@ function CellView({ cell, label, unitActive, bookHref, blockHref, code, night, u
       <Link
         href={`/${code.toLowerCase()}/bookings/${cell.number.toLowerCase()}`}
         title={`${cell.number} · ${cell.guest} · ${statusLabel[cell.status]}`}
-        className={`${box} font-medium text-ellipsis ${inHouse ? "bg-accent text-accent-ink" : "bg-good/20 text-ink"} hover:opacity-85`}
+        className={`${box} font-medium text-ellipsis ${inHouse ? "bg-primary text-primary-foreground" : "bg-good/20 text-foreground"} hover:opacity-85`}
       >
         {label ? cell.guest.split(" ")[0] : ""}
       </Link>
@@ -233,7 +233,7 @@ function CellView({ cell, label, unitActive, bookHref, blockHref, code, night, u
   }
   if (cell.kind === "held") return <span title={`Held until ${when(cell.until)} while a guest pays`} className={`${box} bg-warn/20 text-warn`}>{label ? "Held" : ""}</span>;
   return (
-    <Link href={blockHref(cell.blockId)} title={`Blocked: ${reasonLabel[cell.reason]}${cell.note ? `, ${cell.note}` : ""}`} className={`${box} blocked-cell text-muted hover:opacity-80`}>
+    <Link href={blockHref(cell.blockId)} title={`Blocked: ${reasonLabel[cell.reason]}${cell.note ? `, ${cell.note}` : ""}`} className={`${box} blocked-cell text-muted-foreground hover:opacity-80`}>
       {label ? reasonLabel[cell.reason] : ""}
     </Link>
   );

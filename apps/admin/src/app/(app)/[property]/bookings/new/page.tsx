@@ -1,9 +1,16 @@
 import Link from "next/link";
 import { asc, eq, inArray } from "drizzle-orm";
+import { BedDouble, CircleAlert, Search, Ticket } from "lucide-react";
 import { can } from "@repo/auth";
 import { ageBands, getDb, roomTypes } from "@repo/db";
 import { addDays, isDate, searchStays, seatsLeft, todayInIndia } from "@repo/engine";
+import { DateField, DateRangeField } from "@/components/date-field";
 import { NoAccess } from "@/components/no-access";
+import { PageHeader } from "@/components/page-header";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { longDate, plural } from "@/lib/format";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
 import { NewBookingForm, type Option } from "./booking-form";
@@ -21,14 +28,14 @@ export default async function NewBookingPage({ params, searchParams }: PageProps
   const query = await searchParams;
   const kind = one(query.kind) === "day" ? "day" : "stay";
   const today = todayInIndia();
-  const checkIn = one(query.checkIn) ?? today;
-  const checkOut = one(query.checkOut) ?? addDays(checkIn && isDate(checkIn) ? checkIn : today, 1);
-  const day = one(query.day) ?? today;
-  const asked = kind === "stay" ? Boolean(one(query.checkIn)) : Boolean(one(query.day));
+  const checkIn = one(query.checkIn) || today;
+  const checkOut = one(query.checkOut) || addDays(isDate(checkIn) ? checkIn : today, 1);
+  const day = one(query.day) || today;
+  const asked = kind === "stay" ? one(query.checkIn) !== undefined : one(query.day) !== undefined;
 
   let problem: string | null = null;
   if (asked && kind === "stay") {
-    if (!isDate(checkIn) || !isDate(checkOut)) problem = "Choose both dates.";
+    if (!isDate(one(query.checkIn)) || !isDate(one(query.checkOut))) problem = "Choose both dates: check-in, then check-out.";
     else if (checkIn < today) problem = "Check-in can't be in the past.";
     else if (checkOut <= checkIn) problem = "Check-out must be after check-in.";
   }
@@ -67,62 +74,57 @@ export default async function NewBookingPage({ params, searchParams }: PageProps
   }
   const bands = await db.select({ code: ageBands.code, label: ageBands.label }).from(ageBands).where(eq(ageBands.propertyId, property.id)).orderBy(asc(ageBands.sortOrder));
   const base = `/${property.code.toLowerCase()}/bookings/new`;
-  const tab = (active: boolean) => `rounded-md px-3 py-1.5 text-[0.9rem] ${active ? "bg-accent font-semibold text-accent-ink" : "text-muted hover:text-ink"}`;
+  const nights = Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000);
 
   return (
-    <div>
-      <h1 className="text-[1.35rem] font-semibold">New booking</h1>
-      <p className="mt-1 max-w-2xl text-muted">For walk-in, phone, WhatsApp, travel agent and corporate guests. It books through the same engine as the website, so rooms and seats stay right everywhere.</p>
+    <>
+      <PageHeader title="New booking" description="For walk-in, phone, WhatsApp, travel agent and corporate guests. It books through the same engine as the website, so rooms and seats stay right everywhere." />
 
-      <div className="card mt-5 p-4">
-        <nav aria-label="Kind of booking" className="inline-flex gap-1 rounded-lg bg-page p-1">
-          <Link href={base} aria-current={kind === "stay" ? "page" : undefined} className={tab(kind === "stay")}>
-            A stay
-          </Link>
-          <Link href={`${base}?kind=day`} aria-current={kind === "day" ? "page" : undefined} className={tab(kind === "day")}>
-            A day visit
-          </Link>
-        </nav>
-        <form className="mt-4 flex flex-wrap items-end gap-3">
-          {kind === "stay" ? (
-            <>
-              <div>
-                <label className="label" htmlFor="checkIn">
-                  Check-in
-                </label>
-                <input id="checkIn" name="checkIn" type="date" required min={today} defaultValue={checkIn} className="field" />
-              </div>
-              <div>
-                <label className="label" htmlFor="checkOut">
-                  Check-out
-                </label>
-                <input id="checkOut" name="checkOut" type="date" required min={today} defaultValue={checkOut} className="field" />
-              </div>
-            </>
-          ) : (
-            <div>
-              <input type="hidden" name="kind" value="day" />
-              <label className="label" htmlFor="day">
-                Date
-              </label>
-              <input id="day" name="day" type="date" required min={today} defaultValue={day} className="field" />
-            </div>
-          )}
-          <button type="submit" className="button">
-            {kind === "stay" ? "Find rooms" : "Find tickets"}
-          </button>
+      <Card>
+        <CardContent className="grid gap-5">
+          <nav aria-label="Kind of booking" className="inline-flex w-fit gap-1 rounded-lg bg-muted p-1">
+            <Button variant={kind === "stay" ? "default" : "ghost"} size="sm" asChild>
+              <Link href={base} aria-current={kind === "stay" ? "page" : undefined}>
+                <BedDouble />A stay
+              </Link>
+            </Button>
+            <Button variant={kind === "day" ? "default" : "ghost"} size="sm" asChild>
+              <Link href={`${base}?kind=day`} aria-current={kind === "day" ? "page" : undefined}>
+                <Ticket />A day visit
+              </Link>
+            </Button>
+          </nav>
+          <form className="flex flex-wrap items-end gap-3">
+            {kind === "stay" ? (
+              <Field className="w-full max-w-md">
+                <FieldLabel htmlFor="stay-dates">Check-in and check-out</FieldLabel>
+                <DateRangeField id="stay-dates" names={["checkIn", "checkOut"]} defaultValue={[checkIn, checkOut]} min={today} />
+              </Field>
+            ) : (
+              <Field className="w-full max-w-xs">
+                <input type="hidden" name="kind" value="day" />
+                <FieldLabel htmlFor="visit-day">Date</FieldLabel>
+                <DateField id="visit-day" name="day" defaultValue={day} min={today} />
+              </Field>
+            )}
+            <Button type="submit">
+              <Search />
+              {kind === "stay" ? "Find rooms" : "Find tickets"}
+            </Button>
+          </form>
           {problem && (
-            <p role="alert" className="w-full text-[0.9rem] text-danger">
-              {problem}
-            </p>
+            <Alert variant="destructive">
+              <CircleAlert />
+              <AlertDescription>{problem}</AlertDescription>
+            </Alert>
           )}
           {asked && !problem && (
-            <p className="w-full text-[0.88rem] text-muted">
-              {kind === "stay" ? `${longDate(checkIn)} to ${longDate(checkOut)}, ${plural(Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000), "night")}.` : `${longDate(day)}.`}
+            <p className="text-sm text-muted-foreground" role="status">
+              {kind === "stay" ? `${longDate(checkIn)} to ${longDate(checkOut)}, ${plural(nights, "night")}.` : `${longDate(day)}.`}
             </p>
           )}
-        </form>
-      </div>
+        </CardContent>
+      </Card>
 
       {asked && !problem && (
         <NewBookingForm
@@ -136,6 +138,6 @@ export default async function NewBookingPage({ params, searchParams }: PageProps
           canTakePayment={can(staff, "bookings.modify", property.id)}
         />
       )}
-    </div>
+    </>
   );
 }

@@ -90,7 +90,7 @@ export function RoomTypeForm({ propertyId }: { propertyId: string }) {
 export function AddUnitsForm({ roomTypeId, suggestion }: { roomTypeId: string; suggestion: string }) {
   const [state, action, pending] = useActionState(addUnits.bind(null, roomTypeId), undefined);
   return (
-    <form action={action} className="mt-4 flex flex-wrap items-end gap-3 border-t border-line pt-4">
+    <form action={action} className="mt-4 flex flex-wrap items-end gap-3 border-t border-border pt-4">
       <div>
         <label className="label" htmlFor={`${roomTypeId}-prefix`}>
           Unit name

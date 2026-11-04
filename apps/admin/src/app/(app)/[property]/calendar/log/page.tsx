@@ -56,14 +56,14 @@ export default async function InventoryLogPage({ params, searchParams }: PagePro
 
   return (
     <div>
-      <p className="text-[0.85rem] text-muted">
+      <p className="text-[0.85rem] text-muted-foreground">
         <Link href={`${base}/calendar`} className="underline-offset-2 hover:underline">
           Calendar
         </Link>{" "}
         /
       </p>
       <h1 className="mt-1 text-[1.35rem] font-semibold">Inventory log</h1>
-      <p className="mt-1 text-muted">Every change to rooms and seats, newest first: holds, bookings, cancellations and blocks, with who or what made them.</p>
+      <p className="mt-1 text-muted-foreground">Every change to rooms and seats, newest first: holds, bookings, cancellations and blocks, with who or what made them.</p>
 
       <form className="card mt-4 flex flex-wrap items-end gap-3 p-4">
         <div>
@@ -96,11 +96,11 @@ export default async function InventoryLogPage({ params, searchParams }: PagePro
       </form>
 
       {rows.length === 0 ? (
-        <p className="mt-6 text-muted">Nothing has changed{night ? " on that night" : ""} yet.</p>
+        <p className="mt-6 text-muted-foreground">Nothing has changed{night ? " on that night" : ""} yet.</p>
       ) : (
         <div className="card mt-4 overflow-x-auto">
           <table className="w-full min-w-[46rem] text-left text-[0.88rem]">
-            <thead className="border-b border-line text-[0.78rem] text-muted">
+            <thead className="border-b border-border text-[0.78rem] text-muted-foreground">
               <tr>
                 <th className="px-4 py-2.5 font-semibold">When</th>
                 <th className="px-4 py-2.5 font-semibold">Room or seats</th>
@@ -113,8 +113,8 @@ export default async function InventoryLogPage({ params, searchParams }: PagePro
               {rows.map((row) => {
                 const guests = (row.data as { guests?: number } | null)?.guests;
                 return (
-                  <tr key={row.id} className="border-b border-line last:border-0">
-                    <td className="px-4 py-2 whitespace-nowrap text-muted">{when(row.at)}</td>
+                  <tr key={row.id} className="border-b border-border last:border-0">
+                    <td className="px-4 py-2 whitespace-nowrap text-muted-foreground">{when(row.at)}</td>
                     <td className="px-4 py-2">{row.unit ?? (row.offering ? `${row.offering}, ${row.slot}${guests ? ` (${guests} guests)` : ""}` : "")}</td>
                     <td className="px-4 py-2 whitespace-nowrap">{row.fromDate === row.toDate ? shortDate(row.fromDate) : `${shortDate(row.fromDate)} to ${shortDate(row.toDate)}`}</td>
                     <td className="px-4 py-2">
@@ -128,9 +128,9 @@ export default async function InventoryLogPage({ params, searchParams }: PagePro
                         </>
                       )}
                       {row.blockReason && ` · ${reasonLabel[row.blockReason]}`}
-                      {row.reason && row.action !== "block" && <span className="text-muted"> · {row.reason}</span>}
+                      {row.reason && row.action !== "block" && <span className="text-muted-foreground"> · {row.reason}</span>}
                     </td>
-                    <td className="px-4 py-2 text-muted">{row.by ?? (row.action === "hold" || row.action === "release" ? "Booking engine" : "")}</td>
+                    <td className="px-4 py-2 text-muted-foreground">{row.by ?? (row.action === "hold" || row.action === "release" ? "Booking engine" : "")}</td>
                   </tr>
                 );
               })}
@@ -138,7 +138,7 @@ export default async function InventoryLogPage({ params, searchParams }: PagePro
           </table>
         </div>
       )}
-      {rows.length === 200 && <p className="mt-2 text-[0.85rem] text-muted">The newest 200 are shown. Choose a night or a room to see older ones.</p>}
+      {rows.length === 200 && <p className="mt-2 text-[0.85rem] text-muted-foreground">The newest 200 are shown. Choose a night or a room to see older ones.</p>}
     </div>
   );
 }
