@@ -34,12 +34,12 @@
 }
 
 @theme inline {
-  --font-display: var(--font-besley), Georgia, serif;
-  --font-display-italic: var(--font-besley-italic), var(--font-besley), Georgia, serif;
-  --font-sans: var(--font-schibsted), "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-display-italic: var(--font-fraunces-italic), var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-manrope), "Helvetica Neue", Arial, sans-serif;
 }
 
-/* The shared booking widget, in this site's mist, laterite and Besley (see packages/booking-ui). */
+/* The shared booking widget, in this site's mist, laterite and Fraunces (see packages/booking-ui). */
 :root {
   --bk-page: var(--color-mist);
   --bk-card: #f8f9f7;
@@ -53,8 +53,8 @@
   --bk-alert: #8f3a1e;
   --bk-radius: 6px;
   --bk-control-radius: 3px;
-  --bk-display: var(--font-besley), Georgia, serif;
-  --bk-display-weight: 500;
+  --bk-display: var(--font-fraunces), Georgia, serif;
+  --bk-display-weight: 460;
   --bk-display-tracking: -0.015em;
   --bk-button-size: 0.92rem;
   --bk-button-weight: 600;
@@ -104,18 +104,28 @@ html.lenis body {
     }
   }
 
+  /*
+   * Fraunces at a book weight: its optical size makes big headings fine and
+   * small ones sturdy. A little softness, and none of its "wonky" letters.
+   */
   h1,
   h2,
   h3,
-  .display {
+  .display,
+  .bk-display {
     font-family: var(--font-display);
-    font-weight: 600;
-    line-height: 1.02;
-    letter-spacing: -0.022em;
+    font-weight: 420;
+    font-optical-sizing: auto;
+    font-variation-settings:
+      "SOFT" 50,
+      "WONK" 0;
+    line-height: 1.04;
+    letter-spacing: -0.02em;
     text-wrap: balance;
   }
 
   h3 {
+    font-weight: 480;
     letter-spacing: -0.012em;
   }
 
@@ -126,7 +136,7 @@ html.lenis body {
   .display em {
     font-family: var(--font-display-italic);
     font-style: italic;
-    font-weight: 500;
+    font-weight: 400;
     color: var(--em-color, var(--color-laterite));
   }
 
@@ -165,7 +175,10 @@ html.lenis body {
   /* A lead paragraph, set in the serif. */
   .lead {
     font-family: var(--font-display);
-    font-weight: 400;
+    font-weight: 360;
+    font-variation-settings:
+      "SOFT" 50,
+      "WONK" 0;
     font-size: clamp(1.3rem, 1.8vw, 1.7rem);
     line-height: 1.38;
     letter-spacing: -0.008em;
@@ -429,8 +442,12 @@ html.lenis body {
 .postcard-word {
   color: #000;
   font-family: var(--font-display);
+  /* Heavy and round, so the film shows through broad letters. */
   font-weight: 800;
-  letter-spacing: -0.035em;
+  font-variation-settings:
+    "SOFT" 100,
+    "WONK" 0;
+  letter-spacing: -0.03em;
   line-height: 0.8;
 }
 

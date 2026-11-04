@@ -46,7 +46,7 @@ export function SiteFooter() {
           </p>
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-3">
           <h2 className="label font-sans tracking-[0.14em] text-haze">Talk to us</h2>
           <ul className="mt-5 space-y-3">
             <li>
@@ -60,8 +60,10 @@ export function SiteFooter() {
               </a>
             </li>
             <li>
-              <a href={`mailto:${contact.email}`} className="tap break-all hover:text-clay">
-                {contact.email}
+              {/* A long address may wrap after the @, never inside a word. */}
+              <a href={`mailto:${contact.email}`} className="tap hover:text-clay">
+                {contact.email.split("@")[0]}@<wbr />
+                {contact.email.split("@")[1]}
               </a>
             </li>
           </ul>

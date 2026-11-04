@@ -34,7 +34,17 @@ export function Postmark({ id, ring, center, className = "" }: { id: string; rin
           {ring}
         </textPath>
       </text>
-      <text x="60" y="64" textAnchor="middle" fill="currentColor" stroke="none" fontSize="11" fontWeight="600" letterSpacing="1">
+      {/* Shrunk to fit inside the inner ring, which is about 52 units wide. */}
+      <text
+        x="60"
+        y="64"
+        textAnchor="middle"
+        fill="currentColor"
+        stroke="none"
+        fontSize={Math.min(11, 74 / Math.max(1, center.length))}
+        fontWeight="600"
+        letterSpacing="0.6"
+      >
         {center}
       </text>
       {[34, 48, 62, 76, 90].map((y) => (
