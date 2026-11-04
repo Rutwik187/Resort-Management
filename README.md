@@ -12,7 +12,7 @@ The plan for the whole platform is in [`docs/implementation-plan.md`](docs/imple
 | `apps/go-crazy` | `go-crazy` | Prathamesh Go Crazy Resort, Sinhagad: gocrazyadventure.com |
 | `apps/sinhagad-bliss` | `sinhagad-bliss` | Sinhagad Bliss: sinhagadbliss.com |
 | `apps/valley` | `valley` | Prathamesh Valley Resorts, Mahabaleshwar: prathameshvalleyresorts.com |
-| `apps/admin` | `admin` | The staff dashboard: sign-in, each resort's day (arrivals, sales, rooms booked), bookings with offline booking and the front desk, rooms and units, and staff. Runs at http://localhost:3010 |
+| `apps/admin` | `admin` | The staff dashboard, built with shadcn/ui: sign-in, each resort's day (arrivals, sales, rooms booked), bookings with offline booking and the front desk, the inventory calendar, rooms, prices, packages, settings, staff and the audit log. Runs at http://localhost:3010 |
 | `packages/booking-ui` | `@repo/booking-ui` | The booking widget that all four sites share: the search bar, the room and day-pass lists, and the tray |
 | `packages/db` | `@repo/db` | The database: Drizzle tables, migrations, the seed, and the roles and permissions |
 | `packages/auth` | `@repo/auth` | Staff sign-in with Better Auth, and the permission check `can()` |
@@ -99,6 +99,8 @@ Each app is its own Vercel project in the team "rutwik187's projects", linked to
 | `prathamesh-admin` | `apps/admin` | prathamesh-admin.vercel.app | none |
 
 The main addresses are the ones the old WordPress sites used, so search results keep their links. Each app's `siteUrl` in `src/content/site.ts` matches.
+
+**The admin's look** comes from shadcn/ui. Its components are in `apps/admin/src/components/ui`, added with `npx shadcn@latest add <name>` from `apps/admin` (see `components.json`); after adding one, check that it imports `cn` from `@/lib/utils`. The brand colour and the chart green are in `apps/admin/src/app/globals.css`.
 
 **The admin's project** runs its functions in Singapore (`sin1`), next to the Neon database; the sites keep the default region. Its variables are `DATABASE_URL` (the pooled address), `BETTER_AUTH_SECRET` (its own, not the one in your `.env.local`), `BETTER_AUTH_URL` (https://prathamesh-admin.vercel.app), `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. A changed variable takes effect only in a new deployment. Because the Ignored Build Step skips a commit that is already deployed, redeploy after changing only variables by clearing the step for one build, then setting it back.
 
