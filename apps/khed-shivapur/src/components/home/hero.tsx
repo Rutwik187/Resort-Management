@@ -172,10 +172,10 @@ export function Hero() {
               </p>
               {/* Two ways in: stay the weekend, or come for the day. */}
               <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
-                <a href="#enquire" tabIndex={-1} className="btn btn-paper hidden md:inline-flex">
-                  <Roll>Plan your stay</Roll>
-                </a>
-                <Link href="/experiences#day" className="link-line text-[0.95rem] text-paper">
+                <Link href="/stays#book" tabIndex={-1} className="btn btn-paper hidden md:inline-flex">
+                  <Roll>Book a stay</Roll>
+                </Link>
+                <Link href="/day-packages" className="link-line text-[0.95rem] text-paper">
                   Or come for the day
                 </Link>
               </div>

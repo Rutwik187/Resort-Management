@@ -15,8 +15,8 @@ export function DayEscapes() {
             Four day packages, each with meals and every activity included. Arrive in the morning, after lunch or for
             the evening, and be home in Pune the same night.
           </p>
-          <Link href="/experiences#day" className="fade link-line mt-8" style={{ "--i": 2 } as React.CSSProperties}>
-            Day package details
+          <Link href="/day-packages" className="fade btn btn-forest mt-8" style={{ "--i": 2 } as React.CSSProperties}>
+            Book a day package
           </Link>
         </InView>
         <div className="lg:col-span-8 lg:pt-24">

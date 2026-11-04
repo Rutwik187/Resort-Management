@@ -16,6 +16,15 @@
 | Group website | Built after the four resort sites |
 | Old data | None. This is a new application with no bookings to import |
 
+## Progress
+
+| Date | What happened |
+|---|---|
+| 3 November 2026 | The site moved into this Turborepo monorepo (pull request 1, merged) |
+| 3 November 2026 | Go Crazy, Sinhagad Bliss and Valley got their own sites in `apps/go-crazy`, `apps/sinhagad-bliss` and `apps/valley`, each with its own design and the resort's own photos |
+| 3 November 2026 | `packages/booking-ui` holds the front of the booking widget: search, the room and day-pass lists, several rooms of any type in one booking, and the tray. Until the engine and payments exist, it sends the request on WhatsApp. `packages/sites` holds the four resorts' names, places and domains |
+| 3 November 2026 | Each site redirects the old WordPress pages to the new ones. prathameshresorts.com links to the other three resorts from its menu and home page |
+
 ## Architecture
 
 ```mermaid
@@ -383,6 +392,8 @@ The dashboard works on tablets and phones. One search box finds booking numbers,
 6. Hold the rooms and pay.
 7. Confirmation.
 8. Manage the booking later through the private link.
+
+Today `packages/booking-ui` runs steps 1 to 3 on all four sites, without add-ons or sold-out states, and asks only for the guest's name, phone and a note. It ends in a WhatsApp request. Availability, consent, the GSTIN and steps 5 to 8 arrive with the engine and Razorpay, through server actions that each site passes to the widget.
 
 ### Forms, search and tracking
 

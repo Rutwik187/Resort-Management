@@ -1,0 +1,679 @@
+@import "tailwindcss";
+@import "@repo/booking-ui/booking.css";
+
+/*
+ * Palette, from the hill station and the logo:
+ *   mist       - morning mist, the page background
+ *   cloud      - a second light surface, for alternating sections
+ *   ink        - slate under monsoon cloud: text and dark sections
+ *   slate      - a lighter dark, for surfaces on ink
+ *   night      - the hills after dark, the footer
+ *   moss       - secondary text on light surfaces
+ *   haze       - secondary text on dark surfaces
+ *   laterite   - the red stone of the cottages: warm accents and italic words on light
+ *   clay       - laterite, light enough for text on dark
+ *   strawberry - the berries on the logo: tiny marks and focus rings only, never small text
+ *   sun        - the sunset stripes of the logo: text selection
+ */
+@theme {
+  --color-mist: #eef0ec;
+  --color-cloud: #e1e7e3;
+  --color-ink: #1c2b2f;
+  --color-slate: #26383d;
+  --color-night: #131d21;
+  --color-moss: #536660;
+  --color-haze: #a9b7b3;
+  --color-laterite: #a5432c;
+  --color-clay: #e2906f;
+  --color-strawberry: #d42a40;
+  --color-sun: #f0a830;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.76, 0, 0.24, 1);
+  --ease-soft: cubic-bezier(0.45, 0, 0.2, 1);
+}
+
+@theme inline {
+  --font-display: var(--font-besley), Georgia, serif;
+  --font-display-italic: var(--font-besley-italic), var(--font-besley), Georgia, serif;
+  --font-sans: var(--font-schibsted), "Helvetica Neue", Arial, sans-serif;
+}
+
+/* The shared booking widget, in this site's mist, laterite and Besley (see packages/booking-ui). */
+:root {
+  --bk-page: var(--color-mist);
+  --bk-card: #f8f9f7;
+  --bk-ink: var(--color-ink);
+  --bk-muted: var(--color-moss);
+  --bk-line: rgb(28 43 47 / 0.14);
+  --bk-soft: rgb(28 43 47 / 0.05);
+  --bk-accent: var(--color-laterite);
+  --bk-accent-ink: #ffffff;
+  --bk-good: #35664a;
+  --bk-alert: #8f3a1e;
+  --bk-radius: 6px;
+  --bk-control-radius: 3px;
+  --bk-display: var(--font-besley), Georgia, serif;
+  --bk-display-weight: 500;
+  --bk-display-tracking: -0.015em;
+  --bk-button-size: 0.92rem;
+  --bk-button-weight: 600;
+  /* The header's height: 72px on phones, 84px from md up. */
+  --bk-sticky-top: 4.5rem;
+}
+@media (min-width: 48rem) {
+  :root {
+    --bk-sticky-top: 5.25rem;
+  }
+}
+
+/* Lenis base rules (the package does not export its stylesheet). */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis:not(.lenis-autoToggle).lenis-stopped {
+  overflow: clip;
+}
+.lenis [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
+@layer base {
+  html {
+    background: var(--color-mist);
+    color: var(--color-ink);
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  @media (min-width: 768px) {
+    body {
+      font-size: 1.125rem;
+    }
+  }
+
+  h1,
+  h2,
+  h3,
+  .display {
+    font-family: var(--font-display);
+    font-weight: 600;
+    line-height: 1.02;
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+  }
+
+  h3 {
+    letter-spacing: -0.012em;
+  }
+
+  /* The italic is the warm voice of the site: a word or two, in laterite red. */
+  h1 em,
+  h2 em,
+  h3 em,
+  .display em {
+    font-family: var(--font-display-italic);
+    font-style: italic;
+    font-weight: 500;
+    color: var(--em-color, var(--color-laterite));
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: var(--color-sun);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-strawberry);
+    outline-offset: 3px;
+  }
+
+  img,
+  video {
+    -webkit-user-drag: none;
+  }
+}
+
+@layer components {
+  /* Small tracked capitals: section labels, captions, metadata. */
+  .label {
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* A lead paragraph, set in the serif. */
+  .lead {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(1.3rem, 1.8vw, 1.7rem);
+    line-height: 1.38;
+    letter-spacing: -0.008em;
+  }
+
+  /* A text link with an arrow that steps forward on hover. */
+  .arrow-link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55em;
+    padding-block: 0.4em;
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.3em;
+    text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
+    transition: text-decoration-color 300ms ease;
+  }
+  .arrow-link::after {
+    content: "→";
+    display: inline-block;
+    text-decoration: none;
+    transition: transform 400ms var(--ease-out);
+  }
+  .arrow-link::before {
+    /* Bigger touch area, same look. */
+    content: "";
+    position: absolute;
+    inset: -6px -4px;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .arrow-link:hover {
+      text-decoration-color: currentColor;
+    }
+    .arrow-link:hover::after {
+      transform: translate3d(0.3em, 0, 0);
+    }
+  }
+
+  .tap {
+    position: relative;
+  }
+  .tap::after {
+    content: "";
+    position: absolute;
+    inset: -12px -6px;
+  }
+
+  /*
+   * Buttons are squared off, like a ticket or a luggage tag, not pills.
+   * On hover the fill darkens and the arrow steps forward.
+   */
+  .btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.7rem;
+    min-height: 3rem;
+    padding: 0.85rem 1.4rem;
+    border-radius: 3px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    white-space: nowrap;
+    transition:
+      background-color 300ms ease,
+      color 300ms ease,
+      box-shadow 300ms ease,
+      transform 160ms var(--ease-out);
+  }
+  .btn:active {
+    transform: scale(0.98);
+  }
+  .btn .btn-arrow {
+    display: inline-block;
+    transition: transform 400ms var(--ease-out);
+  }
+  .btn-laterite {
+    background: var(--color-laterite);
+    color: var(--color-mist);
+  }
+  .btn-ink {
+    background: var(--color-ink);
+    color: var(--color-mist);
+  }
+  .btn-mist {
+    background: var(--color-mist);
+    color: var(--color-ink);
+  }
+  .btn-line {
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, currentColor 45%, transparent);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .btn-laterite:hover {
+      background: #8e3824;
+    }
+    .btn-ink:hover {
+      background: var(--color-slate);
+    }
+    .btn-mist:hover {
+      background: #fff;
+    }
+    .btn-line:hover {
+      box-shadow: inset 0 0 0 1px currentColor;
+    }
+    .btn:hover .btn-arrow {
+      transform: translate3d(0.25em, 0, 0);
+    }
+  }
+
+  /*
+   * The resort's own paving: a black and white chequer. A thin band of it
+   * marks the start of a new chapter, as the paths join the cottages.
+   */
+  .checker {
+    --size: 12px;
+    height: var(--size);
+    background: repeating-conic-gradient(var(--checker-a, var(--color-ink)) 0 25%, var(--checker-b, var(--color-mist)) 0 50%) 0 0 /
+      calc(var(--size) * 2) calc(var(--size) * 2);
+  }
+
+  /*
+   * A postage stamp: perforated edges, made with a mask. The holes show only
+   * in the padding, because the solid content-box layer covers them inside.
+   */
+  .stamp {
+    --hole: 7px;
+    padding: var(--hole);
+    -webkit-mask:
+      radial-gradient(circle calc(var(--hole) * 0.36), #0000 96%, #000) calc(var(--hole) / -2) calc(var(--hole) / -2) / var(--hole) var(--hole) round,
+      linear-gradient(#000 0 0) content-box;
+    mask:
+      radial-gradient(circle calc(var(--hole) * 0.36), #0000 96%, #000) calc(var(--hole) / -2) calc(var(--hole) / -2) / var(--hole) var(--hole) round,
+      linear-gradient(#000 0 0) content-box;
+  }
+
+  /* Large photo frames zoom very slightly on hover, as a cue that they lead somewhere. */
+  @media (hover: hover) and (pointer: fine) {
+    .zoom-on-hover img {
+      transition: transform 1100ms var(--ease-out);
+    }
+    .zoom-on-hover:hover img {
+      transform: scale(1.035);
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Scroll reveals                                                      */
+/* Only hidden when JS has run (.js on <html>), so content never        */
+/* stays invisible if scripts fail.                                     */
+/* ------------------------------------------------------------------ */
+
+/* Words drift up into place, one after another, like lines on a postcard. */
+.js [data-inview] .word {
+  display: inline-block;
+  opacity: 0;
+  transform: translate3d(0, 0.32em, 0);
+  transition:
+    opacity 900ms ease,
+    transform 1100ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 45ms);
+}
+.js [data-inview="true"] .word {
+  opacity: 1;
+  transform: none;
+}
+
+.js [data-inview] .fade {
+  opacity: 0;
+  transform: translate3d(0, 16px, 0);
+  transition:
+    opacity 900ms ease,
+    transform 1100ms var(--ease-out);
+  transition-delay: calc(150ms + var(--i, 0) * 80ms);
+}
+.js [data-inview="true"] .fade {
+  opacity: 1;
+  transform: none;
+}
+
+/*
+ * Photos appear as if mist lifts off them: a soft band of the section's
+ * own colour rises out of the frame. The photo underneath is never clipped,
+ * so lazy loading works as normal.
+ */
+.lift {
+  position: relative;
+  overflow: hidden;
+}
+.js [data-inview] .lift::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 -100% 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(to bottom, var(--lift, var(--color-mist)) 0 50%, transparent 100%);
+  transition: transform 1700ms var(--ease-soft);
+  transition-delay: calc(var(--i, 0) * 110ms);
+}
+.js [data-inview="true"] .lift::after {
+  transform: translate3d(0, -100%, 0);
+}
+.js [data-inview] .lift img,
+.js [data-inview] .lift video {
+  transform: scale(1.08);
+  transition: transform 2200ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 110ms);
+}
+.js [data-inview="true"] .lift img,
+.js [data-inview="true"] .lift video {
+  transform: none;
+}
+
+.js [data-inview] .draw-x {
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 1300ms var(--ease-out);
+  transition-delay: calc(150ms + var(--i, 0) * 90ms);
+}
+.js [data-inview="true"] .draw-x {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js [data-inview] .word,
+  .js [data-inview] .fade,
+  .js [data-inview] .draw-x,
+  .js [data-inview] .lift img,
+  .js [data-inview] .lift video {
+    transform: none;
+    transition: opacity 600ms ease;
+  }
+  .js [data-inview] .lift::after {
+    transform: none;
+    opacity: 1;
+    transition: opacity 700ms ease;
+  }
+  .js [data-inview="true"] .lift::after {
+    transform: none;
+    opacity: 0;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Hero: a large-letter postcard                                       */
+/* ------------------------------------------------------------------ */
+
+/*
+ * The mist-coloured card sits over the film with mix-blend-mode: screen.
+ * Screen leaves the card's light colour where the card is light, and shows
+ * the film wherever the card is black: inside the letters of "Bhilar".
+ */
+.postcard-card {
+  background: var(--color-mist);
+  mix-blend-mode: screen;
+}
+.postcard-word {
+  color: #000;
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.8;
+}
+
+/* First paint, before any script: the word settles and the details fade in. */
+@keyframes postcard-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 4%, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.postcard-in {
+  animation: postcard-in 1600ms var(--ease-out) both;
+  animation-delay: 150ms;
+}
+.fade-in {
+  animation: fade-in 1100ms ease both;
+  animation-delay: calc(700ms + var(--i, 0) * 120ms);
+}
+
+/* Mist that drifts slowly across the film. Two layers, at two speeds. */
+@keyframes mist-drift {
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+.mist-layer {
+  position: absolute;
+  left: 0;
+  width: 200%;
+  background-image: url("/mist.webp");
+  background-size: 50% 100%;
+  background-repeat: repeat-x;
+  pointer-events: none;
+  will-change: transform;
+  animation: mist-drift var(--drift, 120s) linear infinite;
+}
+
+/* A short line that travels down, inviting a scroll. */
+@keyframes scroll-cue {
+  0% {
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+  45% {
+    transform: scaleY(1);
+    transform-origin: top;
+  }
+  55% {
+    transform: scaleY(1);
+    transform-origin: bottom;
+  }
+  100% {
+    transform: scaleY(0);
+    transform-origin: bottom;
+  }
+}
+.scroll-cue {
+  animation: scroll-cue 2400ms var(--ease-in-out) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .postcard-in {
+    animation: fade-in 600ms ease both;
+  }
+  .mist-layer,
+  .scroll-cue {
+    animation: none;
+  }
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Menu sheet: native <dialog>, animated in and out with CSS.          */
+/* It slides down from the top like a blind, then the links follow.    */
+/* ------------------------------------------------------------------ */
+
+.menu-sheet {
+  opacity: 0;
+  transform: translate3d(0, -4%, 0);
+  transition:
+    opacity 400ms ease,
+    transform 700ms var(--ease-out),
+    overlay 700ms allow-discrete,
+    display 700ms allow-discrete;
+}
+.menu-sheet[open] {
+  opacity: 1;
+  transform: none;
+}
+@starting-style {
+  .menu-sheet[open] {
+    opacity: 0;
+    transform: translate3d(0, -4%, 0);
+  }
+}
+.menu-sheet .menu-item {
+  opacity: 0;
+  transform: translate3d(0, 30%, 0);
+  transition:
+    opacity 600ms ease,
+    transform 900ms var(--ease-out);
+  transition-delay: calc(180ms + var(--i, 0) * 60ms);
+}
+.menu-sheet[open] .menu-item {
+  opacity: 1;
+  transform: none;
+}
+@starting-style {
+  .menu-sheet[open] .menu-item {
+    opacity: 0;
+    transform: translate3d(0, 30%, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .menu-sheet,
+  .menu-sheet .menu-item {
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Booking drawer: a native modal <dialog>. The panel slides in from    */
+/* the right on larger screens and rises from the bottom on phones.     */
+/* ------------------------------------------------------------------ */
+
+.drawer {
+  transition:
+    overlay 700ms allow-discrete,
+    display 700ms allow-discrete;
+}
+.drawer::backdrop {
+  background: rgb(19 29 33 / 0);
+  transition:
+    background-color 500ms ease,
+    overlay 700ms allow-discrete,
+    display 700ms allow-discrete;
+}
+.drawer[open]::backdrop {
+  background: rgb(19 29 33 / 0.55);
+}
+@starting-style {
+  .drawer[open]::backdrop {
+    background: rgb(19 29 33 / 0);
+  }
+}
+.drawer .drawer-panel {
+  transform: translate3d(0, 100%, 0);
+  transition: transform 700ms var(--ease-in-out);
+}
+.drawer[open] .drawer-panel {
+  transform: none;
+}
+@starting-style {
+  .drawer[open] .drawer-panel {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+@media (min-width: 640px) {
+  .drawer .drawer-panel {
+    transform: translate3d(100%, 0, 0);
+  }
+  .drawer[open] .drawer-panel {
+    transform: none;
+  }
+  @starting-style {
+    .drawer[open] .drawer-panel {
+      transform: translate3d(100%, 0, 0);
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .drawer .drawer-panel,
+  .drawer[open] .drawer-panel {
+    transform: none;
+    transition: opacity 300ms ease;
+  }
+  .drawer:not([open]) .drawer-panel {
+    opacity: 0;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Page transitions (React <ViewTransition>, see page-transition.tsx). */
+/* The old page dissolves into mist; the new one settles in from just  */
+/* below. The header holds still, so the eye has an anchor.            */
+/* ------------------------------------------------------------------ */
+
+::view-transition-old(.page-exit) {
+  animation: 500ms var(--ease-soft) both page-fade-out;
+}
+::view-transition-new(.page-enter) {
+  animation: 800ms var(--ease-out) both page-settle;
+}
+@keyframes page-fade-out {
+  to {
+    opacity: 0;
+    filter: blur(6px);
+  }
+}
+@keyframes page-settle {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 3vh, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(site-header) {
+  display: none;
+}
+::view-transition-new(site-header) {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(.page-exit),
+  ::view-transition-new(.page-enter) {
+    animation: 250ms ease both fade-in;
+  }
+  ::view-transition-old(.page-exit) {
+    animation-direction: reverse;
+  }
+}

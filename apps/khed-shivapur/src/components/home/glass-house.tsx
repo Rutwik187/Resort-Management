@@ -74,12 +74,12 @@ export function GlassHouse() {
             Per couple, Monday to Thursday, plus GST. Check-in {contact.checkIn}.
           </p>
           <div className="fade mt-10 flex flex-wrap items-center gap-x-8 gap-y-4" style={{ "--i": 4 } as React.CSSProperties}>
-            <a href="#enquire" className="btn btn-forest">
-              <Roll>Ask about the Glass House</Roll>
-            </a>
-            <Link href="/stays#riverside-glass-house" className="link-line">
-              Photos and rates
+            <Link href="/stays#riverside-glass-house" className="btn btn-forest">
+              <Roll>Book the Glass House</Roll>
             </Link>
+            <a href="#enquire" className="link-line">
+              Ask us a question
+            </a>
           </div>
         </div>
       </InView>

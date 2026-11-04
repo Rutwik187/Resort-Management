@@ -25,16 +25,11 @@ export const contact = {
   checkOut: "10:00 am",
 } as const;
 
-export const sisterResorts = [
-  { name: "Prathamesh Go Crazy Resort", place: "Ghera Sinhagad, Pune", href: "https://gocrazyadventure.com" },
-  { name: "Prathamesh Valley Resorts", place: "Bhilar, Mahabaleshwar", href: "https://prathameshvalleyresorts.com" },
-  { name: "Sinhgad Bliss", place: "Ghera Sinhgad, Pune", href: "https://sinhagadbliss.com" },
-] as const;
-
 export const nav = [
-  { label: "Stays", href: "/stays" },
-  { label: "Experiences", href: "/experiences" },
-  { label: "Celebrations", href: "/celebrations" },
+  { label: "Rooms and rates", href: "/stays" },
+  { label: "Day packages", href: "/day-packages" },
+  { label: "Activities", href: "/experiences" },
+  { label: "Weddings and events", href: "/celebrations" },
 ] as const;
 
 /* ------------------------------------------------------------------ */

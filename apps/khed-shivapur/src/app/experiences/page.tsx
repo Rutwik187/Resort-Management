@@ -1,17 +1,18 @@
+import Link from "next/link";
 import { experienceGroups, listLine } from "@/content/resort";
 import type { PhotoKey } from "@/content/photos";
-import { DayTimeline } from "@/components/day-timeline";
 import { pageMetadata } from "@/content/site";
 import { Enquiry } from "@/components/enquiry";
 import { InView, RiseLines } from "@/components/in-view";
 import { PageIntro } from "@/components/page-intro";
 import { Photo } from "@/components/photo";
 import { PageTransition } from "@/components/page-transition";
+import { Roll } from "@/components/roll";
 
 export const metadata = pageMetadata({
-  title: "Experiences and day packages",
+  title: "Activities",
   description:
-    "More than 80 activities near Pune: zip line, ropeway, Burma bridge, high ropes, archery, a waterfall pool and rain dance. Morning, afternoon, evening and full-day packages with meals.",
+    "More than 80 activities near Pune, included with every stay and day package: zip line, ropeway, Burma bridge, high ropes, archery, a waterfall pool and rain dance.",
   path: "/experiences",
 });
 
@@ -35,7 +36,7 @@ export default function ExperiencesPage() {
   return (
     <PageTransition>
       <PageIntro
-        label="Experiences"
+        label="Activities"
         lines={["Eighty ways", "to spend a day"]}
         photo="ropesHills"
         alt="The rope net on the high ropes course, with the Sahyadri hills beyond the trees"
@@ -46,23 +47,17 @@ export default function ExperiencesPage() {
         </p>
       </PageIntro>
 
-      <section id="day" aria-labelledby="day-title" className="scroll-mt-16 bg-linen">
-        <div className="mx-auto grid max-w-[1680px] gap-14 px-5 py-24 md:px-10 md:py-32 lg:grid-cols-12 lg:gap-10">
-          <InView className="lg:col-span-4">
-            <h2 id="day-title" className="text-[clamp(2.6rem,5vw,5rem)]">
-              <RiseLines lines={["Day", "packages"]} />
+      <section aria-labelledby="day-title" className="border-y border-forest/10 bg-linen">
+        <div className="mx-auto flex max-w-[1680px] flex-wrap items-center justify-between gap-x-10 gap-y-6 px-5 py-10 md:px-10">
+          <div>
+            <h2 id="day-title" className="text-[clamp(1.9rem,3vw,2.8rem)]">
+              Here for the day?
             </h2>
-            <p className="fade mt-8 max-w-sm text-fern">
-              Choose the part of the day that suits you. Meals are cooked fresh, with pure-veg and non-veg food from
-              separate kitchens.
-            </p>
-            <a href="#enquire" className="fade btn btn-forest mt-8" style={{ "--i": 2 } as React.CSSProperties}>
-              Book a day package
-            </a>
-          </InView>
-          <div className="lg:col-span-8">
-            <DayTimeline detailed />
+            <p className="mt-2 max-w-xl text-fern">Four day packages include every activity on this page, with meals.</p>
           </div>
+          <Link href="/day-packages" className="btn btn-forest">
+            <Roll>See day packages</Roll>
+          </Link>
         </div>
       </section>
 

@@ -8,6 +8,8 @@ import { DayEscapes } from "@/components/home/day-escapes";
 import { Celebrations } from "@/components/home/celebrations";
 import { Kitchens } from "@/components/home/kitchens";
 import { Place } from "@/components/home/place";
+import { BookBar } from "@/components/home/book-bar";
+import { OurResorts } from "@/components/home/our-resorts";
 import { Enquiry } from "@/components/enquiry";
 import { PageTransition } from "@/components/page-transition";
 import { contact } from "@/content/resort";
@@ -52,6 +54,7 @@ export default function HomePage() {
     <PageTransition>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(resortJsonLd) }} />
       <Hero />
+      <BookBar />
       <Intro />
       <StaysRail />
       <GlassHouse />
@@ -60,6 +63,7 @@ export default function HomePage() {
       <Celebrations />
       <Kitchens />
       <Place />
+      <OurResorts />
       <Enquiry />
     </PageTransition>
   );

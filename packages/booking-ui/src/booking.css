@@ -1,0 +1,231 @@
+/*
+ * The booking widget's design tokens. A site imports this file into its
+ * globals.css after Tailwind, then sets the --bk-* values to its own colours
+ * and fonts, so the same widget looks native on every resort's site.
+ *
+ *   --bk-page         the page behind the widget
+ *   --bk-card         cards, the tray and fields
+ *   --bk-ink          text
+ *   --bk-muted        secondary text, with AA contrast on --bk-card
+ *   --bk-line         borders
+ *   --bk-soft         quiet fills: fact chips, the photo frame
+ *   --bk-accent       the main button
+ *   --bk-accent-ink   text on the main button
+ *   --bk-good         "room for every guest"
+ *   --bk-alert        "guests still need a room", and Fridays and Saturdays
+ *                     in the calendar
+ *   --bk-band         the nights of a stay, shaded in the calendar
+ *   --bk-radius       cards and the tray
+ *   --bk-control-radius  buttons and fields
+ *   --bk-display, --bk-display-weight, --bk-display-stretch, --bk-display-case,
+ *   --bk-display-tracking
+ *                     the font for names and prices
+ *   --bk-button-size, --bk-button-weight, --bk-button-stretch, --bk-button-case,
+ *   --bk-button-tracking
+ *                     the type on buttons
+ *   --bk-sticky-top   the site header's height, so the tray and the room bar
+ *                     stick below it. Set it for phones and for md screens up.
+ */
+
+/* Tailwind must see the widget's classes, which live outside the site's folder. */
+@source "./";
+
+@theme inline {
+  --color-bk-page: var(--bk-page);
+  --color-bk-card: var(--bk-card);
+  --color-bk-ink: var(--bk-ink);
+  --color-bk-muted: var(--bk-muted);
+  --color-bk-line: var(--bk-line);
+  --color-bk-soft: var(--bk-soft);
+  --color-bk-accent: var(--bk-accent);
+  --color-bk-accent-ink: var(--bk-accent-ink);
+  --color-bk-good: var(--bk-good);
+  --color-bk-alert: var(--bk-alert);
+  --radius-bk: var(--bk-radius);
+  --radius-bk-control: var(--bk-control-radius);
+}
+
+/* Readable defaults, until a site sets its own. */
+:root {
+  --bk-page: #f6f5f1;
+  --bk-card: #ffffff;
+  --bk-ink: #1c201e;
+  --bk-muted: #59615c;
+  --bk-line: rgb(28 32 30 / 0.14);
+  --bk-soft: rgb(28 32 30 / 0.05);
+  --bk-accent: #1c201e;
+  --bk-accent-ink: #ffffff;
+  --bk-good: #2c6a43;
+  --bk-alert: #93481a;
+  --bk-band: color-mix(in srgb, var(--bk-accent) 14%, transparent);
+  --bk-radius: 1rem;
+  --bk-control-radius: 999px;
+  --bk-display: inherit;
+  --bk-display-weight: 500;
+  --bk-display-stretch: normal;
+  --bk-display-case: none;
+  --bk-display-tracking: -0.01em;
+  --bk-button-size: 0.95rem;
+  --bk-button-weight: 500;
+  --bk-button-stretch: normal;
+  --bk-button-case: none;
+  --bk-button-tracking: 0;
+  --bk-sticky-top: 5.5rem;
+}
+
+@layer components {
+  .bk-display {
+    font-family: var(--bk-display);
+    font-weight: var(--bk-display-weight);
+    font-stretch: var(--bk-display-stretch);
+    text-transform: var(--bk-display-case);
+    letter-spacing: var(--bk-display-tracking);
+    line-height: 1.05;
+    text-wrap: balance;
+  }
+
+  .bk-button {
+    font-size: var(--bk-button-size);
+    font-weight: var(--bk-button-weight);
+    font-stretch: var(--bk-button-stretch);
+    text-transform: var(--bk-button-case);
+    letter-spacing: var(--bk-button-tracking);
+  }
+
+  /*
+   * Panels (sheet.tsx). On phones they rise from the foot of the screen.
+   * With .bk-dialog-center they sit in the middle of larger screens.
+   */
+  .bk-dialog {
+    margin: auto 0 0;
+    width: 100%;
+    max-width: none;
+    max-height: 92dvh;
+    border-radius: calc(var(--bk-radius) * 1.4) calc(var(--bk-radius) * 1.4) 0 0;
+    overscroll-behavior: contain;
+    transform: translate3d(0, 100%, 0);
+    transition:
+      transform 450ms cubic-bezier(0.32, 0.72, 0, 1),
+      overlay 450ms allow-discrete,
+      display 450ms allow-discrete;
+  }
+  .bk-dialog[open] {
+    transform: none;
+  }
+  @starting-style {
+    .bk-dialog[open] {
+      transform: translate3d(0, 100%, 0);
+    }
+  }
+  .bk-dialog-frame {
+    max-height: 92dvh;
+  }
+  @media (min-width: 48rem) {
+    .bk-dialog-center {
+      margin: auto;
+      width: min(32rem, calc(100% - 3rem));
+      border-radius: var(--bk-radius);
+      box-shadow: 0 40px 100px -30px rgb(0 0 0 / 0.5);
+      opacity: 0;
+      transform: translate3d(0, 1.25rem, 0) scale(0.98);
+      transition:
+        transform 400ms cubic-bezier(0.23, 1, 0.32, 1),
+        opacity 250ms ease,
+        overlay 400ms allow-discrete,
+        display 400ms allow-discrete;
+    }
+    .bk-dialog-center[open] {
+      opacity: 1;
+      transform: none;
+    }
+    @starting-style {
+      .bk-dialog-center[open] {
+        opacity: 0;
+        transform: translate3d(0, 1.25rem, 0) scale(0.98);
+      }
+    }
+    .bk-dialog-center,
+    .bk-dialog-center .bk-dialog-frame {
+      max-height: min(48rem, calc(100dvh - 4rem));
+    }
+  }
+  .bk-dialog::backdrop {
+    background: rgb(0 0 0 / 0);
+    transition:
+      background-color 350ms ease,
+      overlay 450ms allow-discrete,
+      display 450ms allow-discrete;
+  }
+  .bk-dialog[open]::backdrop {
+    background: rgb(0 0 0 / 0.45);
+  }
+  @starting-style {
+    .bk-dialog[open]::backdrop {
+      background: rgb(0 0 0 / 0);
+    }
+  }
+
+  /* The line just added to the tray, ringed for a moment. */
+  .bk-flash {
+    animation: bk-flash 1.8s ease-out;
+  }
+  @keyframes bk-flash {
+    0%,
+    35% {
+      box-shadow: 0 0 0 2px var(--bk-good);
+    }
+    100% {
+      box-shadow: 0 0 0 2px transparent;
+    }
+  }
+
+  /* The nights of a stay in the calendar (calendar.tsx): a band behind the days, from check-in to check-out. */
+  .bk-band {
+    background: var(--bk-band);
+  }
+  .bk-band-start {
+    background: linear-gradient(to right, transparent 50%, var(--bk-band) 50%);
+  }
+  .bk-band-end {
+    background: linear-gradient(to left, transparent 50%, var(--bk-band) 50%);
+  }
+
+  /* A pop-up, such as the calendar, drops in under its field. */
+  .bk-pop {
+    transition:
+      opacity 180ms ease,
+      transform 260ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  @starting-style {
+    .bk-pop {
+      opacity: 0;
+      transform: translate3d(0, -6px, 0);
+    }
+  }
+
+  /* A small lift when the selection changes. */
+  .bk-pulse {
+    animation: bk-pulse 600ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  @keyframes bk-pulse {
+    from {
+      transform: translate3d(0, 6px, 0);
+      opacity: 0.4;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bk-dialog,
+    .bk-dialog[open] {
+      transform: none;
+      transition: opacity 200ms ease;
+    }
+    .bk-pulse,
+    .bk-flash {
+      animation: none;
+    }
+    .bk-pop {
+      transition: none;
+    }
+  }
+}

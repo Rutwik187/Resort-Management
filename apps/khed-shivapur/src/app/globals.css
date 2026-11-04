@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@repo/booking-ui/booking.css";
 
 /*
  * Palette, from the logo and the valley:
@@ -35,6 +36,32 @@
   --font-display-italic: var(--font-newsreader-italic), var(--font-newsreader), "Iowan Old Style", Georgia, serif;
   --font-sans: var(--font-albert), "Helvetica Neue", Arial, sans-serif;
   --font-marathi: var(--font-tiro-marathi), "Kohinoor Devanagari", "Noto Serif Devanagari", serif;
+}
+
+/* The shared booking widget, in this site's paper, forest and serif (see packages/booking-ui). */
+:root {
+  --bk-page: var(--color-paper);
+  --bk-card: #f9f7f1;
+  --bk-ink: var(--color-forest);
+  --bk-muted: var(--color-fern);
+  --bk-line: rgb(17 38 29 / 0.14);
+  --bk-soft: rgb(17 38 29 / 0.055);
+  --bk-accent: var(--color-forest);
+  --bk-accent-ink: var(--color-paper);
+  --bk-good: #2f6a3f;
+  --bk-alert: var(--color-sun-deep);
+  --bk-radius: 1.25rem;
+  --bk-control-radius: 999px;
+  --bk-display: var(--font-newsreader), "Iowan Old Style", Georgia, serif;
+  --bk-display-weight: 300;
+  --bk-display-tracking: -0.02em;
+  /* The header's height: 72px on phones, 80px from md up. */
+  --bk-sticky-top: 4.5rem;
+}
+@media (min-width: 48rem) {
+  :root {
+    --bk-sticky-top: 5rem;
+  }
 }
 
 /* Lenis base rules (the package does not export its stylesheet). */
