@@ -67,11 +67,11 @@ Staff sign in with Better Auth, run by the admin itself. Its tables are in the `
 
 **To work on the backend**
 
-1. Copy `packages/db/.env.example` to `packages/db/.env.local`, and `apps/admin/.env.example` to `apps/admin/.env.local`. Fill in the addresses and a `BETTER_AUTH_SECRET` (`openssl rand -base64 32`).
+1. Copy `.env.example` at the repo root to `.env.local` and fill it in: the two addresses and a `BETTER_AUTH_SECRET` (`openssl rand -base64 32`). Every app and script reads this one file, and git ignores it. Next.js reads env files only in an app's own folder, so the admin's `next.config.ts` loads the root file. Keep no other `.env` files.
 2. From `packages/db`: `pnpm db:migrate`, then `pnpm db:seed`. The seed adds the four resorts, the five roles from the URD and the main site's rooms. With `SEED_SUPER_ADMIN_EMAIL` set, it also adds the first Super Admin.
 3. `pnpm dev --filter=admin`, then open http://localhost:3010. Without Google keys, the sign-in page offers an emailed link, printed in the terminal, to people on the staff list.
 
-For a local database instead of Neon, set `DATABASE_URL=postgresql://localhost:5432/prathamesh_dev`. `pnpm db:reset` recreates a local database; it refuses any other.
+A variable set in the shell wins over the file. To work on a local database instead of Neon, start the command with `DATABASE_URL=postgresql://localhost:5432/prathamesh_dev`, for example `DATABASE_URL=postgresql://localhost:5432/prathamesh_dev pnpm db:migrate`. `pnpm db:reset` recreates a local database; it refuses any other.
 
 The engine's tests need a local Postgres, which they reach at `TEST_DATABASE_ADMIN_URL` (by default `postgresql://localhost:5432/postgres`). Each test file makes its own database and drops it.
 

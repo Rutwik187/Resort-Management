@@ -1,4 +1,5 @@
 import { defineConfig } from "drizzle-kit";
+import { databaseUrl } from "./scripts/env";
 
 // Migrations connect through the direct address, not the pooler (docs/implementation-plan.md, section 4).
 export default defineConfig({
@@ -6,7 +7,7 @@ export default defineConfig({
   schema: "./src/schema/index.ts",
   out: "./migrations",
   casing: "snake_case",
-  dbCredentials: { url: process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL ?? "" },
+  dbCredentials: { url: databaseUrl() },
   strict: true,
   verbose: true,
 });

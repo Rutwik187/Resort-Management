@@ -3,8 +3,15 @@
   "extends": ["//"],
   "tasks": {
     "build": {
+      // next.config.ts also reads .env.local at the repo root.
+      "inputs": ["$TURBO_DEFAULT$", ".env*", "$TURBO_ROOT$/.env*"],
       // Read on the server; listed so Turborepo passes them through and rebuilds when they change.
       "env": ["DATABASE_URL", "BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_WORKSPACE_DOMAIN", "NODE_ENV"]
+    },
+    "dev": {
+      // Turborepo hides unlisted variables from a task. Listing these lets one set in the shell
+      // win over .env.local, such as DATABASE_URL for a local database.
+      "passThroughEnv": ["DATABASE_URL", "BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_WORKSPACE_DOMAIN"]
     },
     "lint": {
       "env": ["GOOGLE_CLIENT_ID", "NODE_ENV"]
