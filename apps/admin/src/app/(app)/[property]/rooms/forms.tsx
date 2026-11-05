@@ -167,35 +167,53 @@ export function RoomTypeEditForm({ type }: { type: RoomTypeValues }) {
 }
 
 /** Adds units: one by name, or a numbered run such as Cottage 1 to 12 (RM-02). */
-export function AddUnitsForm({ roomTypeId, suggestion }: { roomTypeId: string; suggestion: string }) {
-  const [state, action, pending] = useToastAction(addUnits.bind(null, roomTypeId));
+export function AddUnitsForm({ roomTypeId, typeName, suggestion }: { roomTypeId: string; typeName: string; suggestion: string }) {
+  const [open, setOpen] = useState(false);
+  const [state, action, pending] = useToastAction(addUnits.bind(null, roomTypeId), () => setOpen(false));
   return (
-    <form action={action} className="grid gap-3 rounded-lg border bg-muted/40 p-4">
-      <p className="text-sm font-medium">Add units</p>
-      <div className="flex flex-wrap items-end gap-3">
-        <Field className="w-40">
-          <FieldLabel htmlFor={`${roomTypeId}-prefix`}>Unit name</FieldLabel>
-          <Input id={`${roomTypeId}-prefix`} name="prefix" required defaultValue={suggestion} className="bg-background" />
-        </Field>
-        <Field className="w-24">
-          <FieldLabel htmlFor={`${roomTypeId}-from`}>From</FieldLabel>
-          <Input id={`${roomTypeId}-from`} name="from" type="number" min={0} placeholder="1" className="bg-background" />
-        </Field>
-        <Field className="w-24">
-          <FieldLabel htmlFor={`${roomTypeId}-to`}>To</FieldLabel>
-          <Input id={`${roomTypeId}-to`} name="to" type="number" min={0} placeholder="12" className="bg-background" />
-        </Field>
-        <Field className="w-36">
-          <FieldLabel htmlFor={`${roomTypeId}-block`}>Block or floor</FieldLabel>
-          <Input id={`${roomTypeId}-block`} name="block" className="bg-background" />
-        </Field>
-        <Button type="submit" variant="secondary" disabled={pending}>
-          {pending ? <Spinner /> : <Plus />}
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          <Plus />
           Add units
         </Button>
-      </div>
-      <FieldDescription>One unit by its name, or a numbered run such as Cottage 1 to Cottage 12.</FieldDescription>
-      <FormNote state={state} />
-    </form>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <form action={action} className="grid gap-5">
+          <DialogHeader>
+            <DialogTitle>Add units to {typeName}</DialogTitle>
+            <DialogDescription>One unit by its name, or a numbered run such as Cottage 1 to Cottage 12.</DialogDescription>
+          </DialogHeader>
+          <FieldGroup className="gap-4">
+            <Field>
+              <FieldLabel htmlFor={`${roomTypeId}-prefix`}>Unit name</FieldLabel>
+              <Input id={`${roomTypeId}-prefix`} name="prefix" required defaultValue={suggestion} />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel htmlFor={`${roomTypeId}-from`}>From number</FieldLabel>
+                <Input id={`${roomTypeId}-from`} name="from" type="number" min={0} placeholder="1" />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`${roomTypeId}-to`}>To number</FieldLabel>
+                <Input id={`${roomTypeId}-to`} name="to" type="number" min={0} placeholder="12" />
+              </Field>
+            </div>
+            <FieldDescription>Leave the numbers empty to add one unit with this exact name.</FieldDescription>
+            <Field>
+              <FieldLabel htmlFor={`${roomTypeId}-block`}>Block or floor</FieldLabel>
+              <Input id={`${roomTypeId}-block`} name="block" placeholder="Such as River side" />
+            </Field>
+          </FieldGroup>
+          <FormNote state={state} />
+          <DialogFooter>
+            <Button type="submit" disabled={pending}>
+              {pending && <Spinner />}
+              Add units
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

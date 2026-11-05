@@ -1,8 +1,9 @@
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
-import { ArrowDown, ArrowUp, BedDouble, Eye, EyeOff, Users, Wrench } from "lucide-react";
+import { ArrowDown, ArrowUp, BedDouble, CircleAlert, DoorOpen, Eye, EyeOff, IndianRupee, RotateCcw, Users, Wrench } from "lucide-react";
 import { can } from "@repo/auth";
 import { getDb, rates, roomTypes, units } from "@repo/db";
 import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,11 +16,7 @@ import { AddUnitsForm, RoomTypeEditForm, RoomTypeForm } from "./forms";
 export const metadata = { title: "Rooms and units" };
 
 const dayLabel = { weekday: "Weekday nights", weekend: "Weekend nights", any: "Every night" } as const;
-const unitLook = {
-  active: "border-good/30 bg-good/10 text-good",
-  maintenance: "border-warn/30 bg-warn/10 text-warn",
-  inactive: "text-muted-foreground",
-} as const;
+const unitDot = { active: "bg-good", maintenance: "bg-warn", inactive: "bg-muted-foreground/50" } as const;
 const unitWord = { active: "In use", maintenance: "Maintenance", inactive: "Out of use" } as const;
 
 /** A resort's room types and their units (RM-01, RM-02), with each type's base rates for reference. */
@@ -34,13 +31,27 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
   const allUnits = ids.length ? await db.select().from(units).where(inArray(units.roomTypeId, ids)).orderBy(asc(units.sortOrder), asc(units.name)) : [];
   const baseRates = ids.length ? await db.select().from(rates).where(and(inArray(rates.roomTypeId, ids), isNull(rates.seasonId))) : [];
 
+  const inUse = allUnits.filter((u) => u.status === "active").length;
+  const resting = allUnits.filter((u) => u.status === "maintenance").length;
+  const onSale = types.filter((t) => t.status === "active").length;
+  const unrated = types.filter((t) => t.status === "active" && !baseRates.some((r) => r.roomTypeId === t.id)).length;
+
   return (
     <>
       <PageHeader
         title="Rooms and units"
-        description={`${plural(types.length, "room type")}, ${plural(allUnits.filter((u) => u.status === "active").length, "unit")} in use. A room type is a kind of room, such as Garden Cottage; its units are the rooms themselves. The order here is the order guests see.`}
+        description="A room type is a kind of room, such as Garden Cottage; its units are the rooms themselves. Guests see the room types in this order."
         actions={manage && <RoomTypeForm propertyId={property.id} />}
       />
+
+      {types.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard label="Room types on sale" value={String(onSale)} note={types.length > onSale ? `${types.length - onSale} off sale` : "All on sale"} icon={BedDouble} />
+          <StatCard label="Units in use" value={String(inUse)} note={`Of ${plural(allUnits.length, "unit")}`} icon={DoorOpen} />
+          <StatCard label="In maintenance" value={String(resting)} note={resting ? "Not sold until back in use" : "None resting"} icon={Wrench} />
+          <StatCard label="Without a rate" value={String(unrated)} note={unrated ? "Guests see “rate to confirm”" : "Every type has a rate"} icon={IndianRupee} />
+        </div>
+      )}
 
       {types.length === 0 && (
         <Empty className="border border-dashed">
@@ -49,7 +60,7 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
               <BedDouble />
             </EmptyMedia>
             <EmptyTitle>No room types yet</EmptyTitle>
-            <EmptyDescription>Add the first room type, then its units.</EmptyDescription>
+            <EmptyDescription>Add the first room type, such as Garden View Cottage, then its units.</EmptyDescription>
           </EmptyHeader>
         </Empty>
       )}
@@ -58,91 +69,123 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
         {types.map((type, index) => {
           const own = allUnits.filter((u) => u.roomTypeId === type.id);
           const typeRates = baseRates.filter((r) => r.roomTypeId === type.id);
+          const off = type.status === "inactive";
           return (
-            <Card key={type.id} className={type.status === "inactive" ? "opacity-75" : undefined}>
-              <CardHeader>
-                <CardTitle className="flex flex-wrap items-center gap-2">
+            <Card key={type.id} className={`gap-0 overflow-hidden py-0 shadow-xs ${off ? "bg-muted/30" : ""}`}>
+              <CardHeader className="border-b py-4 [.border-b]:pb-4">
+                <CardTitle className="flex flex-wrap items-center gap-2 text-base">
                   {type.name}
-                  {type.status === "inactive" && (
+                  {off && (
                     <Badge variant="outline" className="text-muted-foreground">
+                      <EyeOff />
                       Off sale
                     </Badge>
                   )}
                 </CardTitle>
-                <CardDescription className="flex flex-wrap items-center gap-1.5 pt-1">
-                  <Badge variant="secondary" className="capitalize">
-                    {type.category}
-                  </Badge>
-                  <Badge variant="outline" className="font-mono text-[0.7rem]">
-                    {type.code}
-                  </Badge>
-                  <Badge variant="outline">
-                    <Users />
+                <CardDescription className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="capitalize">{type.category}</span>
+                  <span aria-hidden="true">·</span>
+                  <span className="flex items-center gap-1">
+                    <Users className="size-3.5" />
                     {type.minGuests > 1 ? `${type.minGuests}–` : "up to "}
                     {type.maxGuests} guests, base price covers {type.baseOccupancy}
+                  </span>
+                  {type.extraBedAllowed && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>Extra bed</span>
+                    </>
+                  )}
+                  {type.bedType && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>{type.bedType}</span>
+                    </>
+                  )}
+                  {type.sizeSqft && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>{type.sizeSqft} sq ft</span>
+                    </>
+                  )}
+                  <Badge variant="outline" className="font-mono text-[0.68rem] font-normal">
+                    {type.code}
                   </Badge>
-                  {type.extraBedAllowed && <Badge variant="outline">Extra bed</Badge>}
-                  {type.bedType && <Badge variant="outline">{type.bedType}</Badge>}
-                  {type.sizeSqft && <Badge variant="outline">{type.sizeSqft} sq ft</Badge>}
                 </CardDescription>
                 {manage && (
-                  <CardAction className="flex flex-wrap items-center gap-1.5">
+                  <CardAction className="flex flex-wrap items-center gap-1">
                     <form action={moveRoomType.bind(null, type.id, "up")}>
-                      <Button type="submit" variant="ghost" size="icon" className="size-8" disabled={index === 0} aria-label={`Move ${type.name} up`} title="Move up">
+                      <Button type="submit" variant="ghost" size="icon" className="size-8 text-muted-foreground" disabled={index === 0} aria-label={`Move ${type.name} up`} title="Move up">
                         <ArrowUp />
                       </Button>
                     </form>
                     <form action={moveRoomType.bind(null, type.id, "down")}>
-                      <Button type="submit" variant="ghost" size="icon" className="size-8" disabled={index === types.length - 1} aria-label={`Move ${type.name} down`} title="Move down">
+                      <Button type="submit" variant="ghost" size="icon" className="size-8 text-muted-foreground" disabled={index === types.length - 1} aria-label={`Move ${type.name} down`} title="Move down">
                         <ArrowDown />
                       </Button>
                     </form>
                     <RoomTypeEditForm type={type} />
-                    <form action={setRoomTypeStatus.bind(null, type.id, type.status === "active" ? "inactive" : "active")}>
-                      <Button type="submit" variant="outline" size="sm">
-                        {type.status === "active" ? <EyeOff /> : <Eye />}
-                        {type.status === "active" ? "Take off sale" : "Put on sale"}
+                    <form action={setRoomTypeStatus.bind(null, type.id, off ? "active" : "inactive")}>
+                      <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground">
+                        {off ? <Eye /> : <EyeOff />}
+                        {off ? "Put on sale" : "Take off sale"}
                       </Button>
                     </form>
                   </CardAction>
                 )}
               </CardHeader>
-              <CardContent className="grid gap-5">
-                {typeRates.length > 0 ? (
-                  <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {typeRates.map((rate) => (
-                      <div key={rate.id} className="rounded-lg border px-3 py-2">
-                        <dt className="text-xs text-muted-foreground">{dayLabel[rate.dayKind]}</dt>
-                        <dd className="text-sm font-medium">
-                          {rupees(rate.basePaise)} {rate.basis === "person" ? "an adult" : "a room"}
-                          <span className="block text-xs font-normal text-muted-foreground">{mealLabel[rate.mealPlan]}</span>
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                ) : (
-                  <p className="text-sm text-warn">No rate yet. Set one on the Prices page; until then guests see &ldquo;rate to confirm&rdquo;.</p>
-                )}
-
-                <div className="grid gap-2">
-                  <p className="text-sm font-medium">
-                    Units <span className="font-normal text-muted-foreground">({own.length})</span>
-                  </p>
-                  {own.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No units yet. Add them below.</p>
+              <CardContent className="grid gap-0 p-0 lg:grid-cols-[21rem_minmax(0,1fr)] lg:divide-x">
+                <div className="grid content-start gap-2 p-5">
+                  <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Base rates</p>
+                  {typeRates.length > 0 ? (
+                    <dl className="grid gap-2">
+                      {typeRates.map((rate) => (
+                        <div key={rate.id} className="flex items-baseline justify-between gap-3">
+                          <dt className="text-sm whitespace-nowrap text-muted-foreground">{dayLabel[rate.dayKind]}</dt>
+                          <dd className="text-right text-sm font-medium tabular-nums">
+                            {rupees(rate.basePaise)}
+                            <span className="font-normal text-muted-foreground"> {rate.basis === "person" ? "an adult" : "a room"}</span>
+                            <span className="block text-xs font-normal text-muted-foreground">{mealLabel[rate.mealPlan]}</span>
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
                   ) : (
-                    <ul className="flex flex-wrap gap-2">
+                    <p className="flex items-start gap-2 rounded-md bg-warn/10 px-3 py-2 text-sm text-warn">
+                      <CircleAlert className="mt-0.5 size-4 shrink-0" />
+                      No rate yet. Set one on the Prices page; until then guests see &ldquo;rate to confirm&rdquo;.
+                    </p>
+                  )}
+                </div>
+                <div className="grid content-start gap-3 border-t p-5 lg:border-t-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                      Units <span className="tabular-nums">({own.length})</span>
+                    </p>
+                    {manage && <AddUnitsForm roomTypeId={type.id} typeName={type.name} suggestion={type.category === "room" ? "Room" : type.category[0].toUpperCase() + type.category.slice(1)} />}
+                  </div>
+                  {own.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No units yet. Add the rooms themselves, such as Cottage 1 to Cottage 12.</p>
+                  ) : (
+                    <ul className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-2">
                       {own.map((unit) => (
-                        <li key={unit.id} className="flex items-center gap-2 rounded-lg border bg-card py-1 pr-1 pl-3 text-sm">
-                          <span className="font-medium">{unit.name}</span>
-                          <Badge variant="outline" className={unitLook[unit.status]}>
-                            {unitWord[unit.status]}
-                          </Badge>
+                        <li key={unit.id} className={`flex items-center gap-2 rounded-lg border py-1.5 pr-1 pl-3 text-sm ${unit.status === "active" ? "bg-background" : "bg-muted/50"}`}>
+                          <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${unitDot[unit.status]}`} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-medium">{unit.name}</span>
+                            <span className="block text-xs text-muted-foreground">{unitWord[unit.status]}</span>
+                          </span>
                           {manage && (
                             <form action={setUnitStatus.bind(null, unit.id, unit.status === "active" ? "maintenance" : "active")}>
-                              <Button type="submit" variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground">
-                                {unit.status === "active" ? <Wrench /> : null}
-                                {unit.status === "active" ? "Maintenance" : "Back in use"}
+                              <Button
+                                type="submit"
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 text-muted-foreground"
+                                aria-label={unit.status === "active" ? `Put ${unit.name} in maintenance` : `Put ${unit.name} back in use`}
+                                title={unit.status === "active" ? "Maintenance" : "Back in use"}
+                              >
+                                {unit.status === "active" ? <Wrench /> : <RotateCcw />}
                               </Button>
                             </form>
                           )}
@@ -151,7 +194,6 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
                     </ul>
                   )}
                 </div>
-                {manage && <AddUnitsForm roomTypeId={type.id} suggestion={type.category === "room" ? "Room" : type.category[0].toUpperCase() + type.category.slice(1)} />}
               </CardContent>
             </Card>
           );

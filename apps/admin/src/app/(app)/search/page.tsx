@@ -3,9 +3,11 @@ import { redirect } from "next/navigation";
 import { Search, SearchX } from "lucide-react";
 import { accessibleProperties, can } from "@repo/auth";
 import { getDb } from "@repo/db";
+import { properties as sites } from "@repo/sites";
 import { PageHeader } from "@/components/page-header";
+import { PersonAvatar } from "@/components/person-avatar";
+import { ResortMark } from "@/components/resort-mark";
 import { StatusBadge } from "@/components/status-badge";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -33,15 +35,28 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
   return (
     <>
       <PageHeader title="Find a booking" description="Search every resort you work at by booking number, phone, name or email." />
-      <form role="search" className="flex max-w-xl gap-2">
-        <InputGroup>
+      <form role="search" className="flex max-w-2xl gap-2">
+        <InputGroup className="h-11 shadow-xs">
           <InputGroupAddon>
             <Search />
           </InputGroupAddon>
-          <InputGroupInput id="search-q" name="q" type="search" defaultValue={q} placeholder="Booking number, phone, name or email" aria-label="Booking number, phone, name or email" />
+          <InputGroupInput id="search-q" name="q" type="search" defaultValue={q} autoFocus={!q} placeholder="Booking number, phone, name or email" aria-label="Booking number, phone, name or email" className="text-base" />
         </InputGroup>
-        <Button type="submit">Search</Button>
+        <Button type="submit" size="lg" className="h-11">
+          Search
+        </Button>
       </form>
+      {!q && (
+        <Empty className="border border-dashed bg-muted/20">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Search />
+            </EmptyMedia>
+            <EmptyTitle>Search every resort at once</EmptyTitle>
+            <EmptyDescription>Type a booking number such as KS-26-000001, the last digits of a phone, or part of a name or email. A full booking number opens the booking.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
       {q && rows.length === 0 && (
         <Empty className="border border-dashed">
           <EmptyHeader>
@@ -54,9 +69,9 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
         </Empty>
       )}
       {rows.length > 0 && (
-        <Card className="gap-0 py-0">
+        <Card className="gap-0 overflow-hidden py-0 shadow-xs">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/30">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="pl-6">Booking</TableHead>
                 <TableHead>Resort</TableHead>
@@ -68,18 +83,29 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
             </TableHeader>
             <TableBody>
               {rows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="pl-6 font-medium">
-                    <Link href={`/${row.propertyCode.toLowerCase()}/bookings/${row.number.toLowerCase()}`} className="hover:underline">
+                <TableRow key={row.id} className="relative">
+                  <TableCell className="pl-6">
+                    <Link
+                      href={`/${row.propertyCode.toLowerCase()}/bookings/${row.number.toLowerCase()}`}
+                      className="font-mono text-[0.8rem] font-medium after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring/50 focus-visible:after:ring-inset"
+                    >
                       {row.number}
                     </Link>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{row.propertyCode}</Badge>
+                    <span className="flex items-center gap-2">
+                      <ResortMark code={row.propertyCode} className="size-6 rounded-md" />
+                      {sites.find((site) => site.code === row.propertyCode)?.shortName ?? row.propertyCode}
+                    </span>
                   </TableCell>
                   <TableCell>
-                    <span className="block font-medium">{row.guestName}</span>
-                    {row.guestPhone && <span className="text-xs text-muted-foreground">+{row.guestPhone}</span>}
+                    <div className="flex items-center gap-2.5">
+                      <PersonAvatar name={row.guestName} className="size-8 rounded-full max-md:hidden" />
+                      <div>
+                        <span className="block font-medium">{row.guestName}</span>
+                        {row.guestPhone && <span className="text-xs text-muted-foreground tabular-nums">+{row.guestPhone}</span>}
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell>{row.checkIn ? `${shortDate(row.checkIn)} – ${shortDate(row.checkOut!)}` : row.visitDate ? shortDate(row.visitDate) : ""}</TableCell>
                   <TableCell>
@@ -90,7 +116,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
               ))}
             </TableBody>
           </Table>
-          <p className="border-t px-6 py-3 text-sm text-muted-foreground" role="status">
+          <p className="border-t bg-muted/30 px-6 py-3 text-sm text-muted-foreground" role="status">
             {total} {total === 1 ? "booking matches" : "bookings match"} &ldquo;{q}&rdquo;{total > rows.length ? `; the newest ${rows.length} are shown` : ""}.
           </p>
         </Card>

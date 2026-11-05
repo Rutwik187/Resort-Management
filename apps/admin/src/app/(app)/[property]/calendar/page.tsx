@@ -52,6 +52,8 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
       : "The whole resort";
   const blockBy = block?.createdBy ? (await getDb().select({ name: user.name }).from(user).where(eq(user.id, block.createdBy)))[0]?.name : null;
 
+  const weekendNight = new Set(calendar.nights.filter((night) => property.weekendNights.includes(dayOfWeek(night))));
+  const shade = (night: string) => (night === today ? "bg-primary/[0.05]" : weekendNight.has(night) ? "bg-muted/45" : "");
   const typesWithUnits = calendar.types.map((type) => ({ ...type, units: calendar.units.filter((u) => u.roomTypeId === type.id) }));
   const same = (a: Cell | undefined, b: Cell | undefined) =>
     Boolean(a && b && a.kind === b.kind && ((a.kind === "booked" && b.kind === "booked" && a.bookingId === b.bookingId) || (a.kind === "blocked" && b.kind === "blocked" && a.blockId === b.blockId) || a.kind === "held"));
@@ -113,21 +115,24 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
         </CardContent>
       </Card>
 
-      <ul aria-label="Key" className="-mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+      <ul aria-label="Key" className="-mt-2 flex flex-wrap gap-x-5 gap-y-2 px-1 text-sm text-muted-foreground">
         <li className="flex items-center gap-2">
           <span className="size-3.5 rounded-sm border bg-card" /> Free
         </li>
         <li className="flex items-center gap-2">
-          <span className="size-3.5 rounded-sm bg-good/20" /> Booked
+          <span className="h-3.5 w-5 rounded-sm border-l-[3px] border-chart bg-chart/15" /> Booked
         </li>
         <li className="flex items-center gap-2">
-          <span className="size-3.5 rounded-sm bg-primary" /> Checked in
+          <span className="h-3.5 w-5 rounded-sm border-l-[3px] border-warn bg-warn/15" /> Booked, money due
         </li>
         <li className="flex items-center gap-2">
-          <span className="size-3.5 rounded-sm bg-warn/20" /> Held while a guest pays
+          <span className="h-3.5 w-5 rounded-sm bg-primary" /> Checked in
         </li>
         <li className="flex items-center gap-2">
-          <span className="blocked-cell size-3.5 rounded-sm border" /> Blocked
+          <span className="h-3.5 w-5 rounded-sm border border-dashed border-warn/60 bg-warn/[0.07]" /> Held while a guest pays
+        </li>
+        <li className="flex items-center gap-2">
+          <span className="blocked-cell h-3.5 w-5 rounded-sm border" /> Blocked
         </li>
         <li>• a price set for the date</li>
       </ul>
@@ -175,7 +180,7 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
                     const weekend = property.weekendNights.includes(dayOfWeek(night));
                     const firstOfMonth = i === 0 || night.endsWith("-01");
                     return (
-                      <th key={night} scope="col" className={`min-w-16 border-b border-l px-1 py-2 text-center font-normal ${weekend ? "bg-muted/60" : ""}`}>
+                      <th key={night} scope="col" className={`min-w-16 border-b border-l px-1 py-2 text-center font-normal ${night === today ? "bg-primary/[0.05]" : weekend ? "bg-muted/60" : ""}`}>
                         <span className="block text-[0.68rem] text-muted-foreground">{weekday(night)}</span>
                         <span className={`mx-auto flex size-7 items-center justify-center rounded-full text-sm font-semibold ${night === today ? "bg-primary text-primary-foreground" : ""}`}>{Number(night.slice(8))}</span>
                         <span className="block text-[0.65rem] text-muted-foreground">{firstOfMonth ? new Date(`${night}T00:00:00Z`).toLocaleDateString("en-IN", { month: "short", timeZone: "UTC" }) : " "}</span>
@@ -200,7 +205,7 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
                           const rule = calendar.rule(type.id, night);
                           const ruleText = rule?.stopSell ? "Stop sell" : rule?.closedToArrival ? "No arrivals" : rule?.minNights ? `Min ${rule.minNights}` : rule?.maxNights ? `Max ${rule.maxNights}` : null;
                           return (
-                            <td key={night} className="border-b border-l px-1 py-1.5 text-center align-top">
+                            <td key={night} className="border-b border-l bg-muted/40 px-1 py-1.5 text-center align-top">
                               <span className={`block font-semibold ${free === 0 ? "text-danger" : free <= property.lowStockThreshold && free < active.length ? "text-warn" : ""}`}>{free === 0 ? "Full" : `${free} free`}</span>
                               <span className="block text-[0.68rem] text-muted-foreground" title={nightPrice ? price(nightPrice.paise) : undefined}>
                                 {nightPrice?.paise == null ? "No rate" : `₹${compact.format(nightPrice.paise / 100)}`}
@@ -224,9 +229,20 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
                           {calendar.nights.map((night, i) => {
                             const cell = calendar.cell(unit.id, night);
                             const continues = i > 0 && same(calendar.cell(unit.id, calendar.nights[i - 1]), cell);
+                            const goesOn = i < calendar.nights.length - 1 && same(cell, calendar.cell(unit.id, calendar.nights[i + 1]));
                             return (
-                              <td key={night} className={`h-9 border-b p-0 ${continues ? "" : "border-l"}`}>
-                                <CellView cell={cell} label={!continues} unitActive={unit.status === "active"} bookHref={bookable ? `/${property.code.toLowerCase()}/bookings/new?checkIn=${night}&checkOut=${addDays(night, 1)}` : null} blockHref={(id) => `${at(from)}&block=${id}`} code={property.code} night={night} unit={unit.name} />
+                              <td key={night} className={`h-10 border-b p-0 ${continues ? "" : "border-l"} ${shade(night)}`}>
+                                <CellView
+                                  cell={cell}
+                                  start={!continues}
+                                  end={!goesOn}
+                                  unitActive={unit.status === "active"}
+                                  bookHref={bookable ? `/${property.code.toLowerCase()}/bookings/new?checkIn=${night}&checkOut=${addDays(night, 1)}` : null}
+                                  blockHref={(id) => `${at(from)}&block=${id}`}
+                                  code={property.code}
+                                  night={night}
+                                  unit={unit.name}
+                                />
                               </td>
                             );
                           })}
@@ -253,28 +269,72 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
   );
 }
 
-function CellView({ cell, label, unitActive, bookHref, blockHref, code, night, unit }: { cell: Cell | undefined; label: boolean; unitActive: boolean; bookHref: string | null; blockHref: (id: string) => string; code: string; night: string; unit: string }) {
-  const box = "flex h-full w-full items-center overflow-hidden px-1.5 text-[0.72rem] whitespace-nowrap";
+/**
+ * One room on one night. A booking, hold or block draws as one bar across
+ * its nights: rounded where it starts and ends, named once at its start.
+ */
+function CellView({
+  cell,
+  start,
+  end,
+  unitActive,
+  bookHref,
+  blockHref,
+  code,
+  night,
+  unit,
+}: {
+  cell: Cell | undefined;
+  start: boolean;
+  end: boolean;
+  unitActive: boolean;
+  bookHref: string | null;
+  blockHref: (id: string) => string;
+  code: string;
+  night: string;
+  unit: string;
+}) {
+  const free = "flex h-full w-full items-center justify-center";
   if (!cell) {
-    if (!unitActive) return <span className={`${box} justify-center text-muted-foreground`}>–</span>;
-    return bookHref ? <Link href={bookHref} title={`${unit}, ${longDate(night)}: free. Book it.`} aria-label={`${unit}, ${longDate(night)}: free`} className={`${box} hover:bg-accent`} /> : <span className={box} aria-label="Free" />;
+    if (!unitActive) return <span className={`${free} text-muted-foreground`}>–</span>;
+    return bookHref ? (
+      <Link href={bookHref} title={`${unit}, ${longDate(night)}: free. Book it.`} aria-label={`${unit}, ${longDate(night)}: free`} className={`${free} group/free hover:bg-accent`}>
+        <span aria-hidden="true" className="text-sm text-primary opacity-0 group-hover/free:opacity-100">
+          +
+        </span>
+      </Link>
+    ) : (
+      <span className={free} aria-label="Free" />
+    );
   }
+  const bar = `my-1.5 flex h-7 items-center overflow-hidden px-2 text-[0.72rem] whitespace-nowrap ${start ? "ml-1 rounded-l-md" : ""} ${end ? "mr-1 rounded-r-md" : ""}`;
   if (cell.kind === "booked") {
     const inHouse = cell.status === "checked_in";
+    const owes = cell.status === "pending_payment" || cell.status === "part_paid";
     return (
       <Link
         href={`/${code.toLowerCase()}/bookings/${cell.number.toLowerCase()}`}
         title={`${cell.number} · ${cell.guest} · ${statusLabel[cell.status]}`}
-        className={`${box} font-medium text-ellipsis ${inHouse ? "bg-primary text-primary-foreground" : "bg-good/20 text-foreground"} hover:opacity-85`}
+        className={`${bar} font-medium text-ellipsis transition-opacity hover:opacity-85 ${
+          inHouse ? "bg-primary text-primary-foreground" : owes ? "bg-warn/15 text-warn" : "bg-chart/15 text-[#1d5c3d]"
+        } ${start ? "border-l-[3px] " + (inHouse ? "border-primary-foreground/40" : owes ? "border-warn" : "border-chart") : ""}`}
       >
-        {label ? cell.guest.split(" ")[0] : ""}
+        {start ? cell.guest.split(" ")[0] : ""}
       </Link>
     );
   }
-  if (cell.kind === "held") return <span title={`Held until ${when(cell.until)} while a guest pays`} className={`${box} bg-warn/20 text-warn`}>{label ? "Held" : ""}</span>;
+  if (cell.kind === "held")
+    return (
+      <span
+        title={`Held until ${when(cell.until)} while a guest pays`}
+        className={`${bar} border-y border-dashed border-warn/50 bg-warn/[0.07] text-warn ${start ? "border-l" : ""} ${end ? "border-r" : ""}`}
+      >
+        {start ? "Held" : ""}
+      </span>
+    );
   return (
-    <Link href={blockHref(cell.blockId)} title={`Blocked: ${reasonLabel[cell.reason]}${cell.note ? `, ${cell.note}` : ""}`} className={`${box} blocked-cell text-muted-foreground hover:opacity-80`}>
-      {label ? reasonLabel[cell.reason] : ""}
+    <Link href={blockHref(cell.blockId)} title={`Blocked: ${reasonLabel[cell.reason]}${cell.note ? `, ${cell.note}` : ""}`} className={`${bar} blocked-cell text-muted-foreground hover:opacity-80`}>
+      {start ? reasonLabel[cell.reason] : ""}
     </Link>
   );
 }

@@ -1,17 +1,18 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Inbox, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Inbox, Plus, X } from "lucide-react";
 import { z } from "zod";
 import { can } from "@repo/auth";
 import { allowedMoves, todayInIndia } from "@repo/engine";
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/page-header";
+import { PersonAvatar } from "@/components/person-avatar";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { findBookings, pageSize, type BookingFilters as Filters } from "@/lib/bookings";
-import { balance, price, rupees, shortDate, sourceLabel, statusLabel, when } from "@/lib/format";
+import { findBookings, pageSize, quickCounts, type BookingFilters as Filters } from "@/lib/bookings";
+import { balance, plural, rupees, shortDate, sourceLabel, statusLabel, when } from "@/lib/format";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
 import { BookingFilters } from "./filters";
 
@@ -51,18 +52,19 @@ export default async function BookingsPage({ params, searchParams }: PageProps<"
     const text = query.toString();
     return text ? `${base}?${text}` : base;
   };
+  const counts = await quickCounts(property.id, today);
   const views = [
-    { label: "All", href: base, active: !filtered },
-    { label: "Arriving today", href: `${base}?arrivingFrom=${today}&arrivingTo=${today}`, active: filters.arrivingFrom === today && filters.arrivingTo === today && !filters.status },
-    { label: "In the resort", href: `${base}?status=checked_in`, active: filters.status === "checked_in" && !filters.arrivingFrom },
-    { label: "Waiting for payment", href: `${base}?status=pending_payment`, active: filters.status === "pending_payment" && !filters.arrivingFrom },
+    { label: "All", href: base, active: !filtered, count: counts.all },
+    { label: "Arriving today", href: `${base}?arrivingFrom=${today}&arrivingTo=${today}`, active: filters.arrivingFrom === today && filters.arrivingTo === today && !filters.status, count: counts.arriving },
+    { label: "In the resort", href: `${base}?status=checked_in`, active: filters.status === "checked_in" && !filters.arrivingFrom, count: counts.inHouse },
+    { label: "Waiting for payment", href: `${base}?status=pending_payment`, active: filters.status === "pending_payment" && !filters.arrivingFrom, count: counts.waiting },
   ];
 
   return (
     <>
       <PageHeader
         title="Bookings"
-        description="Every booking at this resort. Search by number, name, phone or email, or narrow the list with the filters."
+        description="Every booking at this resort, newest first. Search by number, name, phone or email, or narrow the list with the filters."
         actions={
           can(staff, "bookings.create", property.id) && (
             <Button asChild>
@@ -75,113 +77,151 @@ export default async function BookingsPage({ params, searchParams }: PageProps<"
         }
       />
 
-      <Card>
-        <CardHeader className="gap-3">
-          <nav aria-label="Quick lists" className="flex flex-wrap gap-2">
+      <Card className="gap-0 overflow-hidden py-0">
+        <div className="grid gap-3 border-b bg-muted/30 p-4">
+          <nav aria-label="Quick lists" className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5">
             {views.map((view) => (
-              <Button key={view.label} variant={view.active ? "secondary" : "ghost"} size="sm" asChild className={view.active ? "font-semibold" : "text-muted-foreground"}>
-                <Link href={view.href} aria-current={view.active ? "page" : undefined}>
-                  {view.label}
+              <Link
+                key={view.label}
+                href={view.href}
+                aria-current={view.active ? "page" : undefined}
+                className={`flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${view.active ? "bg-background text-foreground shadow-xs ring-1 ring-border" : "text-muted-foreground hover:bg-background/70 hover:text-foreground"}`}
+              >
+                {view.label}
+                <span className={`rounded-full px-1.5 text-xs tabular-nums ${view.active ? "bg-primary/10 text-primary" : "bg-foreground/[0.06]"}`}>{view.count}</span>
+              </Link>
+            ))}
+            {filtered && (
+              <Button variant="ghost" size="sm" asChild className="ml-auto shrink-0 text-muted-foreground">
+                <Link href={base}>
+                  <X />
+                  Clear filters
                 </Link>
               </Button>
-            ))}
+            )}
           </nav>
-        </CardHeader>
-        <CardContent className="border-t pt-6">
           <BookingFilters
+            key={JSON.stringify(filters)}
             base={base}
             values={{ q: filters.q, status: filters.status, paid: filters.paid, source: filters.source, arrivingFrom: filters.arrivingFrom, arrivingTo: filters.arrivingTo, bookedFrom: filters.bookedFrom, bookedTo: filters.bookedTo }}
             statuses={statuses.map((status) => ({ value: status, label: statusLabel[status] }))}
             sources={sources.map((source) => ({ value: source, label: sourceLabel[source] }))}
           />
-        </CardContent>
-      </Card>
+        </div>
 
-      {rows.length === 0 ? (
-        <Empty className="border border-dashed">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Inbox />
-            </EmptyMedia>
-            <EmptyTitle>{filtered ? "No bookings match" : "No bookings yet"}</EmptyTitle>
-            <EmptyDescription>{filtered ? "Try fewer filters, or search for another name or number." : "Bookings made on the website or here appear in this list."}</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        <Card className="gap-0 py-0">
+        {rows.length === 0 ? (
+          <Empty className="m-4 border border-dashed">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Inbox />
+              </EmptyMedia>
+              <EmptyTitle>{filtered ? "No bookings match" : "No bookings yet"}</EmptyTitle>
+              <EmptyDescription>{filtered ? "Try fewer filters, or search for another name or number." : "Bookings made on the website or here appear in this list."}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/30">
               <TableRow className="hover:bg-transparent">
-                <TableHead className="pl-6">Booking</TableHead>
+                <TableHead className="pl-4">Booking</TableHead>
                 <TableHead>Guest</TableHead>
                 <TableHead>Dates</TableHead>
-                <TableHead>Rooms or tickets</TableHead>
+                <TableHead className="hidden xl:table-cell">Rooms or tickets</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead className="text-right">To pay</TableHead>
-                <TableHead className="pr-6">Booked</TableHead>
+                <TableHead className="hidden pr-4 lg:table-cell">Booked</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((row) => {
                 const due = balance(row);
+                const nights = row.checkIn && row.checkOut ? Math.round((Date.parse(row.checkOut) - Date.parse(row.checkIn)) / 86_400_000) : 0;
                 return (
-                  <TableRow key={row.id}>
-                    <TableCell className="pl-6 font-medium">
-                      <Link href={`${base}/${row.number.toLowerCase()}`} className="hover:underline">
+                  <TableRow key={row.id} className="relative">
+                    <TableCell className="pl-4">
+                      <Link href={`${base}/${row.number.toLowerCase()}`} className="font-mono text-[0.8rem] font-medium after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring/50 focus-visible:after:ring-inset">
                         {row.number}
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <span className="block font-medium">{row.guestName}</span>
-                      {row.guestPhone && <span className="text-xs text-muted-foreground">+{row.guestPhone}</span>}
+                      <div className="flex items-center gap-2.5">
+                        <PersonAvatar name={row.guestName} className="size-8 rounded-full max-md:hidden" />
+                        <div className="min-w-0">
+                          <span className="block max-w-48 truncate font-medium">{row.guestName}</span>
+                          {row.guestPhone && <span className="text-xs text-muted-foreground tabular-nums">+{row.guestPhone}</span>}
+                        </div>
+                      </div>
                     </TableCell>
-                    <TableCell>{row.checkIn && row.checkOut ? `${shortDate(row.checkIn)} – ${shortDate(row.checkOut)}` : row.visitDate ? shortDate(row.visitDate) : ""}</TableCell>
-                    <TableCell className="max-w-56 truncate text-muted-foreground" title={row.items}>
+                    <TableCell>
+                      {row.checkIn && row.checkOut ? (
+                        <>
+                          <span className="block">
+                            {shortDate(row.checkIn)} – {shortDate(row.checkOut)}
+                          </span>
+                          <span className="text-xs text-muted-foreground">{plural(nights, "night")}</span>
+                        </>
+                      ) : row.visitDate ? (
+                        <>
+                          <span className="block">{shortDate(row.visitDate)}</span>
+                          <span className="text-xs text-muted-foreground">Day visit</span>
+                        </>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="hidden max-w-56 truncate text-muted-foreground xl:table-cell" title={row.items}>
                       {row.items}
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={row.status} />
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{price(row.totalPaise)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{due === null ? "" : due === 0 ? <span className="text-muted-foreground">Paid</span> : rupees(due)}</TableCell>
-                    <TableCell className="pr-6 text-muted-foreground">
-                      {when(row.createdAt)}
-                      <span className="block text-xs">{sourceLabel[row.source]}</span>
+                    <TableCell className="text-right font-medium tabular-nums">{row.totalPaise === null ? <span className="font-normal text-muted-foreground">Rate to confirm</span> : rupees(row.totalPaise)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{due === null ? "" : due === 0 ? <span className="text-muted-foreground">Paid</span> : <span className="font-medium text-warn">{rupees(due)}</span>}</TableCell>
+                    <TableCell className="hidden pr-4 text-muted-foreground lg:table-cell">
+                      <span className="block whitespace-nowrap">{when(row.createdAt)}</span>
+                      <span className="text-xs">{sourceLabel[row.source]}</span>
                     </TableCell>
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t px-6 py-3 text-sm text-muted-foreground">
-            <p role="status">
-              {total} {total === 1 ? "booking" : "bookings"}
-              {total > pageSize ? `, page ${pageNumber} of ${Math.ceil(total / pageSize)}` : ""}
-            </p>
-            {total > pageSize && (
-              <div className="flex gap-2">
-                {pageNumber > 1 && (
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={linkTo({ page: pageNumber - 1 })}>
-                      <ChevronLeft />
-                      Newer
-                    </Link>
-                  </Button>
+        )}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          <p role="status">
+            {total === 0 ? "No bookings" : total > pageSize ? `${(pageNumber - 1) * pageSize + 1}–${Math.min(total, pageNumber * pageSize)} of ${total} bookings` : plural(total, "booking")}
+          </p>
+          {total > pageSize && (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" asChild={pageNumber > 1} disabled={pageNumber <= 1}>
+                {pageNumber > 1 ? (
+                  <Link href={linkTo({ page: pageNumber - 1 })}>
+                    <ChevronLeft />
+                    Newer
+                  </Link>
+                ) : (
+                  <span>
+                    <ChevronLeft />
+                    Newer
+                  </span>
                 )}
-                {pageNumber * pageSize < total && (
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={linkTo({ page: pageNumber + 1 })}>
-                      Older
-                      <ChevronRight />
-                    </Link>
-                  </Button>
+              </Button>
+              <Button variant="outline" size="sm" asChild={pageNumber * pageSize < total} disabled={pageNumber * pageSize >= total}>
+                {pageNumber * pageSize < total ? (
+                  <Link href={linkTo({ page: pageNumber + 1 })}>
+                    Older
+                    <ChevronRight />
+                  </Link>
+                ) : (
+                  <span>
+                    Older
+                    <ChevronRight />
+                  </span>
                 )}
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
+              </Button>
+            </div>
+          )}
+        </div>
+      </Card>
     </>
   );
 }

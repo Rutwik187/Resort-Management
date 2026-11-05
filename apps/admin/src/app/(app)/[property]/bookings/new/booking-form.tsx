@@ -42,6 +42,11 @@ function Stepper({ label, value, min, max, onChange }: { label: string; value: n
   );
 }
 
+/** A step's number, so the form reads top to bottom: dates, rooms, guests, guest details, payment. */
+export function Step({ n }: { n: number }) {
+  return <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground tabular-nums">{n}</span>;
+}
+
 const guestsIn = (line: Line) => line.adults + Object.values(line.children).reduce((sum, n) => sum + n, 0);
 
 export function NewBookingForm({
@@ -90,14 +95,60 @@ export function NewBookingForm({
       : { kind: "stay", checkIn: dates.checkIn, checkOut: dates.checkOut, lines: lines.map(({ id, adults, children, extraBeds }) => ({ id, adults, children, extraBeds })) };
 
   return (
-    <form action={action} className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
+    <form action={action} className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
       <input type="hidden" name="request" value={JSON.stringify(request)} />
       <div className="grid min-w-0 content-start gap-4">
+        <Card className="shadow-xs">
+          <CardHeader className="flex items-center gap-3">
+            <Step n={2} />
+            <div className="grid gap-1.5">
+              <CardTitle>{kind === "stay" ? "Rooms free for these dates" : "Tickets for this day"}</CardTitle>
+              <CardDescription>{kind === "stay" ? "Add a room for each room the guest needs." : "Add each package, activity or sitting the guests want."}</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {options.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{kind === "stay" ? "This resort has no room types on sale." : "This resort has no packages, activities or sittings on sale."}</p>
+            ) : (
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {options.map((option) => {
+                  const left = option.available - (kind === "stay" ? used(option.id) : 0);
+                  const blocked = option.closedReason ?? (option.available <= 0 ? (kind === "stay" ? "Sold out" : "Full") : kind === "day" && used(option.id) > 0 ? "Added" : left <= 0 ? "All free ones added" : null);
+                  return (
+                    <li key={option.id} className={`flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-colors ${blocked ? "bg-muted/30" : "hover:border-primary/30 hover:bg-accent/40"} ${used(option.id) ? "border-primary/40 bg-primary/[0.03]" : ""}`}>
+                      <div className="min-w-0">
+                        <p className="font-medium">{option.name}</p>
+                        <div className="mt-1">
+                          {blocked ? (
+                            <Badge variant="outline" className={option.available <= 0 || option.closedReason ? "border-danger/30 bg-danger/10 text-danger" : "text-muted-foreground"}>
+                              {blocked}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="border-good/30 bg-good/10 text-good">
+                              {kind === "stay" ? `${plural(left, "room")} free` : `${plural(option.available, "seat")} left`}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" disabled={Boolean(blocked)} onClick={() => add(option)} className="shrink-0">
+                        <Plus />
+                        Add {noun}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
         {lines.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Who is coming</CardTitle>
-              <CardDescription>Set the guests for each {noun}, then check the price.</CardDescription>
+          <Card className="shadow-xs">
+            <CardHeader className="flex items-center gap-3">
+              <Step n={3} />
+              <div className="grid gap-1.5">
+                <CardTitle>Who is coming</CardTitle>
+                <CardDescription>Set the guests for each {noun}, then check the price.</CardDescription>
+              </div>
             </CardHeader>
             <CardContent className="grid gap-3">
               {lines.map((line, index) => {
@@ -178,55 +229,16 @@ export function NewBookingForm({
           </Card>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{kind === "stay" ? "Rooms free for these dates" : "Tickets for this day"}</CardTitle>
-            <CardDescription>{kind === "stay" ? "Add a room for each room the guest needs." : "Add each package, activity or sitting the guests want."}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {options.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{kind === "stay" ? "This resort has no room types on sale." : "This resort has no packages, activities or sittings on sale."}</p>
-            ) : (
-              <ul className="divide-y rounded-lg border">
-                {options.map((option) => {
-                  const left = option.available - (kind === "stay" ? used(option.id) : 0);
-                  const blocked = option.closedReason ?? (option.available <= 0 ? (kind === "stay" ? "Sold out" : "Full") : kind === "day" && used(option.id) > 0 ? "Added" : left <= 0 ? "All free ones added" : null);
-                  return (
-                    <li key={option.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                      <div className="min-w-0">
-                        <p className="font-medium">{option.name}</p>
-                        <div className="mt-1">
-                          {blocked ? (
-                            <Badge variant="outline" className={option.available <= 0 || option.closedReason ? "border-danger/30 bg-danger/10 text-danger" : "text-muted-foreground"}>
-                              {blocked}
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="border-good/30 bg-good/10 text-good">
-                              {kind === "stay" ? `${plural(left, "room")} free` : `${plural(option.available, "seat")} left`}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <Button type="button" variant="outline" size="sm" disabled={Boolean(blocked)} onClick={() => add(option)} className="shrink-0">
-                        <Plus />
-                        Add {noun}
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
       </div>
 
-      <div className="grid content-start gap-4">
-        <Card>
-          <CardHeader>
+      <div className="grid content-start gap-4 lg:sticky lg:top-20 lg:self-start">
+        <Card className="shadow-xs">
+          <CardHeader className="flex items-center gap-3">
+            <Step n={lines.length > 0 ? 4 : 3} />
             <CardTitle>Guest</CardTitle>
           </CardHeader>
           <CardContent>
-            <FieldGroup>
+            <FieldGroup className="gap-5">
               <Field>
                 <FieldLabel htmlFor="name">Name</FieldLabel>
                 <Input id="name" name="name" required minLength={2} autoComplete="off" />
@@ -273,12 +285,13 @@ export function NewBookingForm({
         </Card>
 
         {(canOverride || canTakePayment) && (
-          <Card>
-            <CardHeader>
+          <Card className="shadow-xs">
+            <CardHeader className="flex items-center gap-3">
+              <Step n={lines.length > 0 ? 5 : 4} />
               <CardTitle>Price and payment</CardTitle>
             </CardHeader>
             <CardContent>
-              <FieldGroup>
+              <FieldGroup className="gap-5">
                 {canOverride && (
                   <>
                     <div className="flex items-center justify-between gap-3">

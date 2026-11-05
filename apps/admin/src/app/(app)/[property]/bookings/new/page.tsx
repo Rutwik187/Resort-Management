@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { asc, eq, inArray } from "drizzle-orm";
-import { BedDouble, CircleAlert, Search, Ticket } from "lucide-react";
+import { BedDouble, CalendarSearch, CircleAlert, Search, Ticket } from "lucide-react";
 import { can } from "@repo/auth";
 import { ageBands, getDb, roomTypes } from "@repo/db";
 import { addDays, isDate, searchStays, seatsLeft, todayInIndia } from "@repo/engine";
@@ -10,10 +10,10 @@ import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { longDate, plural } from "@/lib/format";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
-import { NewBookingForm, type Option } from "./booking-form";
+import { NewBookingForm, Step, type Option } from "./booking-form";
 
 export const metadata = { title: "New booking" };
 
@@ -80,51 +80,72 @@ export default async function NewBookingPage({ params, searchParams }: PageProps
     <>
       <PageHeader title="New booking" description="For walk-in, phone, WhatsApp, travel agent and corporate guests. It books through the same engine as the website, so rooms and seats stay right everywhere." />
 
-      <Card>
-        <CardContent className="grid gap-5">
-          <nav aria-label="Kind of booking" className="inline-flex w-fit gap-1 rounded-lg bg-muted p-1">
-            <Button variant={kind === "stay" ? "default" : "ghost"} size="sm" asChild>
-              <Link href={base} aria-current={kind === "stay" ? "page" : undefined}>
+      <Card className="shadow-xs">
+        <CardContent className="grid gap-4">
+          <div className="flex items-center gap-3">
+            <Step n={1} />
+            <div>
+              <p className="font-semibold leading-none">What and when</p>
+              <p className="mt-1 text-sm text-muted-foreground">{kind === "stay" ? "Pick the check-in and check-out dates." : "Pick the day of the visit."}</p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <nav aria-label="Kind of booking" className="inline-flex w-fit shrink-0 gap-1 rounded-lg bg-muted p-1">
+              <Link
+                href={base}
+                aria-current={kind === "stay" ? "page" : undefined}
+                className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors [&_svg]:size-4 ${kind === "stay" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
+              >
                 <BedDouble />A stay
               </Link>
-            </Button>
-            <Button variant={kind === "day" ? "default" : "ghost"} size="sm" asChild>
-              <Link href={`${base}?kind=day`} aria-current={kind === "day" ? "page" : undefined}>
+              <Link
+                href={`${base}?kind=day`}
+                aria-current={kind === "day" ? "page" : undefined}
+                className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors [&_svg]:size-4 ${kind === "day" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
+              >
                 <Ticket />A day visit
               </Link>
-            </Button>
-          </nav>
-          <form className="flex flex-wrap items-end gap-3">
-            {kind === "stay" ? (
-              <Field className="w-full max-w-md">
-                <FieldLabel htmlFor="stay-dates">Check-in and check-out</FieldLabel>
-                <DateRangeField id="stay-dates" names={["checkIn", "checkOut"]} defaultValue={[checkIn, checkOut]} min={today} />
-              </Field>
-            ) : (
-              <Field className="w-full max-w-xs">
-                <input type="hidden" name="kind" value="day" />
-                <FieldLabel htmlFor="visit-day">Date</FieldLabel>
-                <DateField id="visit-day" name="day" defaultValue={day} min={today} />
-              </Field>
+            </nav>
+            <form className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+              {kind === "stay" ? (
+                <div className="w-full sm:max-w-md">
+                  <DateRangeField id="stay-dates" names={["checkIn", "checkOut"]} defaultValue={[checkIn, checkOut]} min={today} />
+                </div>
+              ) : (
+                <div className="w-full sm:max-w-xs">
+                  <input type="hidden" name="kind" value="day" />
+                  <DateField id="visit-day" name="day" defaultValue={day} min={today} />
+                </div>
+              )}
+              <Button type="submit" className="shrink-0">
+                <Search />
+                {kind === "stay" ? "Find rooms" : "Find tickets"}
+              </Button>
+            </form>
+            {asked && !problem && (
+              <p className="text-sm text-muted-foreground lg:ml-auto" role="status">
+                {kind === "stay" ? `${longDate(checkIn)} to ${longDate(checkOut)}, ${plural(nights, "night")}.` : `${longDate(day)}.`}
+              </p>
             )}
-            <Button type="submit">
-              <Search />
-              {kind === "stay" ? "Find rooms" : "Find tickets"}
-            </Button>
-          </form>
+          </div>
           {problem && (
             <Alert variant="destructive">
               <CircleAlert />
               <AlertDescription>{problem}</AlertDescription>
             </Alert>
           )}
-          {asked && !problem && (
-            <p className="text-sm text-muted-foreground" role="status">
-              {kind === "stay" ? `${longDate(checkIn)} to ${longDate(checkOut)}, ${plural(nights, "night")}.` : `${longDate(day)}.`}
-            </p>
-          )}
         </CardContent>
       </Card>
+
+      {!asked && (
+        <Empty className="border border-dashed bg-muted/20">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">{kind === "stay" ? <CalendarSearch /> : <Ticket />}</EmptyMedia>
+            <EmptyTitle>{kind === "stay" ? "Choose the dates to see free rooms" : "Choose the day to see tickets"}</EmptyTitle>
+            <EmptyDescription>Then add {kind === "stay" ? "rooms" : "tickets"}, say who is coming, check the price, and take any payment. The booking gets its number at once.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
 
       {asked && !problem && (
         <NewBookingForm

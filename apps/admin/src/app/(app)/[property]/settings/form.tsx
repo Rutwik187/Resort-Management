@@ -1,7 +1,6 @@
 "use client";
 
-
-import { Save } from "lucide-react";
+import { Building2, Clock3, Save } from "lucide-react";
 import { FormNote, useToastAction } from "@/components/form-note";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,13 +27,18 @@ export function SettingsForm({ propertyId, settings }: { propertyId: string; set
   return (
     <form action={action} className="grid gap-4">
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Company</CardTitle>
-            <CardDescription>Each resort is its own company. These go on its invoices.</CardDescription>
+        <Card className="shadow-xs">
+          <CardHeader className="flex items-start gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/[0.07] text-primary ring-1 ring-primary/10 ring-inset">
+              <Building2 className="size-4" />
+            </span>
+            <div className="grid gap-1.5">
+              <CardTitle>Company</CardTitle>
+              <CardDescription>Each resort is its own company. These go on its invoices.</CardDescription>
+            </div>
           </CardHeader>
           <CardContent>
-            <FieldGroup>
+            <FieldGroup className="gap-5">
               <Field>
                 <FieldLabel htmlFor="legalName">Legal name</FieldLabel>
                 <Input id="legalName" name="legalName" defaultValue={settings.legalName ?? ""} />
@@ -60,13 +64,18 @@ export function SettingsForm({ propertyId, settings }: { propertyId: string; set
             </FieldGroup>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Stays and bookings</CardTitle>
-            <CardDescription>Times guests see, and how the booking engine behaves.</CardDescription>
+        <Card className="shadow-xs">
+          <CardHeader className="flex items-start gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/[0.07] text-primary ring-1 ring-primary/10 ring-inset">
+              <Clock3 className="size-4" />
+            </span>
+            <div className="grid gap-1.5">
+              <CardTitle>Stays and bookings</CardTitle>
+              <CardDescription>Times guests see, and how the booking engine behaves.</CardDescription>
+            </div>
           </CardHeader>
           <CardContent>
-            <FieldGroup>
+            <FieldGroup className="gap-5">
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field>
                   <FieldLabel htmlFor="checkInTime">Check-in from</FieldLabel>
@@ -91,12 +100,13 @@ export function SettingsForm({ propertyId, settings }: { propertyId: string; set
           </CardContent>
         </Card>
       </div>
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-3 border-t bg-background/90 px-4 py-3 backdrop-blur md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
+        <FormNote state={state} />
+        <p className="mr-auto text-sm text-muted-foreground max-sm:hidden">Changes apply to new bookings at once.</p>
         <Button type="submit" disabled={pending}>
           {pending ? <Spinner /> : <Save />}
           Save settings
         </Button>
-        <FormNote state={state} />
       </div>
     </form>
   );

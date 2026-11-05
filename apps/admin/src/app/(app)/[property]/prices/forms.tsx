@@ -44,15 +44,18 @@ export function WeekendForm({ propertyId, nights }: { propertyId: string; nights
   const [state, action, pending] = useToastAction(saveWeekendNights.bind(null, propertyId));
   return (
     <form action={action} className="grid gap-4">
-      <fieldset className="flex flex-wrap gap-x-5 gap-y-3">
+      <fieldset className="flex flex-wrap gap-2">
         <legend className="sr-only">Weekend nights</legend>
         {weekdays.map((day, i) => (
-          <div key={day} className="flex items-center gap-2">
+          <Label
+            key={day}
+            htmlFor={`weekend-${i}`}
+            className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 font-normal transition-colors hover:bg-muted/60 has-[[data-state=checked]]:border-primary/40 has-[[data-state=checked]]:bg-primary/[0.06] has-[[data-state=checked]]:font-medium"
+          >
             <Checkbox id={`weekend-${i}`} name="nights" value={String(i)} defaultChecked={nights.includes(i)} />
-            <Label htmlFor={`weekend-${i}`} className="font-normal">
-              {day}
-            </Label>
-          </div>
+            {day.slice(0, 3)}
+            <span className="sr-only">{day.slice(3)}</span>
+          </Label>
         ))}
       </fieldset>
       <div className="flex flex-wrap items-center gap-3">
@@ -305,32 +308,31 @@ export function SeasonDialog({ propertyId }: { propertyId: string }) {
 
 type Band = { id: string; code: string; label: string; minAge: number; maxAge: number; free: boolean };
 
-/** Adds a child age band, or changes one (its code stays). */
+/** Adds a child age band, or changes one (its code stays). One row, under the column names above. */
 export function BandForm({ propertyId, band }: { propertyId: string; band?: Band }) {
   const [state, action, pending] = useToastAction(saveBand.bind(null, propertyId, band?.id ?? null));
   const key = band?.id ?? "new";
+  const of = band ? ` for ${band.label}` : " for the new band";
   return (
-    <form action={action} className="grid gap-2">
-      <div className="grid items-end gap-3 sm:grid-cols-[1.3fr_1.1fr_0.6fr_0.6fr_auto_auto]">
-        <Field>
-          <FieldLabel htmlFor={`${key}-label`}>Band</FieldLabel>
-          <Input id={`${key}-label`} name="label" required defaultValue={band?.label} placeholder="5 to 11" />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={`${key}-code`}>Code</FieldLabel>
-          <Input id={`${key}-code`} name="code" required readOnly={Boolean(band)} defaultValue={band?.code} placeholder="child_5_11" className={band ? "text-muted-foreground" : undefined} />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={`${key}-min`}>From age</FieldLabel>
-          <Input id={`${key}-min`} name="minAge" type="number" min={0} max={17} required defaultValue={band?.minAge} />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={`${key}-max`}>To age</FieldLabel>
-          <Input id={`${key}-max`} name="maxAge" type="number" min={0} max={17} required defaultValue={band?.maxAge} />
-        </Field>
+    <form action={action} className="grid gap-1.5">
+      {!band && <p className="text-sm font-medium">Add a band</p>}
+      <div className="grid grid-cols-2 items-center gap-2 sm:grid-cols-[1.3fr_1.1fr_0.6fr_0.6fr_4rem_5.5rem] sm:gap-3">
+        <Input id={`${key}-label`} name="label" required defaultValue={band?.label} placeholder="5 to 11" aria-label={`Band name${of}`} />
+        <Input
+          id={`${key}-code`}
+          name="code"
+          required
+          readOnly={Boolean(band)}
+          defaultValue={band?.code}
+          placeholder="child_5_11"
+          aria-label={`Code${of}`}
+          className={band ? "bg-muted/50 font-mono text-xs text-muted-foreground" : "font-mono text-xs"}
+        />
+        <Input id={`${key}-min`} name="minAge" type="number" min={0} max={17} required defaultValue={band?.minAge} placeholder="From" aria-label={`From age${of}`} />
+        <Input id={`${key}-max`} name="maxAge" type="number" min={0} max={17} required defaultValue={band?.maxAge} placeholder="To" aria-label={`To age${of}`} />
         <div className="flex h-9 items-center gap-2">
-          <Checkbox id={`${key}-free`} name="free" defaultChecked={band?.free} />
-          <Label htmlFor={`${key}-free`} className="font-normal">
+          <Checkbox id={`${key}-free`} name="free" defaultChecked={band?.free} aria-label={`Free${of}`} />
+          <Label htmlFor={`${key}-free`} className="font-normal sm:sr-only">
             Free
           </Label>
         </div>

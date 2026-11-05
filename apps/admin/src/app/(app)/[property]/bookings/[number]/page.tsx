@@ -4,7 +4,7 @@ import { can } from "@repo/auth";
 import { getDb } from "@repo/db";
 import { freeUnits, todayInIndia, type Quote } from "@repo/engine";
 import { NoAccess } from "@/components/no-access";
-import { PageHeader } from "@/components/page-header";
+import { PersonAvatar } from "@/components/person-avatar";
 import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,23 +51,81 @@ export default async function BookingPage({ params }: PageProps<"/[property]/boo
     }
   }
 
+  const party = items.reduce(
+    (sum, { item }) => ({ adults: sum.adults + item.party.adults, children: sum.children + Object.values(item.party.children).reduce((a, b) => a + (b ?? 0), 0) }),
+    { adults: 0, children: 0 },
+  );
+  const guestsLabel = [plural(party.adults, "adult"), party.children ? plural(party.children, "child", "children") : ""].filter(Boolean).join(", ");
+  const paidShare = booking.totalPaise ? Math.min(1, booking.paidPaise / booking.totalPaise) : 0;
+  const facts: { label: string; value: string; note?: string }[] =
+    booking.checkIn && booking.checkOut
+      ? [
+          { label: "Check-in", value: shortDate(booking.checkIn), note: booking.checkIn === today ? "Today" : undefined },
+          { label: "Check-out", value: shortDate(booking.checkOut), note: booking.checkOut === today ? "Today" : undefined },
+          { label: "Stay", value: plural(nights, "night"), note: guestsLabel },
+        ]
+      : [
+          { label: "Visit", value: booking.visitDate ? shortDate(booking.visitDate) : "", note: booking.visitDate === today ? "Today" : undefined },
+          { label: "Guests", value: guestsLabel },
+        ];
+
   return (
     <>
-      <PageHeader
-        title={
-          <span className="flex flex-wrap items-center gap-3">
-            {booking.number}
-            <StatusBadge status={booking.status} className="text-sm" />
-          </span>
-        }
-        description={
-          <>
-            {sourceLabel[booking.source]} booking, made {when(booking.createdAt)}
-            {booking.createdBy ? ` by ${people.get(booking.createdBy) ?? "staff"}` : ""}. <span className="hidden print:inline">{property.name}.</span>
-          </>
-        }
-        actions={<PrintButton />}
-      />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-4">
+          <PersonAvatar name={guest.name} className="size-12 rounded-full text-base max-sm:hidden" />
+          <div className="min-w-0 space-y-1.5">
+            <h1 className="truncate text-2xl font-semibold tracking-tight">{guest.name}</h1>
+            <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-muted-foreground">
+              <span className="font-mono font-medium text-foreground">{booking.number}</span>
+              <StatusBadge status={booking.status} />
+              <span>
+                {sourceLabel[booking.source]} booking, made {when(booking.createdAt)}
+                {booking.createdBy ? ` by ${people.get(booking.createdBy) ?? "staff"}` : ""}.
+              </span>
+              <span className="hidden print:inline">{property.name}.</span>
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 print:hidden">
+          <PrintButton />
+        </div>
+      </div>
+
+      <Card className="gap-0 py-0 shadow-xs">
+        <dl className={`grid divide-y sm:divide-y-0 sm:divide-x ${facts.length === 3 ? "sm:grid-cols-[repeat(3,minmax(0,1fr))_minmax(0,1.6fr)]" : "sm:grid-cols-[repeat(2,minmax(0,1fr))_minmax(0,1.6fr)]"}`}>
+          {facts.map((fact) => (
+            <div key={fact.label} className="px-5 py-4">
+              <dt className="text-xs font-medium text-muted-foreground">{fact.label}</dt>
+              <dd className="mt-1 text-lg font-semibold tracking-tight">{fact.value}</dd>
+              {fact.note && <dd className="text-xs text-muted-foreground">{fact.note}</dd>}
+            </div>
+          ))}
+          <div className="px-5 py-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <dt className="text-xs font-medium text-muted-foreground">Total</dt>
+                <dd className="mt-1 text-lg font-semibold tracking-tight tabular-nums">{price(booking.totalPaise)}</dd>
+              </div>
+              <div className="text-right">
+                <dt className="text-xs font-medium text-muted-foreground">To pay</dt>
+                <dd className={`mt-1 text-lg font-semibold tracking-tight tabular-nums ${left ? "text-warn" : ""}`}>{left === null ? "Price to set" : left === 0 ? "Paid" : rupees(left)}</dd>
+              </div>
+            </div>
+            <dd
+              role="meter"
+              aria-label={`${rupees(booking.paidPaise)} paid`}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(paidShare * 100)}
+              className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-chart/15"
+            >
+              <div className="h-full rounded-full bg-chart" style={{ width: `${paidShare * 100}%` }} />
+            </dd>
+            <dd className="mt-1.5 text-xs text-muted-foreground tabular-nums">{rupees(booking.paidPaise)} paid</dd>
+          </div>
+        </dl>
+      </Card>
 
       {booking.status === "pending_payment" && hold && (
         <Alert className="border-warn/30 bg-warn/5 text-warn print:hidden">
@@ -79,35 +137,36 @@ export default async function BookingPage({ params }: PageProps<"/[property]/boo
         </Alert>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-[auto_1fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-[auto_1fr]">
         <aside className="grid content-start gap-4 lg:col-start-2 lg:row-start-1">
           <Card>
             <CardHeader>
               <CardTitle>Guest</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-3 text-sm">
-              <p className="text-base font-medium">{guest.name}</p>
+            <CardContent className="grid gap-2 text-sm">
               {guest.phone && (
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                  <a href={`tel:+${guest.phone}`} className="flex items-center gap-2 hover:underline">
-                    <Phone className="size-4 text-muted-foreground" />+{guest.phone}
-                  </a>
-                  <a href={`https://wa.me/${guest.phone}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:underline print:hidden">
-                    <MessageCircle className="size-4 text-muted-foreground" />
-                    WhatsApp
-                  </a>
-                </div>
+                <a href={`tel:+${guest.phone}`} className="flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors hover:bg-muted/60">
+                  <Phone className="size-4 text-muted-foreground" />
+                  <span className="tabular-nums">+{guest.phone}</span>
+                </a>
+              )}
+              {guest.phone && (
+                <a href={`https://wa.me/${guest.phone}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors hover:bg-muted/60 print:hidden">
+                  <MessageCircle className="size-4 text-muted-foreground" />
+                  WhatsApp
+                </a>
               )}
               {guest.email && (
-                <a href={`mailto:${guest.email}`} className="flex items-center gap-2 break-all hover:underline">
+                <a href={`mailto:${guest.email}`} className="flex items-center gap-3 rounded-lg border px-3 py-2 break-all transition-colors hover:bg-muted/60">
                   <Mail className="size-4 shrink-0 text-muted-foreground" />
                   {guest.email}
                 </a>
               )}
+              {!guest.phone && !guest.email && <p className="text-muted-foreground">No phone or email on this booking.</p>}
               {(guest.companyName || guest.companyGstin) && (
                 <>
-                  <Separator />
-                  <p>{guest.companyName}</p>
+                  <Separator className="my-1" />
+                  <p className="font-medium">{guest.companyName}</p>
                   {guest.companyGstin && <p className="text-muted-foreground">GSTIN {guest.companyGstin}</p>}
                 </>
               )}
@@ -137,7 +196,7 @@ export default async function BookingPage({ params }: PageProps<"/[property]/boo
             <CardHeader>
               <CardTitle>{booking.checkIn && booking.checkOut ? "Stay" : "Day visit"}</CardTitle>
               <CardDescription>
-                {booking.checkIn && booking.checkOut ? `${longDate(booking.checkIn)} to ${longDate(booking.checkOut)} · ${plural(nights, "night")}` : booking.visitDate ? longDate(booking.visitDate) : ""}
+                {booking.checkIn && booking.checkOut ? `${longDate(booking.checkIn)} to ${longDate(booking.checkOut)}, ${plural(nights, "night")}` : booking.visitDate ? longDate(booking.visitDate) : ""}
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
@@ -184,24 +243,11 @@ export default async function BookingPage({ params }: PageProps<"/[property]/boo
 
           <Card>
             <CardHeader>
-              <CardTitle>Price and payments</CardTitle>
+              <CardTitle>Payments</CardTitle>
               {quote?.totalPaise !== undefined && booking.totalPaise !== quote?.totalPaise && <CardDescription>The rates gave {price(quote?.totalPaise)}; staff set this price (see the timeline).</CardDescription>}
             </CardHeader>
             <CardContent className="grid gap-4">
-              <dl className="grid grid-cols-3 divide-x rounded-lg border text-center">
-                <div className="p-3">
-                  <dt className="text-xs text-muted-foreground">Total</dt>
-                  <dd className="mt-1 font-semibold tabular-nums">{price(booking.totalPaise)}</dd>
-                </div>
-                <div className="p-3">
-                  <dt className="text-xs text-muted-foreground">Paid</dt>
-                  <dd className="mt-1 font-semibold tabular-nums">{rupees(booking.paidPaise)}</dd>
-                </div>
-                <div className="p-3">
-                  <dt className="text-xs text-muted-foreground">To pay</dt>
-                  <dd className={`mt-1 font-semibold tabular-nums ${left ? "text-warn" : ""}`}>{left === null ? "Price to set" : rupees(left)}</dd>
-                </div>
-              </dl>
+              {payments.length === 0 && <p className="text-sm text-muted-foreground">No payments yet.</p>}
               {payments.length > 0 && (
                 <Table>
                   <TableHeader>

@@ -1,37 +1,40 @@
 "use client";
 
-import Link from "next/link";
+import { useRef, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { DateRangeField } from "@/components/date-field";
-import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 
 type Choice = { value: string; label: string };
 
-function Choose({ id, name, label, value, any, choices }: { id: string; name: string; label: string; value?: string; any: string; choices: Choice[] }) {
+/** A filter as a compact dropdown. Its first choice, "any", leaves the filter off. */
+function Choose({ name, label, value, any, choices, onPick }: { name: string; label: string; value?: string; any: string; choices: Choice[]; onPick: () => void }) {
   return (
-    <Field>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <Select name={name} defaultValue={value ?? "all"}>
-        <SelectTrigger id={id} className="w-full">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">{any}</SelectItem>
-          {choices.map((choice) => (
-            <SelectItem key={choice.value} value={choice.value}>
-              {choice.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </Field>
+    <Select name={name} defaultValue={value ?? "all"} onValueChange={onPick}>
+      <SelectTrigger aria-label={label} className={cn("w-full sm:w-auto sm:min-w-36", value && "border-primary/40 bg-primary/[0.04] font-medium")}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">{any}</SelectItem>
+        {choices.map((choice) => (
+          <SelectItem key={choice.value} value={choice.value}>
+            {choice.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
-/** The booking list's search and filters (ADM-03). They go in the address, so a list can be shared or bookmarked. */
+/**
+ * The booking list's search and filters (ADM-03), in one bar. A dropdown or
+ * dates apply as soon as they are picked; the search applies on Enter. They
+ * go in the address, so a list can be shared or bookmarked.
+ */
 export function BookingFilters({
   base,
   values,
@@ -43,47 +46,68 @@ export function BookingFilters({
   statuses: Choice[];
   sources: Choice[];
 }) {
-  const filtered = Object.values(values).some(Boolean);
+  const router = useRouter();
+  const form = useRef<HTMLFormElement>(null);
+  const [pending, startTransition] = useTransition();
+
+  // Only the filters in use go in the address: no empty fields, no "any".
+  const apply = () => {
+    if (!form.current) return;
+    const query = new URLSearchParams();
+    for (const [key, value] of new FormData(form.current)) if (typeof value === "string" && value.trim() && value !== "all") query.set(key, value.trim());
+    const text = query.toString();
+    startTransition(() => router.push(text ? `${base}?${text}` : base));
+  };
+  // A dropdown's hidden field takes its new value after this render, so apply on the next tick.
+  const applySoon = () => setTimeout(apply, 0);
+
   return (
-    <form role="search" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <Field className="sm:col-span-2">
-        <FieldLabel htmlFor="q">Search</FieldLabel>
-        <InputGroup>
-          <InputGroupAddon>
-            <Search />
-          </InputGroupAddon>
-          <InputGroupInput id="q" name="q" type="search" defaultValue={values.q} placeholder="Booking number, name, phone or email" />
-        </InputGroup>
-      </Field>
-      <Choose id="status" name="status" label="Status" value={values.status} any="Any status" choices={statuses} />
-      <Choose
-        id="paid"
-        name="paid"
-        label="Payment"
-        value={values.paid}
-        any="Any payment"
-        choices={[
-          { value: "unpaid", label: "Nothing paid" },
-          { value: "part", label: "Part paid" },
-          { value: "full", label: "Fully paid" },
-        ]}
-      />
-      <Field className="sm:col-span-2 lg:col-span-1">
-        <FieldLabel htmlFor="arriving">Arriving</FieldLabel>
-        <DateRangeField id="arriving" names={["arrivingFrom", "arrivingTo"]} defaultValue={[values.arrivingFrom, values.arrivingTo]} placeholder="Any arrival date" />
-      </Field>
-      <Field className="sm:col-span-2 lg:col-span-1">
-        <FieldLabel htmlFor="booked">Booked</FieldLabel>
-        <DateRangeField id="booked" names={["bookedFrom", "bookedTo"]} defaultValue={[values.bookedFrom, values.bookedTo]} placeholder="Any booking date" />
-      </Field>
-      <Choose id="source" name="source" label="Source" value={values.source} any="Any source" choices={sources} />
-      <div className="flex items-end gap-2">
-        <Button type="submit">Show bookings</Button>
-        {filtered && (
-          <Button variant="ghost" asChild>
-            <Link href={base}>Clear</Link>
-          </Button>
-        )}
+    <form
+      ref={form}
+      role="search"
+      onSubmit={(event) => {
+        event.preventDefault();
+        apply();
+      }}
+      className="grid gap-2 sm:flex sm:flex-wrap sm:items-center"
+    >
+      <InputGroup className="sm:max-w-80 sm:min-w-64 sm:flex-1">
+        <InputGroupAddon>{pending ? <Spinner /> : <Search />}</InputGroupAddon>
+        <InputGroupInput id="q" name="q" type="search" defaultValue={values.q} placeholder="Number, name, phone or email" aria-label="Search bookings" />
+      </InputGroup>
+      <div className="grid grid-cols-2 gap-2 sm:contents">
+        <Choose name="status" label="Status" value={values.status} any="Any status" choices={statuses} onPick={applySoon} />
+        <Choose
+          name="paid"
+          label="Payment"
+          value={values.paid}
+          any="Any payment"
+          onPick={applySoon}
+          choices={[
+            { value: "unpaid", label: "Nothing paid" },
+            { value: "part", label: "Part paid" },
+            { value: "full", label: "Fully paid" },
+          ]}
+        />
+        <Choose name="source" label="Source" value={values.source} any="Any source" choices={sources} onPick={applySoon} />
+        <DateRangeField
+          id="arriving"
+          names={["arrivingFrom", "arrivingTo"]}
+          defaultValue={[values.arrivingFrom, values.arrivingTo]}
+          placeholder="Arriving"
+          short
+          onChange={applySoon}
+          className={cn("sm:w-auto", values.arrivingFrom && "border-primary/40 bg-primary/[0.04] font-medium")}
+        />
+        <DateRangeField
+          id="booked"
+          names={["bookedFrom", "bookedTo"]}
+          defaultValue={[values.bookedFrom, values.bookedTo]}
+          placeholder="Booked on"
+          short
+          onChange={applySoon}
+          className={cn("sm:w-auto", values.bookedFrom && "border-primary/40 bg-primary/[0.04] font-medium")}
+        />
       </div>
     </form>
   );

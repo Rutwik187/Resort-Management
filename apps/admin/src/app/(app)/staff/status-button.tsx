@@ -39,7 +39,7 @@ export function StaffStatusButton({ userId, name, active }: { userId: string; na
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive">
+        <Button variant="ghost" size="sm" className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
           <UserX />
           Deactivate
         </Button>
