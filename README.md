@@ -100,7 +100,9 @@ Each app is its own Vercel project in the team "rutwik187's projects", linked to
 
 The main addresses are the ones the old WordPress sites used, so search results keep their links. Each app's `siteUrl` in `src/content/site.ts` matches.
 
-**The admin's look** comes from shadcn/ui. Its components are in `apps/admin/src/components/ui`, added with `npx shadcn@latest add <name>` from `apps/admin` (see `components.json`); after adding one, check that it imports `cn` from `@/lib/utils`. The brand colour and the chart green are in `apps/admin/src/app/globals.css`.
+**The admin's look** comes from shadcn/ui. Its components are in `apps/admin/src/components/ui`, added with `npx shadcn@latest add <name>` from `apps/admin` (see `components.json`); after adding one, check that it imports `cn` from `@/lib/utils`. The brand colour and the chart green are in `apps/admin/src/app/globals.css`; the type is Geist. Each resort's photo for its cards is in `apps/admin/src/assets/resorts`, a small copy of a photo from its own site.
+
+**The admin builds without Turbopack's build cache** (`turbopackFileSystemCacheForBuild: false` in `apps/admin/next.config.ts`). Vercel restores `.next/cache` from the last deployment, and with that cache on, a build shipped an old stylesheet next to new pages. After a deploy that changes `globals.css`, check that the live stylesheet has the change.
 
 **The admin's project** runs its functions in Singapore (`sin1`), next to the Neon database; the sites keep the default region. Its variables are `DATABASE_URL` (the pooled address), `BETTER_AUTH_SECRET` (its own, not the one in your `.env.local`), `BETTER_AUTH_URL` (https://prathamesh-admin.vercel.app), `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. A changed variable takes effect only in a new deployment. Because the Ignored Build Step skips a commit that is already deployed, redeploy after changing only variables by clearing the step for one build, then setting it back.
 
