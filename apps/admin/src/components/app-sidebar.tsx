@@ -4,12 +4,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BedDouble,
-  Building2,
   CalendarDays,
+  Check,
   ChevronsUpDown,
   ClipboardList,
+  ExternalLink,
   IndianRupee,
   LayoutDashboard,
+  LayoutGrid,
   LogOut,
   Plus,
   ScrollText,
@@ -19,15 +21,14 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { authClient } from "@repo/auth/client";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { GroupMark, ResortMark } from "@/components/resort-mark";
+import { PersonAvatar } from "@/components/person-avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -47,11 +48,11 @@ import {
 
 /** A resort section. Icons are named, because a server can't hand a component to the browser. */
 export type Section = { key: "today" | "bookings" | "calendar" | "rooms" | "prices" | "packages" | "settings"; label: string };
-export type SidebarResort = { code: string; name: string; shortName: string; sections: Section[]; canBook: boolean };
+export type SidebarResort = { code: string; name: string; shortName: string; place: string; website: string; sections: Section[]; canBook: boolean };
 export type SidebarData = {
   resorts: SidebarResort[];
   group: { key: "staff" | "audit"; label: string }[];
-  user: { name: string; email: string; role: string };
+  user: { name: string; email: string; role: string; image: string | null };
 };
 
 const sectionIcon: Record<Section["key"], LucideIcon> = {
@@ -64,13 +65,16 @@ const sectionIcon: Record<Section["key"], LucideIcon> = {
   settings: Settings,
 };
 const groupIcon = { staff: Users, audit: ScrollText } as const;
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0]!.toUpperCase())
-    .join("");
+
+/** The day's work first, then what is set up once and changed now and then. */
+const sectionGroups: { label: string; keys: Section["key"][] }[] = [
+  { label: "Front office", keys: ["today", "bookings", "calendar"] },
+  { label: "Resort setup", keys: ["rooms", "prices", "packages", "settings"] },
+];
+
+/** The current page stands out: white, raised, with a green icon. */
+const activeLook =
+  "data-[active=true]:bg-background data-[active=true]:font-medium data-[active=true]:text-foreground data-[active=true]:shadow-xs data-[active=true]:ring-1 data-[active=true]:ring-sidebar-border data-[active=true]:[&>svg]:text-primary";
 
 /** The admin's sidebar: which resort, its sections, pages for the whole group, and who is signed in. */
 export function AppSidebar({ data }: { data: SidebarData }) {
@@ -89,14 +93,14 @@ export function AppSidebar({ data }: { data: SidebarData }) {
 
       <SidebarContent>
         {current?.canBook && (
-          <SidebarGroup>
+          <SidebarGroup className="pb-0">
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
                     tooltip="New booking"
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
+                    className="bg-primary font-medium text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
                   >
                     <Link href={`/${current.code.toLowerCase()}/bookings/new`} onClick={close}>
                       <Plus />
@@ -110,27 +114,33 @@ export function AppSidebar({ data }: { data: SidebarData }) {
         )}
 
         {current ? (
-          <SidebarGroup>
-            <SidebarGroupLabel>{current.shortName}</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {current.sections.map((item) => {
-                  const Icon = sectionIcon[item.key];
-                  const href = `/${current.code.toLowerCase()}${item.key === "today" ? "" : `/${item.key}`}`;
-                  return (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton asChild isActive={section === item.key} tooltip={item.label}>
-                        <Link href={href} onClick={close}>
-                          <Icon />
-                          <span>{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          sectionGroups.map((group) => {
+            const items = current.sections.filter((item) => group.keys.includes(item.key));
+            if (items.length === 0) return null;
+            return (
+              <SidebarGroup key={group.label}>
+                <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {items.map((item) => {
+                      const Icon = sectionIcon[item.key];
+                      const href = `/${current.code.toLowerCase()}${item.key === "today" ? "" : `/${item.key}`}`;
+                      return (
+                        <SidebarMenuItem key={item.key}>
+                          <SidebarMenuButton asChild isActive={section === item.key} tooltip={item.label} className={activeLook}>
+                            <Link href={href} onClick={close}>
+                              <Icon />
+                              <span>{item.label}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    })}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            );
+          })
         ) : (
           <SidebarGroup>
             <SidebarGroupLabel>Resorts</SidebarGroupLabel>
@@ -138,10 +148,13 @@ export function AppSidebar({ data }: { data: SidebarData }) {
               <SidebarMenu>
                 {data.resorts.map((resort) => (
                   <SidebarMenuItem key={resort.code}>
-                    <SidebarMenuButton asChild tooltip={resort.name}>
+                    <SidebarMenuButton asChild tooltip={resort.name} className="h-10">
                       <Link href={`/${resort.code.toLowerCase()}`} onClick={close}>
-                        <Building2 />
-                        <span>{resort.shortName}</span>
+                        <ResortMark code={resort.code} className="size-6 rounded-md" />
+                        <span className="grid leading-tight">
+                          <span className="truncate">{resort.shortName}</span>
+                          <span className="truncate text-xs text-muted-foreground">{resort.place}</span>
+                        </span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -151,16 +164,26 @@ export function AppSidebar({ data }: { data: SidebarData }) {
           </SidebarGroup>
         )}
 
-        {data.group.length > 0 && (
+        {(data.group.length > 0 || (current && data.resorts.length > 1)) && (
           <SidebarGroup className="mt-auto">
             <SidebarGroupLabel>Prathamesh Group</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
+                {current && data.resorts.length > 1 && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild tooltip="All resorts" className={activeLook}>
+                      <Link href="/" onClick={close}>
+                        <LayoutGrid />
+                        <span>All resorts</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
                 {data.group.map((item) => {
                   const Icon = groupIcon[item.key];
                   return (
                     <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton asChild isActive={segments[0] === item.key} tooltip={item.label}>
+                      <SidebarMenuButton asChild isActive={segments[0] === item.key} tooltip={item.label} className={activeLook}>
                         <Link href={`/${item.key}`} onClick={close}>
                           <Icon />
                           <span>{item.label}</span>
@@ -186,45 +209,55 @@ export function AppSidebar({ data }: { data: SidebarData }) {
 /** The resort being worked on, and a menu to move to another one or to the overview of all. */
 function ResortSwitcher({ resorts, current }: { resorts: SidebarResort[]; current: SidebarResort | undefined }) {
   const { isMobile, setOpenMobile } = useSidebar();
+  const close = () => isMobile && setOpenMobile(false);
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-[0.7rem] font-bold tracking-wide text-sidebar-primary-foreground">
-                {current?.code ?? "PG"}
-              </div>
+              {current ? <ResortMark code={current.code} className="shadow-sm" /> : <GroupMark />}
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">{current?.name ?? "Prathamesh Group"}</span>
-                <span className="truncate text-xs text-muted-foreground">{current ? "Admin" : "All resorts"}</span>
+                <span className="truncate font-semibold">{current?.shortName ?? "Prathamesh Group"}</span>
+                <span className="truncate text-xs text-muted-foreground">{current?.place ?? `${resorts.length} resorts`}</span>
               </div>
-              <ChevronsUpDown className="ml-auto" />
+              <ChevronsUpDown className="ml-auto text-muted-foreground" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) min-w-60 rounded-lg" align="start" side={isMobile ? "bottom" : "right"} sideOffset={4}>
-            <DropdownMenuLabel className="text-xs text-muted-foreground">Resorts</DropdownMenuLabel>
+          <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) min-w-64 rounded-lg" align="start" side={isMobile ? "bottom" : "right"} sideOffset={4}>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Switch resort</DropdownMenuLabel>
             {resorts.map((resort) => (
-              <DropdownMenuItem key={resort.code} asChild className="gap-2 p-2">
-                <Link href={`/${resort.code.toLowerCase()}`} onClick={() => isMobile && setOpenMobile(false)}>
-                  <span className="flex size-6 items-center justify-center rounded-md border text-[0.6rem] font-bold">{resort.code}</span>
-                  {resort.name}
-                  {resort.code === current?.code && <DropdownMenuShortcut>Open</DropdownMenuShortcut>}
+              <DropdownMenuItem key={resort.code} asChild className="gap-2.5 p-2">
+                <Link href={`/${resort.code.toLowerCase()}`} onClick={close}>
+                  <ResortMark code={resort.code} className="size-8 rounded-md" />
+                  <span className="grid flex-1 leading-tight">
+                    <span className="truncate font-medium">{resort.shortName}</span>
+                    <span className="truncate text-xs text-muted-foreground">{resort.name}</span>
+                  </span>
+                  {resort.code === current?.code && <Check className="text-primary" />}
                 </Link>
               </DropdownMenuItem>
             ))}
+            {(resorts.length > 1 || current) && <DropdownMenuSeparator />}
             {resorts.length > 1 && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild className="gap-2 p-2">
-                  <Link href="/" onClick={() => isMobile && setOpenMobile(false)}>
-                    <span className="flex size-6 items-center justify-center rounded-md border">
-                      <Building2 className="size-3.5" />
-                    </span>
-                    All resorts
-                  </Link>
-                </DropdownMenuItem>
-              </>
+              <DropdownMenuItem asChild className="gap-2.5 p-2">
+                <Link href="/" onClick={close}>
+                  <span className="flex size-8 items-center justify-center rounded-md border bg-background">
+                    <LayoutGrid className="size-4" />
+                  </span>
+                  All resorts
+                </Link>
+              </DropdownMenuItem>
+            )}
+            {current && (
+              <DropdownMenuItem asChild className="gap-2.5 p-2">
+                <a href={current.website} target="_blank" rel="noreferrer">
+                  <span className="flex size-8 items-center justify-center rounded-md border bg-background">
+                    <ExternalLink className="size-4" />
+                  </span>
+                  Open the website
+                </a>
+              </DropdownMenuItem>
             )}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -243,22 +276,18 @@ function UserMenu({ user }: { user: SidebarData["user"] }) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
-              <Avatar className="size-8 rounded-lg">
-                <AvatarFallback className="rounded-lg bg-primary/10 text-xs font-semibold text-primary">{initials(user.name)}</AvatarFallback>
-              </Avatar>
+              <PersonAvatar name={user.name} image={user.image} />
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
                 <span className="truncate text-xs text-muted-foreground">{user.role}</span>
               </div>
-              <ChevronsUpDown className="ml-auto size-4" />
+              <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg" side={isMobile ? "bottom" : "right"} align="end" sideOffset={4}>
+          <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) min-w-60 rounded-lg" side={isMobile ? "bottom" : "right"} align="end" sideOffset={4}>
             <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                <Avatar className="size-8 rounded-lg">
-                  <AvatarFallback className="rounded-lg bg-primary/10 text-xs font-semibold text-primary">{initials(user.name)}</AvatarFallback>
-                </Avatar>
+              <div className="flex items-center gap-2.5 px-1 py-1.5 text-left text-sm">
+                <PersonAvatar name={user.name} image={user.image} />
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
                   <span className="truncate text-xs text-muted-foreground">{user.email}</span>
@@ -266,9 +295,7 @@ function UserMenu({ user }: { user: SidebarData["user"] }) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Signed in as {user.role}</DropdownMenuLabel>
-            </DropdownMenuGroup>
+            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Signed in as {user.role}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onSelect={async () => {

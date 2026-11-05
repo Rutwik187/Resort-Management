@@ -24,15 +24,20 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const staff = await requireStaffPage();
   const resorts = await accessibleProperties(getDb(), staff);
   const data: SidebarData = {
-    resorts: resorts.map((resort) => ({
-      code: resort.code,
-      name: resort.name,
-      shortName: sites.find((site) => site.code === resort.code)?.shortName ?? resort.name,
-      canBook: can(staff, "bookings.create", resort.id),
-      sections: sections.filter(([, , needs]) => needs.some((permission) => can(staff, permission, resort.id))).map(([key, label]) => ({ key, label })),
-    })),
+    resorts: resorts.map((resort) => {
+      const site = sites.find((s) => s.code === resort.code);
+      return {
+        code: resort.code,
+        name: resort.name,
+        shortName: site?.shortName ?? resort.name,
+        place: site?.place ?? "",
+        website: site?.url ?? "",
+        canBook: can(staff, "bookings.create", resort.id),
+        sections: sections.filter(([, , needs]) => needs.some((permission) => can(staff, permission, resort.id))).map(([key, label]) => ({ key, label })),
+      };
+    }),
     group: [...(can(staff, "users.manage") ? [{ key: "staff" as const, label: "Staff" }] : []), ...(can(staff, "audit.view") ? [{ key: "audit" as const, label: "Audit log" }] : [])],
-    user: { name: staff.name, email: staff.email, role: staff.role.name },
+    user: { name: staff.name, email: staff.email, role: staff.role.name, image: staff.image },
   };
   // The sidebar remembers whether it was open, so it doesn't jump on the next page.
   const defaultOpen = (await cookies()).get("sidebar_state")?.value !== "false";
@@ -40,9 +45,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
       <AppSidebar data={data} />
-      <SidebarInset className="min-w-0">
+      <SidebarInset className="min-w-0 md:peer-data-[variant=inset]:border md:peer-data-[variant=inset]:border-sidebar-border">
         <SiteHeader resorts={data.resorts.map(({ code, shortName }) => ({ code, shortName }))} canSearch={can(staff, "bookings.view")} />
-        <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6 print:p-0">{children}</div>
+        <div className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8 print:p-0">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );

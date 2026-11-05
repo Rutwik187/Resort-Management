@@ -24,6 +24,21 @@ export const when = (at: Date) => at.toLocaleString("en-IN", { day: "numeric", m
 /** Such as "3:45 pm", in India time. */
 export const clock = (at: Date) => at.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
 
+/** "morning", "afternoon" or "evening", by the hour in India. */
+export function partOfDay(now = new Date()) {
+  const hour = Number(new Intl.DateTimeFormat("en-IN", { hour: "numeric", hourCycle: "h23", timeZone: "Asia/Kolkata" }).format(now));
+  return hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
+}
+
+/** Such as "RS" for Rutwik Shinde. */
+export const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0]!.toUpperCase())
+    .join("");
+
 export const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
 
 export const statusLabel: Record<BookingStatus, string> = {

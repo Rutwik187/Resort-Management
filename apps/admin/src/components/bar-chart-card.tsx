@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
 import { ChevronDown, ChartColumn } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -24,6 +24,7 @@ export function BarChartCard({
   title,
   description,
   series,
+  summary,
   columns,
   ticks,
   tickLabel,
@@ -33,6 +34,8 @@ export function BarChartCard({
   title: string;
   description: string;
   series: string;
+  /** One figure for the whole chart, such as the 30-day total, shown beside the title. */
+  summary?: { label: string; value: string };
   columns: Column[];
   ticks: number[];
   tickLabel: "rupees" | "percent";
@@ -52,6 +55,12 @@ export function BarChartCard({
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
+        {summary && !empty && (
+          <CardAction className="text-right">
+            <p className="text-xl font-semibold tracking-tight tabular-nums">{summary.value}</p>
+            <p className="text-xs text-muted-foreground">{summary.label}</p>
+          </CardAction>
+        )}
       </CardHeader>
       <CardContent>
         {empty ? (

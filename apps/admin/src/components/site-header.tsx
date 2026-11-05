@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Separator } from "@/components/ui/separator";
@@ -26,6 +27,7 @@ const labels: Record<string, string> = {
 /** The bar above every page: the sidebar toggle, where you are, and the booking search. */
 export function SiteHeader({ resorts, canSearch }: { resorts: { code: string; shortName: string }[]; canSearch: boolean }) {
   const segments = usePathname().split("/").filter(Boolean);
+  const search = useRef<HTMLInputElement>(null);
   const resort = resorts.find((r) => r.code.toLowerCase() === segments[0]);
   const crumbs: { label: string; href: string }[] = [];
   if (resort) {
@@ -36,8 +38,20 @@ export function SiteHeader({ resorts, canSearch }: { resorts: { code: string; sh
     crumbs.push({ label: segments[0] ? (labels[segments[0]] ?? segments[0]) : "All resorts", href: `/${segments[0] ?? ""}` });
   }
 
+  // "/" jumps to the search from anywhere, unless someone is typing.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (event.key !== "/" || event.metaKey || event.ctrlKey || target.closest("input, textarea, select, [contenteditable=true]")) return;
+      event.preventDefault();
+      search.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 print:hidden">
+    <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b bg-background/90 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/75 md:rounded-t-xl print:hidden">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
       <Breadcrumb className="min-w-0">
@@ -47,7 +61,7 @@ export function SiteHeader({ resorts, canSearch }: { resorts: { code: string; sh
               {i > 0 && <BreadcrumbSeparator className={i < crumbs.length - 1 ? "hidden md:block" : undefined} />}
               <BreadcrumbItem className={i < crumbs.length - 1 ? "hidden md:inline-flex" : "truncate"}>
                 {i === crumbs.length - 1 ? (
-                  <BreadcrumbPage className="truncate">{crumb.label}</BreadcrumbPage>
+                  <BreadcrumbPage className="truncate font-medium">{crumb.label}</BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink asChild>
                     <Link href={crumb.href}>{crumb.label}</Link>
@@ -59,12 +73,22 @@ export function SiteHeader({ resorts, canSearch }: { resorts: { code: string; sh
         </BreadcrumbList>
       </Breadcrumb>
       {canSearch && (
-        <form action="/search" role="search" className="ml-auto w-full max-w-64">
-          <InputGroup className="h-9">
+        <Button variant="ghost" size="icon" asChild className="ml-auto size-9 sm:hidden">
+          <Link href="/search" aria-label="Find a booking">
+            <Search />
+          </Link>
+        </Button>
+      )}
+      {canSearch && (
+        <form action="/search" role="search" className="ml-auto hidden w-full max-w-72 sm:block">
+          <InputGroup className="h-9 bg-muted/40 shadow-none">
             <InputGroupAddon>
               <Search />
             </InputGroupAddon>
-            <InputGroupInput id="header-search" name="q" type="search" placeholder="Number, phone or name" aria-label="Find a booking" />
+            <InputGroupInput ref={search} id="header-search" name="q" type="search" placeholder="Number, phone or name" aria-label="Find a booking by number, phone or name" />
+            <InputGroupAddon align="inline-end" className="hidden sm:flex">
+              <kbd className="pointer-events-none inline-flex h-5 min-w-5 items-center justify-center rounded border bg-background px-1 font-mono text-[0.7rem] font-medium text-muted-foreground">/</kbd>
+            </InputGroupAddon>
           </InputGroup>
         </form>
       )}

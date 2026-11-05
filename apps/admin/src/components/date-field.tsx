@@ -48,18 +48,41 @@ export function DateField({ id, name, defaultValue, min, placeholder = "Pick a d
 }
 
 /** A first and last date picked as one range, such as check-in and check-out. */
-export function DateRangeField({ id, names, defaultValue, min, placeholder = "Pick the dates", months = 2 }: { id?: string; names: [string, string]; defaultValue?: [string | undefined, string | undefined]; min?: string; placeholder?: string; months?: number }) {
+export function DateRangeField({
+  id,
+  names,
+  defaultValue,
+  min,
+  placeholder = "Pick the dates",
+  months = 2,
+  short = false,
+  onChange,
+  className,
+}: {
+  id?: string;
+  names: [string, string];
+  defaultValue?: [string | undefined, string | undefined];
+  min?: string;
+  placeholder?: string;
+  months?: number;
+  /** Dates without the weekday and year, such as "5 Nov – 9 Nov", for a toolbar. */
+  short?: boolean;
+  /** Called with both dates once a range is complete, or with blanks when it is cleared. */
+  onChange?: (from: string, to: string) => void;
+  className?: string;
+}) {
   const [range, setRange] = useState<DateRange | undefined>(defaultValue?.[0] ? { from: parseISO(defaultValue[0]), to: defaultValue[1] ? parseISO(defaultValue[1]) : undefined } : undefined);
   const [open, setOpen] = useState(false);
+  const show = short ? (date: Date) => format(date, "d MMM") : shown;
   return (
     <>
       <input type="hidden" name={names[0]} value={iso(range?.from)} />
       <input type="hidden" name={names[1]} value={iso(range?.to)} />
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button id={id} type="button" variant="outline" className={cn("w-full justify-start font-normal", !range?.from && "text-muted-foreground")}>
+          <Button id={id} type="button" variant="outline" className={cn("w-full justify-start font-normal", !range?.from && "text-muted-foreground", className)}>
             <CalendarIcon />
-            {range?.from ? (range.to ? `${shown(range.from)} – ${shown(range.to)}` : `${shown(range.from)} – choose the last date`) : placeholder}
+            {range?.from ? (range.to ? `${show(range.from)} – ${show(range.to)}` : `${show(range.from)} – choose the last date`) : placeholder}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
@@ -71,9 +94,29 @@ export function DateRangeField({ id, names, defaultValue, min, placeholder = "Pi
             disabled={min ? { before: parseISO(min) } : undefined}
             onSelect={(picked) => {
               setRange(picked);
-              if (picked?.from && picked.to && picked.to > picked.from) setOpen(false);
+              if (picked?.from && picked.to && picked.to > picked.from) {
+                setOpen(false);
+                onChange?.(iso(picked.from), iso(picked.to));
+              }
             }}
           />
+          {onChange && range?.from && (
+            <div className="border-t p-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={() => {
+                  setRange(undefined);
+                  setOpen(false);
+                  onChange("", "");
+                }}
+              >
+                Clear the dates
+              </Button>
+            </div>
+          )}
         </PopoverContent>
       </Popover>
     </>
