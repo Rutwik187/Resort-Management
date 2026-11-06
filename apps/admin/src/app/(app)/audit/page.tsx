@@ -49,6 +49,7 @@ const actionLabel: Record<string, string> = {
   "age_band.update": "Changed a child age band",
   "property.weekend_nights": "Changed the weekend nights",
   "property.settings": "Changed a resort's settings",
+  "website.refresh": "Refreshed a resort's website",
   "offering.create": "Added a package",
   "offering.update": "Changed a package",
   "offering.active": "Put a package on or off sale",
@@ -74,7 +75,7 @@ const kinds = {
   prices: { label: "Prices and packages", prefixes: ["rate.", "season.", "age_band.", "date_rates.", "property.weekend_nights", "offering.", "slot."] },
   rooms: { label: "Rooms", prefixes: ["room_type.", "unit."] },
   people: { label: "Staff and sign-ins", prefixes: ["staff.", "auth."] },
-  settings: { label: "Settings", prefixes: ["property.settings"] },
+  settings: { label: "Settings and websites", prefixes: ["property.settings", "website."] },
 } as const;
 
 /** An icon for each kind of change, so the log can be scanned by eye. */
@@ -95,7 +96,7 @@ const iconFor = (action: string): LucideIcon =>
                 ? Users
                 : action.startsWith("auth.")
                   ? LogIn
-                  : action === "property.settings"
+                  : action === "property.settings" || action.startsWith("website.")
                     ? Settings
                     : ScrollText;
 

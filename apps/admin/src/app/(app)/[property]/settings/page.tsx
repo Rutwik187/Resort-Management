@@ -2,7 +2,9 @@ import { can } from "@repo/auth";
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/page-header";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
+import { websiteUrls } from "@/lib/website";
 import { SettingsForm } from "./form";
+import { WebsiteCard } from "./website-card";
 
 export const metadata = { title: "Settings" };
 
@@ -14,6 +16,7 @@ export default async function SettingsPage({ params }: PageProps<"/[property]/se
   return (
     <>
       <PageHeader title="Settings" description={`${property.name}'s company details and booking settings. Taxes, payment keys, cancellation rules and message templates come with payments and messages.`} />
+      <WebsiteCard propertyId={property.id} url={websiteUrls()[property.code] ?? null} />
       <SettingsForm
         propertyId={property.id}
         settings={{

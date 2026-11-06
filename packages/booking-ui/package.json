@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./booking.css": "./src/booking.css"
+    "./booking.css": "./src/booking.css",
+    "./catalogue": "./src/catalogue.ts"
   },
   "scripts": {
     "lint": "eslint",

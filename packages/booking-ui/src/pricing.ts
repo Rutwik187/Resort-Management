@@ -68,9 +68,11 @@ export function priceForStay(listing: Listing, party: Party, nights: string[]): 
   return total;
 }
 
-/** One kind of day pass for one party. Babies under 3 come free. */
-export const priceForPass = (pass: Pass, party: Party) =>
-  party.adults * pass.adult + party.children5to11 * pass.child5to11 + party.children3to5 * pass.child3to5;
+/** One kind of day pass for one party. Babies under 3 come free. Null when a child's price isn't published. */
+export function priceForPass(pass: Pass, party: Party): number | null {
+  if ((party.children5to11 && pass.child5to11 === undefined) || (party.children3to5 && pass.child3to5 === undefined)) return null;
+  return party.adults * pass.adult + party.children5to11 * (pass.child5to11 ?? 0) + party.children3to5 * (pass.child3to5 ?? 0);
+}
 
 /** The lowest published base rate, for "from ₹4,000 a night". */
 export function lowestRate(listing: Listing) {

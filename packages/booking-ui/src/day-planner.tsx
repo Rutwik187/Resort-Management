@@ -7,6 +7,9 @@ import { DateField, useToday } from "./date-field";
 import { formatDay, isDate, plural, pluralOf } from "./dates";
 import { PickDialog } from "./pick-dialog";
 import { describeParty, formatRupees, headcount, priceForPass } from "./pricing";
+
+/** A price, or what to say when the resort quotes it. */
+const priceText = (amount: number | null) => (amount === null ? "On request" : formatRupees(amount));
 import { requestMessage, type RequestLine } from "./request";
 import { dayParam, passParam } from "./params";
 import { newKey } from "./saved";
@@ -136,7 +139,8 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
     const pass = byId.get(item.passId);
     return pass ? [{ key: item.key, title: `${pass.name} ${noun}`, detail: describeParty(item.party), amount: priceForPass(pass, item.party) }] : [];
   });
-  const total = lines.reduce((sum, line) => sum + (line.amount ?? 0), 0);
+  // A line the team quotes leaves the total to them too, as for stays.
+  const total = lines.some((line) => line.amount === null) ? null : lines.reduce((sum, line) => sum + (line.amount ?? 0), 0);
   const people = picked.reduce((sum, item) => sum + headcount(item.party), 0);
   const blocker = picked.length === 0 ? `Add a ${noun} to continue.` : !date ? "Choose your date to continue." : null;
 
@@ -217,7 +221,7 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
 
       <TrayDock
         summary={`${plural(picked.length, noun)} · ${plural(people, "guest")}`}
-        total={`${formatRupees(total)} + GST`}
+        total={total === null ? "Price to confirm" : `${formatRupees(total)} + GST`}
         visible={picked.length > 0}
         open={trayOpen}
         onOpenChange={setTrayOpen}
@@ -242,7 +246,7 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
           }}
           price={
             <span>
-              <span className="bk-display block text-[1.45rem] leading-tight tabular-nums">{formatRupees(priceForPass(shownPass, current.party))}</span>
+              <span className="bk-display block text-[1.45rem] leading-tight tabular-nums">{priceText(priceForPass(shownPass, current.party))}</span>
               <span className="text-[0.82rem] text-bk-muted">plus GST · {shownPass.hours}</span>
             </span>
           }
@@ -323,11 +327,11 @@ function PassCard({ pass, noun, count, onPick }: { pass: Pass; noun: string; cou
           </div>
           <div>
             <dt>Child, 5 to 11</dt>
-            <dd className="mt-1 text-[1rem] text-bk-ink tabular-nums">{formatRupees(pass.child5to11)}</dd>
+            <dd className="mt-1 text-[1rem] text-bk-ink tabular-nums">{priceText(pass.child5to11 ?? null)}</dd>
           </div>
           <div>
             <dt>Child, 3 to 5</dt>
-            <dd className="mt-1 text-[1rem] text-bk-ink tabular-nums">{formatRupees(pass.child3to5)}</dd>
+            <dd className="mt-1 text-[1rem] text-bk-ink tabular-nums">{priceText(pass.child3to5 ?? null)}</dd>
           </div>
         </dl>
         <p className="mt-2 text-[0.8rem] text-bk-muted">Per person, plus GST. Under 3 free.</p>
