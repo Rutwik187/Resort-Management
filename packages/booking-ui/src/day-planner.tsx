@@ -10,7 +10,7 @@ import { describeParty, formatRupees, headcount, priceForPass } from "./pricing"
 
 /** A price, or what to say when the resort quotes it. */
 const priceText = (amount: number | null) => (amount === null ? "On request" : formatRupees(amount));
-import { requestMessage, type RequestLine } from "./request";
+import { keep, requestMessage, type RequestLine, type WebsiteRequest } from "./request";
 import { dayParam, passParam } from "./params";
 import { newKey } from "./saved";
 import { Sheet } from "./sheet";
@@ -27,6 +27,8 @@ type DayPlannerProps = {
   notes?: string[];
   /** What one pass is called on this site: "day pass" or "day package". */
   noun?: string;
+  /** Keeps each sent request, such as a server action that saves it as a lead. Its failure never stops the guest. */
+  onRequest?: (request: WebsiteRequest) => Promise<unknown> | void;
 };
 
 type PickedPass = { key: string; passId: string; party: Party };
@@ -51,7 +53,7 @@ const dateFromAddress = () => {
  * Day visits, the same way as rooms: choose the date, add a pass and say
  * who is coming, then add other passes. The tray keeps the total.
  */
-export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day pass" }: DayPlannerProps) {
+export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day pass", onRequest }: DayPlannerProps) {
   const byId = new Map(passes.map((pass) => [pass.id, pass]));
   const today = useToday();
   const [announcement, setAnnouncement] = useState("");
@@ -176,6 +178,7 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
       blocker={blocker}
       desk={desk}
       checkout={checkout}
+      onSend={(guest) => keep(onRequest, { kind: "day", from: date, guests: people, lines: lines.map(({ title, detail, amount }) => ({ title, detail, amount })), total, guest })}
       message={(guest) =>
         requestMessage({ desk, opening: `I would like to book ${pluralOf(noun)} for a day visit.`, when: [`Date: ${formatDay(date)}`], lines, total, guest })
       }

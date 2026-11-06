@@ -1,9 +1,9 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getDb, properties } from "@repo/db";
+import { getDb, leadActivities, leads, properties } from "@repo/db";
 import { createBooking, holdSeats, holdStay, quoteSeats, quoteStay, releaseHold, type Quote } from "@repo/engine";
 import { offlineSources } from "@/lib/format";
 import { checkbox, date, filled, problem, rupeesField, type FormState } from "@/lib/forms";
@@ -83,6 +83,8 @@ const details = z
     payMethod: z.enum(methods, { error: "Choose how the guest paid." }).optional(),
     payAmount: rupeesField("Amount paid").optional(),
     payReference: z.string().trim().max(100).optional(),
+    /** The lead this booking comes from, which it marks as booked. */
+    leadId: z.uuid().optional(),
   })
   .refine((v) => !v.override || v.overridePrice !== undefined, { error: "Write the price you agreed." })
   .refine((v) => !v.override || (v.overrideReason?.length ?? 0) >= 3, { error: "Say why the price is different." })
@@ -131,6 +133,18 @@ export async function createOffline(propertyId: string, _state: FormState, form:
     }
 
     await audit({ userId: staff.userId, propertyId, action: "booking.create", entity: "bookings", entityId: made.bookingId, after: { number: made.number, source: guest.source, quote: hold.quote, priceOverride, payment } });
+    if (guest.leadId) {
+      // The lead it came from is booked now, with the booking on its timeline.
+      const [won] = await db
+        .update(leads)
+        .set({ status: "won", bookingId: made.bookingId })
+        .where(and(eq(leads.id, guest.leadId), eq(leads.propertyId, propertyId)))
+        .returning({ id: leads.id });
+      if (won) {
+        await db.insert(leadActivities).values({ leadId: won.id, userId: staff.userId, type: "booked", data: { number: made.number, bookingId: made.bookingId } });
+        await audit({ userId: staff.userId, propertyId, action: "lead.booked", entity: "leads", entityId: won.id, after: { number: made.number } });
+      }
+    }
     const [property] = await db.select({ code: properties.code }).from(properties).where(eq(properties.id, propertyId));
     path = `/${property.code.toLowerCase()}/bookings/${made.number.toLowerCase()}`;
   } catch (error) {

@@ -12,6 +12,7 @@ import { requireStaffPage } from "@/lib/staff";
 const sections: [Section["key"], string, Permission[]][] = [
   ["today", "Today", ["dashboard.view"]],
   ["bookings", "Bookings", ["bookings.view"]],
+  ["leads", "Leads", ["leads.view"]],
   ["calendar", "Calendar", ["inventory.view"]],
   ["rooms", "Rooms", ["rooms.manage", "inventory.view"]],
   ["prices", "Prices", ["prices.view"]],

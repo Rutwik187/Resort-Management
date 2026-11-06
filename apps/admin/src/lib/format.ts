@@ -107,3 +107,27 @@ export const balance = (booking: { totalPaise: number | null; paidPaise: number 
 
 export const mealLabel = { EP: "Room only (EP)", CP: "With breakfast (CP)", MAP: "Breakfast and one meal (MAP)", AP: "All meals (AP)" } as const;
 export const nightsLabel = { any: "Every night", weekday: "Weekday nights", weekend: "Weekend nights" } as const;
+
+/** A lead's state, in the words staff use. "won" reads as booked. */
+export const leadStatusLabel = { new: "New", contacted: "Contacted", quoted: "Quoted", won: "Booked", lost: "Lost" } as const;
+export const leadSourceLabel = {
+  website_booking: "Website booking request",
+  website_enquiry: "Website enquiry",
+  phone: "Phone",
+  walk_in: "Walk-in",
+  whatsapp: "WhatsApp",
+  email: "Email",
+  referral: "Referral",
+  other: "Other",
+} as const;
+export const leadInterestLabel = { stay: "Stay", day: "Day visit", wedding: "Wedding", event: "Event", other: "Other" } as const;
+
+/** Such as "just now", "5 min ago", "3 hours ago" or "2 days ago". */
+export function ago(at: Date, now = new Date()) {
+  const minutes = Math.max(0, Math.round((now.getTime() - at.getTime()) / 60_000));
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return plural(hours, "hour") + " ago";
+  return plural(Math.round(hours / 24), "day") + " ago";
+}

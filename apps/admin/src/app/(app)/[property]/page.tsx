@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, BedDouble, CalendarDays, CircleCheck, DoorOpen, IndianRupee, LogIn, LogOut, Plus, Sparkles, TrendingUp, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowRight, BedDouble, CalendarDays, CircleCheck, DoorOpen, Inbox, IndianRupee, LogIn, LogOut, Plus, Sparkles, TrendingUp, Wallet } from "lucide-react";
 import { can } from "@repo/auth";
 import { todayInIndia } from "@repo/engine";
 import { BarChartCard } from "@/components/bar-chart-card";
@@ -15,7 +15,8 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { resortToday } from "@/lib/dashboard";
-import { balance, longDate, partOfDay, plural, rupees, shortDate } from "@/lib/format";
+import { ago, balance, leadInterestLabel, longDate, partOfDay, plural, rupees, shortDate } from "@/lib/format";
+import { leadCounts, leadsToAnswer } from "@/lib/leads";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
 
 export const metadata = { title: "Today" };
@@ -40,7 +41,12 @@ export default async function TodayPage({ params }: PageProps<"/[property]">) {
   const rooms = may("inventory.view");
 
   const today = todayInIndia();
-  const day = await resortToday(property, today);
+  const leadsView = may("leads.view");
+  const [day, leadCount, toAnswer] = await Promise.all([
+    resortToday(property, today),
+    leadsView ? leadCounts(property.id, today) : null,
+    leadsView ? leadsToAnswer(property.id, today, 4) : [],
+  ]);
   const base = `/${property.code.toLowerCase()}`;
   const occupancy = day.unitsInUse ? day.tonight.booked / day.unitsInUse : 0;
   const salesTop = Math.max(...day.salesDays.map((d) => d.paise / 100));
@@ -133,10 +139,10 @@ export default async function TodayPage({ params }: PageProps<"/[property]">) {
         </div>
       )}
 
-      {(people || money || rooms) && (
+      {(people || money || rooms || leadsView) && (
         <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
           {people && (
-            <Card className={money || rooms ? "lg:col-span-2" : "lg:col-span-3"}>
+            <Card className={money || rooms || leadsView ? "lg:col-span-2" : "lg:col-span-3"}>
               <Tabs defaultValue={day.arrivals.length || !day.inHouse.length ? "arriving" : "in"} className="gap-0">
                 <CardHeader className="gap-4">
                   <CardTitle>Front desk</CardTitle>
@@ -176,7 +182,7 @@ export default async function TodayPage({ params }: PageProps<"/[property]">) {
             </Card>
           )}
 
-          {(money || rooms) && (
+          {(money || rooms || leadsView) && (
             <div className={`grid gap-4 ${people ? "" : "lg:col-span-3 lg:grid-cols-2"}`}>
               {money && (
                 <Card>
@@ -196,6 +202,49 @@ export default async function TodayPage({ params }: PageProps<"/[property]">) {
                         warn={day.collect.paise > 0}
                       />
                     </ul>
+                  </CardContent>
+                </Card>
+              )}
+              {leadsView && leadCount && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Leads</CardTitle>
+                    <CardDescription>
+                      {plural(leadCount.new, "new lead")}
+                      {leadCount.due ? `, ${plural(leadCount.due, "follow-up")} due` : ""}.
+                    </CardDescription>
+                    <CardAction>
+                      <Button variant="ghost" size="sm" asChild className="text-muted-foreground">
+                        <Link href={`${base}/leads`}>
+                          All leads
+                          <ArrowRight />
+                        </Link>
+                      </Button>
+                    </CardAction>
+                  </CardHeader>
+                  <CardContent>
+                    {toAnswer.length === 0 ? (
+                      <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
+                        <CircleCheck className="size-4 shrink-0 text-good" />
+                        Every lead has an answer.
+                      </div>
+                    ) : (
+                      <ul className="grid gap-1">
+                        {toAnswer.map((lead) => (
+                          <li key={lead.id}>
+                            <Link href={`${base}/leads/${lead.id}`} className="flex items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-muted/50">
+                              <Inbox className={`size-4 shrink-0 ${lead.status === "new" ? "text-primary" : "text-warn"}`} aria-hidden="true" />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate font-medium">{lead.name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {leadInterestLabel[lead.interest]} · {lead.status === "new" ? `came ${ago(lead.createdAt)}` : `follow up ${lead.followUpOn === today ? "today" : `since ${shortDate(lead.followUpOn!)}`}`}
+                                </span>
+                              </span>
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </CardContent>
                 </Card>
               )}

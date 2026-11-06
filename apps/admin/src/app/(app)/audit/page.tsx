@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gte, inArray, isNull, like, lte, or, sql } from "dr
 import { accessibleProperties, can } from "@repo/auth";
 import { auditLog, getDb, properties, staffMembers, user } from "@repo/db";
 import { isDate } from "@repo/engine";
-import { BedDouble, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, IndianRupee, Lock, LogIn, ScrollText, Settings, Tag, Ticket, Users, type LucideIcon } from "lucide-react";
+import { BedDouble, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Inbox, IndianRupee, Lock, LogIn, ScrollText, Settings, Tag, Ticket, Users, type LucideIcon } from "lucide-react";
 import { properties as sites } from "@repo/sites";
 import { DateField } from "@/components/date-field";
 import { PageHeader } from "@/components/page-header";
@@ -63,6 +63,12 @@ const actionLabel: Record<string, string> = {
   "room_type.move": "Moved a room type in the list",
   "unit.create": "Added a room",
   "unit.status": "Changed a room's status",
+  "lead.create": "Added a lead",
+  "lead.status": "Changed a lead's status",
+  "lead.assign": "Handed a lead to someone",
+  "lead.follow_up": "Set a lead's follow-up day",
+  "lead.note": "Added a note to a lead",
+  "lead.booked": "Booked a lead",
   "staff.invite": "Added a staff member",
   "staff.deactivate": "Deactivated a staff member",
   "staff.reactivate": "Reactivated a staff member",
@@ -74,6 +80,7 @@ const kinds = {
   inventory: { label: "Blocks, stay rules and seats", prefixes: ["block.", "stay_rules.", "capacity."] },
   prices: { label: "Prices and packages", prefixes: ["rate.", "season.", "age_band.", "date_rates.", "property.weekend_nights", "offering.", "slot."] },
   rooms: { label: "Rooms", prefixes: ["room_type.", "unit."] },
+  leads: { label: "Leads", prefixes: ["lead."] },
   people: { label: "Staff and sign-ins", prefixes: ["staff.", "auth."] },
   settings: { label: "Settings and websites", prefixes: ["property.settings", "website."] },
 } as const;
@@ -94,6 +101,8 @@ const iconFor = (action: string): LucideIcon =>
               ? BedDouble
               : action.startsWith("staff.")
                 ? Users
+                : action.startsWith("lead.")
+                  ? Inbox
                 : action.startsWith("auth.")
                   ? LogIn
                   : action === "property.settings" || action.startsWith("website.")

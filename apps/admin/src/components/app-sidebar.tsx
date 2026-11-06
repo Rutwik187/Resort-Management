@@ -10,6 +10,7 @@ import {
   ClipboardList,
   ExternalLink,
   IndianRupee,
+  Inbox,
   LayoutDashboard,
   LayoutGrid,
   LogOut,
@@ -47,7 +48,7 @@ import {
 } from "@/components/ui/sidebar";
 
 /** A resort section. Icons are named, because a server can't hand a component to the browser. */
-export type Section = { key: "today" | "bookings" | "calendar" | "rooms" | "prices" | "packages" | "settings"; label: string };
+export type Section = { key: "today" | "bookings" | "leads" | "calendar" | "rooms" | "prices" | "packages" | "settings"; label: string };
 export type SidebarResort = { code: string; name: string; shortName: string; place: string; website: string; sections: Section[]; canBook: boolean };
 export type SidebarData = {
   resorts: SidebarResort[];
@@ -58,6 +59,7 @@ export type SidebarData = {
 const sectionIcon: Record<Section["key"], LucideIcon> = {
   today: LayoutDashboard,
   bookings: ClipboardList,
+  leads: Inbox,
   calendar: CalendarDays,
   rooms: BedDouble,
   prices: IndianRupee,
@@ -68,7 +70,7 @@ const groupIcon = { staff: Users, audit: ScrollText } as const;
 
 /** The day's work first, then what is set up once and changed now and then. */
 const sectionGroups: { label: string; keys: Section["key"][] }[] = [
-  { label: "Front office", keys: ["today", "bookings", "calendar"] },
+  { label: "Front office", keys: ["today", "bookings", "leads", "calendar"] },
   { label: "Resort setup", keys: ["rooms", "prices", "packages", "settings"] },
 ];
 

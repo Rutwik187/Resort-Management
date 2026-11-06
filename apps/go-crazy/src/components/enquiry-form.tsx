@@ -3,6 +3,7 @@
 import { useId, useState, type CSSProperties, type FormEvent } from "react";
 import { CountInput, DateInput, FieldError, contactErrors, formatLong, type ContactErrors } from "@repo/booking-ui";
 import { contact, dayPasses, formatRupees, stays, type DayPass } from "@/content/resort";
+import { sendEnquiry } from "@/app/actions";
 
 export const purposes = [
   { value: "day", label: "A day out" },
@@ -92,6 +93,8 @@ export function EnquiryForm({ defaultPurpose = "day", defaultPass = "morning", c
     if (data.get("note")) lines.push(`Note: ${data.get("note")}`);
     const text = lines.filter(Boolean).join("\n");
     window.open(`https://wa.me/${contact.whatsapp.number}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+    // Kept as a lead in the admin too. WhatsApp has opened already, so this never holds the guest up.
+    sendEnquiry({ purpose, name: data.get("name"), phone: data.get("phone"), date: date || undefined, guests: data.get("guests") || undefined, note: text }).catch(() => undefined);
   }
 
   const twoUp = compact ? "grid grid-cols-2 gap-4" : "grid gap-5 sm:grid-cols-2";

@@ -60,6 +60,7 @@ export function NewBookingForm({
   bands,
   canOverride,
   canTakePayment,
+  prefill,
 }: {
   propertyId: string;
   kind: "stay" | "day";
@@ -68,6 +69,8 @@ export function NewBookingForm({
   bands: Band[];
   canOverride: boolean;
   canTakePayment: boolean;
+  /** The guest from a lead, when the booking comes from one. */
+  prefill?: { leadId: string; name: string; phone: string; email: string };
 }) {
   const [lines, setLines] = useState<Line[]>([]);
   const [nextKey, setNextKey] = useState(1);
@@ -100,6 +103,7 @@ export function NewBookingForm({
   return (
     <form action={action} className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
       <input type="hidden" name="request" value={JSON.stringify(request)} />
+      {prefill && <input type="hidden" name="leadId" value={prefill.leadId} />}
       <div className="grid min-w-0 content-start gap-4">
         <Card className="shadow-xs">
           <CardHeader className="flex items-center gap-3">
@@ -244,15 +248,15 @@ export function NewBookingForm({
             <FieldGroup className="gap-5">
               <Field>
                 <FieldLabel htmlFor="name">Name</FieldLabel>
-                <Input id="name" name="name" required minLength={2} autoComplete="off" />
+                <Input id="name" name="name" required minLength={2} autoComplete="off" defaultValue={prefill?.name} />
               </Field>
               <Field>
                 <FieldLabel htmlFor="phone">Phone</FieldLabel>
-                <Input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="off" placeholder="98765 43210" />
+                <Input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="off" placeholder="98765 43210" defaultValue={prefill?.phone} />
               </Field>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
-                <Input id="email" name="email" type="email" autoComplete="off" />
+                <Input id="email" name="email" type="email" autoComplete="off" defaultValue={prefill?.email} />
               </Field>
               <Collapsible>
                 <CollapsibleTrigger className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">

@@ -7,6 +7,7 @@ import { PageTransition } from "@/components/page-transition";
 import { PaidList } from "@/components/paid-list";
 import { DayPlanner } from "@repo/booking-ui";
 import { liveDayPasses } from "@repo/website";
+import { sendBookingRequest } from "@/app/actions";
 import { dayNotes, desk, passes } from "@/content/booking";
 import { groundCourse } from "@/content/resort";
 import { pageMetadata } from "@/content/site";
@@ -36,7 +37,7 @@ export default async function DayPackagesPage() {
           </div>
         </header>
         <div className="mx-auto max-w-[1600px] px-4 pb-20 pt-10 md:px-8 md:pb-28">
-          <DayPlanner passes={live} desk={desk} storageKey="gc" noun="day pass" notes={dayNotes} />
+          <DayPlanner passes={live} onRequest={sendBookingRequest} desk={desk} storageKey="gc" noun="day pass" notes={dayNotes} />
         </div>
       </div>
 

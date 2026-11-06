@@ -7,6 +7,8 @@ import {
   bookings,
   capacityDays,
   holds,
+  leadActivities,
+  leads,
   offeringChildPrices,
   offlinePayments,
   offerings,
@@ -35,6 +37,7 @@ import {
   quoteSeats,
   quoteStay,
   recordPayment,
+  recordWebsiteLead,
   RuleError,
   searchStays,
   seatsLeft,
@@ -452,5 +455,21 @@ describe("the website", () => {
     const lunch = catalogue!.passes.find((p) => p.code === "sunday-lunch")!;
     expect(lunch).toMatchObject({ hours: "12:30 to 3:30 pm", adultPaise: 60_000, childPaise: { child_5_11: 30_000 } });
     expect(await websiteCatalogue(db, "XX")).toBeNull();
+  });
+});
+
+describe("website leads", () => {
+  it("saves a request as a lead, and a second request from the same phone joins it", async () => {
+    const first = await recordWebsiteLead(db, { propertyCode: "KS", source: "website_booking", interest: "stay", name: "Meera", phone: "98765 00001", dateFrom: "2028-03-01", dateTo: "2028-03-03", request: { total: 10_000 } });
+    const again = await recordWebsiteLead(db, { propertyCode: "KS", source: "website_enquiry", interest: "wedding", name: "Meera", phone: "+91 98765 00001", message: "And a wedding?" });
+    expect(again).toEqual({ leadId: first.leadId, merged: true });
+    const [lead] = await db.select().from(leads).where(eq(leads.id, first.leadId));
+    expect(lead).toMatchObject({ phone: "919876500001", interest: "wedding", message: "And a wedding?", status: "new", source: "website_booking" });
+    const timeline = await db.select().from(leadActivities).where(eq(leadActivities.leadId, first.leadId));
+    expect(timeline.map((a) => a.type).sort()).toEqual(["created", "request"]);
+
+    const other = await recordWebsiteLead(db, { propertyCode: "KS", source: "website_enquiry", interest: "day", name: "Arjun", phone: "98765 00002" });
+    expect(other.merged).toBe(false);
+    await expect(recordWebsiteLead(db, { propertyCode: "XX", source: "website_enquiry", interest: "day", name: "Arjun", phone: "98765 00002" })).rejects.toThrow();
   });
 });
