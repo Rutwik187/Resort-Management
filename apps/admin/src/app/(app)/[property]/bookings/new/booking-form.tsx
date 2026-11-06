@@ -19,7 +19,10 @@ import { methodLabel, plural, price, rupees, shortDate, sourceLabel, offlineSour
 import { createOffline, quoteOffline, type BookingRequest, type QuoteView } from "./actions";
 
 /** A room type, or a ticket for a package, activity or sitting, that can be added. */
-export type Option = { id: string; name: string; available: number; closedReason: string | null; maxAdults: number; maxGuests: number; extraBedAllowed: boolean };
+export type Option = { id: string; name: string; available: number; closedReason: string | null; maxAdults: number | null; maxGuests: number | null; extraBedAllowed: boolean };
+
+/** Steppers need a top. Where the resort publishes no limit, this one is high enough for any party. */
+const noLimit = 60;
 type Band = { code: string; label: string };
 type Line = { key: number; id: string; adults: number; children: Record<string, number>; extraBeds: number };
 
@@ -85,7 +88,7 @@ export function NewBookingForm({
   };
   const update = (key: number, patch: Partial<Line>) => change(lines.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const add = (option: Option) => {
-    change([...lines, { key: nextKey, id: option.id, adults: Math.min(2, option.maxAdults), children: {}, extraBeds: 0 }]);
+    change([...lines, { key: nextKey, id: option.id, adults: Math.min(2, option.maxAdults ?? noLimit), children: {}, extraBeds: 0 }]);
     setNextKey(nextKey + 1);
   };
 
@@ -167,20 +170,20 @@ export function NewBookingForm({
                       </Button>
                     </div>
                     <div className="grid gap-2 sm:max-w-sm">
-                      <Stepper label="Adults" value={line.adults} min={1} max={option.maxAdults} onChange={(adults) => update(line.key, { adults })} />
+                      <Stepper label="Adults" value={line.adults} min={1} max={option.maxAdults ?? noLimit} onChange={(adults) => update(line.key, { adults })} />
                       {bands.map((band) => (
                         <Stepper
                           key={band.code}
                           label={`Children, ${band.label}`}
                           value={line.children[band.code] ?? 0}
                           min={0}
-                          max={option.maxGuests}
+                          max={option.maxGuests ?? noLimit}
                           onChange={(n) => update(line.key, { children: { ...line.children, [band.code]: n } })}
                         />
                       ))}
                       {option.extraBedAllowed && <Stepper label="Extra beds" value={line.extraBeds} min={0} max={2} onChange={(extraBeds) => update(line.key, { extraBeds })} />}
                     </div>
-                    {guests > option.maxGuests && (
+                    {option.maxGuests !== null && guests > option.maxGuests && (
                       <p className="text-sm text-destructive">{kind === "stay" ? `This room takes at most ${option.maxGuests} guests.` : `Only ${option.maxGuests} seats are left.`}</p>
                     )}
                   </div>

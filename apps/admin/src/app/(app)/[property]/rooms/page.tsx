@@ -1,7 +1,8 @@
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
-import { ArrowDown, ArrowUp, BedDouble, CircleAlert, DoorOpen, Eye, EyeOff, IndianRupee, RotateCcw, Users, Wrench } from "lucide-react";
+import { ArrowDown, ArrowUp, BedDouble, CircleAlert, DoorOpen, Eye, EyeOff, Globe, IndianRupee, RotateCcw, Users, Wrench } from "lucide-react";
 import { can } from "@repo/auth";
 import { getDb, rates, roomTypes, units } from "@repo/db";
+import { properties as sites } from "@repo/sites";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,7 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
   const allUnits = ids.length ? await db.select().from(units).where(inArray(units.roomTypeId, ids)).orderBy(asc(units.sortOrder), asc(units.name)) : [];
   const baseRates = ids.length ? await db.select().from(rates).where(and(inArray(rates.roomTypeId, ids), isNull(rates.seasonId))) : [];
 
+  const sections = sites.find((site) => site.code === property.code)?.staySections ?? [];
   const inUse = allUnits.filter((u) => u.status === "active").length;
   const resting = allUnits.filter((u) => u.status === "maintenance").length;
   const onSale = types.filter((t) => t.status === "active").length;
@@ -41,7 +43,7 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
       <PageHeader
         title="Rooms and units"
         description="A room type is a kind of room, such as Garden Cottage; its units are the rooms themselves. Guests see the room types in this order."
-        actions={manage && <RoomTypeForm propertyId={property.id} />}
+        actions={manage && <RoomTypeForm propertyId={property.id} sections={sections} />}
       />
 
       {types.length > 0 && (
@@ -87,8 +89,9 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
                   <span aria-hidden="true">·</span>
                   <span className="flex items-center gap-1">
                     <Users className="size-3.5" />
-                    {type.minGuests > 1 ? `${type.minGuests}–` : "up to "}
-                    {type.maxGuests} guests, base price covers {type.baseOccupancy}
+                    {type.maxGuests === null
+                      ? `${type.minGuests > 1 ? `${type.minGuests} or more guests` : "no guest limit set"}, base price covers ${type.baseOccupancy}`
+                      : `${type.minGuests > 1 ? `${type.minGuests}–` : "up to "}${type.maxGuests} guests, base price covers ${type.baseOccupancy}`}
                   </span>
                   {type.extraBedAllowed && (
                     <>
@@ -124,7 +127,7 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
                         <ArrowDown />
                       </Button>
                     </form>
-                    <RoomTypeEditForm type={type} />
+                    <RoomTypeEditForm type={type} sections={sections} />
                     <form action={setRoomTypeStatus.bind(null, type.id, off ? "active" : "inactive")}>
                       <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground">
                         {off ? <Eye /> : <EyeOff />}
@@ -134,6 +137,18 @@ export default async function RoomsPage({ params }: PageProps<"/[property]/rooms
                   </CardAction>
                 )}
               </CardHeader>
+              <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 border-b px-6 py-2.5 text-sm ${type.onWebsite && !off ? "bg-primary/[0.03]" : "bg-muted/40"}`}>
+                <Globe className={`size-4 shrink-0 ${type.onWebsite && !off ? "text-primary" : "text-muted-foreground"}`} />
+                {type.onWebsite && !off ? (
+                  <>
+                    <span className="font-medium">On the website</span>
+                    <span className="text-muted-foreground">· {sections.find((section) => section.id === type.webGroup)?.title ?? sections[0]?.title ?? "Stays"}</span>
+                    {type.tagline ? <span className="min-w-0 truncate text-muted-foreground">· {type.tagline}</span> : <span className="text-warn">· No tagline yet</span>}
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">{off ? "Off sale, so not on the website" : "Not on the website. Staff can still book it here."}</span>
+                )}
+              </div>
               <CardContent className="grid gap-0 p-0 lg:grid-cols-[21rem_minmax(0,1fr)] lg:divide-x">
                 <div className="grid content-start gap-2 p-5">
                   <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Base rates</p>

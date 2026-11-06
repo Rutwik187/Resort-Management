@@ -1,0 +1,141 @@
+import { and, asc, count, eq, inArray, isNull } from "drizzle-orm";
+import { ageBands, offeringChildPrices, offerings, offeringSlots, properties, rateChildPrices, rates, roomTypes, units, type Executor } from "@repo/db";
+
+/*
+ * What a resort's website shows from the admin: its room types with their
+ * text, room counts and base rates, and its day packages with their hours
+ * and prices. Only what staff have put on sale and on the website. Child
+ * prices are keyed by age band code, such as "child_5_11", because each
+ * site names its own bands.
+ */
+
+export type WebsiteRate = {
+  dayKind: "weekday" | "weekend" | "any";
+  basis: "room" | "person";
+  basePaise: number;
+  extraAdultPaise: number | null;
+  mealPlan: "EP" | "CP" | "MAP" | "AP";
+  /** By age band code. A band that is missing is not published. */
+  childPaise: Record<string, number>;
+};
+
+export type WebsiteRoomType = {
+  code: string;
+  name: string;
+  category: "room" | "cottage" | "villa" | "tent" | "dormitory" | "other";
+  tagline: string | null;
+  description: string | null;
+  features: string[];
+  webGroup: string | null;
+  baseOccupancy: number;
+  minGuests: number;
+  /** Empty when the resort publishes no limit. */
+  maxGuests: number | null;
+  /** Rooms in use. Zero when staff have not added the rooms themselves yet. */
+  units: number;
+  rates: WebsiteRate[];
+};
+
+export type WebsitePass = {
+  code: string;
+  name: string;
+  kind: "day_package" | "activity" | "dining" | "other";
+  /** What it includes, such as "Breakfast, lunch and hi-tea". */
+  summary: string | null;
+  /** Its first slot's label, such as "9:00 am to 6:00 pm". */
+  hours: string | null;
+  adultPaise: number;
+  childPaise: Record<string, number>;
+  soldOn: number[] | null;
+  validFrom: string | null;
+  validTo: string | null;
+};
+
+export type WebsiteCatalogue = { roomTypes: WebsiteRoomType[]; passes: WebsitePass[] };
+
+/** A resort's website catalogue, or null when there is no such resort. A few queries, run one after another. */
+export async function websiteCatalogue(db: Executor, propertyCode: string): Promise<WebsiteCatalogue | null> {
+  const [property] = await db.select({ id: properties.id }).from(properties).where(eq(properties.code, propertyCode));
+  if (!property) return null;
+
+  const types = await db
+    .select()
+    .from(roomTypes)
+    .where(and(eq(roomTypes.propertyId, property.id), eq(roomTypes.status, "active"), eq(roomTypes.onWebsite, true)))
+    .orderBy(asc(roomTypes.sortOrder), asc(roomTypes.name));
+  const typeIds = types.map((t) => t.id);
+  const unitCounts = typeIds.length
+    ? await db
+        .select({ roomTypeId: units.roomTypeId, n: count() })
+        .from(units)
+        .where(and(inArray(units.roomTypeId, typeIds), eq(units.status, "active")))
+        .groupBy(units.roomTypeId)
+    : [];
+  const rateRows = typeIds.length ? await db.select().from(rates).where(and(inArray(rates.roomTypeId, typeIds), isNull(rates.seasonId))) : [];
+  const rateChildren = rateRows.length
+    ? await db
+        .select({ rateId: rateChildPrices.rateId, band: ageBands.code, paise: rateChildPrices.paise })
+        .from(rateChildPrices)
+        .innerJoin(ageBands, eq(ageBands.id, rateChildPrices.ageBandId))
+        .where(inArray(rateChildPrices.rateId, rateRows.map((r) => r.id)))
+    : [];
+
+  const passRows = await db
+    .select()
+    .from(offerings)
+    .where(and(eq(offerings.propertyId, property.id), eq(offerings.active, true)))
+    .orderBy(asc(offerings.sortOrder), asc(offerings.name));
+  const passIds = passRows.map((p) => p.id);
+  const slots = passIds.length
+    ? await db
+        .select({ offeringId: offeringSlots.offeringId, label: offeringSlots.label })
+        .from(offeringSlots)
+        .where(and(inArray(offeringSlots.offeringId, passIds), eq(offeringSlots.active, true)))
+        .orderBy(asc(offeringSlots.sortOrder), asc(offeringSlots.label))
+    : [];
+  const passChildren = passIds.length
+    ? await db
+        .select({ offeringId: offeringChildPrices.offeringId, band: ageBands.code, paise: offeringChildPrices.paise })
+        .from(offeringChildPrices)
+        .innerJoin(ageBands, eq(ageBands.id, offeringChildPrices.ageBandId))
+        .where(inArray(offeringChildPrices.offeringId, passIds))
+    : [];
+
+  return {
+    roomTypes: types.map((type) => ({
+      code: type.code,
+      name: type.name,
+      category: type.category,
+      tagline: type.tagline,
+      description: type.description,
+      features: type.features,
+      webGroup: type.webGroup,
+      baseOccupancy: type.baseOccupancy,
+      minGuests: type.minGuests,
+      maxGuests: type.maxGuests,
+      units: unitCounts.find((u) => u.roomTypeId === type.id)?.n ?? 0,
+      rates: rateRows
+        .filter((rate) => rate.roomTypeId === type.id)
+        .map((rate) => ({
+          dayKind: rate.dayKind,
+          basis: rate.basis,
+          basePaise: rate.basePaise,
+          extraAdultPaise: rate.extraAdultPaise,
+          mealPlan: rate.mealPlan,
+          childPaise: Object.fromEntries(rateChildren.filter((c) => c.rateId === rate.id).map((c) => [c.band, c.paise])),
+        })),
+    })),
+    passes: passRows.map((pass) => ({
+      code: pass.code,
+      name: pass.name,
+      kind: pass.kind,
+      summary: pass.summary,
+      hours: slots.find((slot) => slot.offeringId === pass.id)?.label ?? null,
+      adultPaise: pass.adultPaise,
+      childPaise: Object.fromEntries(passChildren.filter((c) => c.offeringId === pass.id).map((c) => [c.band, c.paise])),
+      soldOn: pass.soldOn,
+      validFrom: pass.validFrom,
+      validTo: pass.validTo,
+    })),
+  };
+}

@@ -42,6 +42,7 @@ import {
   setBookingPrice,
   SoldOutError,
   TransitionError,
+  websiteCatalogue,
 } from "../src";
 
 /*
@@ -421,5 +422,35 @@ describe("day capacity", () => {
     expect(result).toEqual({ changed: 1, kept: [day] });
     expect((await seatsLeft(db, propertyId, "2028-01-10")).find((s) => s.slotId === lunchSlotId)).toMatchObject({ capacity: 2 });
     await expect(setDayCapacity(db, { slotId: lunchSlotId, days: [day], capacity: -1 })).rejects.toBeInstanceOf(RuleError);
+  });
+});
+
+describe("the website", () => {
+  it("takes any party for a room type that publishes no guest limit", async () => {
+    const [villa] = await db
+      .insert(roomTypes)
+      .values({ propertyId, code: "open-villa", name: "Open villa", category: "villa", baseOccupancy: 1, maxAdults: null, maxGuests: null, sortOrder: 3 })
+      .returning();
+    await db.insert(units).values({ propertyId, roomTypeId: villa.id, name: "Open villa" });
+    await db.insert(rates).values({ propertyId, roomTypeId: villa.id, dayKind: "any", basis: "person", basePaise: 250_000 });
+    const hold = await holdStay(db, { propertyId, checkIn: "2028-02-01", checkOut: "2028-02-02", rooms: [{ roomTypeId: villa.id, party: { adults: 25, children: {} } }] });
+    // Priced per adult: 25 × ₹2,500.
+    expect(hold.quote.totalPaise).toBe(6_250_000);
+  });
+
+  it("lists what is on sale and on the website, with base rates and child prices by band code", async () => {
+    const [hidden] = await db
+      .insert(roomTypes)
+      .values({ propertyId, code: "staff-room", name: "Staff room", maxAdults: 2, maxGuests: 2, onWebsite: false, sortOrder: 9 })
+      .returning();
+    const catalogue = await websiteCatalogue(db, "KS");
+    expect(catalogue?.roomTypes.map((t) => t.code)).not.toContain(hidden.code);
+    const glass = catalogue!.roomTypes.find((t) => t.code === "glass-house")!;
+    expect(glass).toMatchObject({ units: 1, maxGuests: 5 });
+    expect(glass.rates.map((r) => r.dayKind).sort()).toEqual(["weekday", "weekend"]);
+    expect(glass.rates[0].childPaise).toEqual({ child_5_11: 80_000 });
+    const lunch = catalogue!.passes.find((p) => p.code === "sunday-lunch")!;
+    expect(lunch).toMatchObject({ hours: "12:30 to 3:30 pm", adultPaise: 60_000, childPaise: { child_5_11: 30_000 } });
+    expect(await websiteCatalogue(db, "XX")).toBeNull();
   });
 });

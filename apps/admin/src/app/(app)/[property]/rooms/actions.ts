@@ -17,22 +17,52 @@ const checkbox = z.literal("on").optional().transform((value) => value === "on")
 const count = (label: string, min: number, max: number) =>
   z.coerce.number({ error: `${label} must be a number.` }).int(`${label} must be a whole number.`).min(min, `${label} can't be below ${min}.`).max(max, `${label} can't be above ${max}.`);
 
+/** A textarea with one item a line, such as the features list. */
+const lines = z
+  .string()
+  .optional()
+  .transform((text) =>
+    (text ?? "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean),
+  )
+  .pipe(z.array(z.string().max(80, "Keep each feature to 80 characters.")).max(24, "List at most 24 features."));
+
 const roomTypeFields = z.object({
   name: z.string().trim().min(2, "Give the room type a name.").max(80),
   category: z.enum(categories),
   baseOccupancy: count("Guests in the base price", 1, 50),
   minGuests: count("The fewest guests", 1, 200),
-  maxAdults: count("The most adults", 1, 200),
+  // Left empty, a limit is not published, and the engine sets none either.
+  maxAdults: count("The most adults", 1, 200).optional(),
   maxChildren: count("The most children", 0, 200),
-  maxGuests: count("The most guests", 1, 200),
+  maxGuests: count("The most guests", 1, 200).optional(),
   extraBedAllowed: checkbox,
   bedType: z.string().trim().max(60).optional(),
   sizeSqft: count("The size", 1, 100_000).optional(),
+  tagline: z.string().trim().max(140, "Keep the tagline to one line of 140 characters.").optional(),
+  description: z.string().trim().max(2000, "Keep the description under 2,000 characters.").optional(),
+  features: lines,
+  webGroup: z.string().trim().max(40).optional(),
+  onWebsite: checkbox,
 });
-const guestLimits = (v: { baseOccupancy: number; minGuests: number; maxGuests: number }, ctx: z.RefinementCtx) => {
+const guestLimits = (v: { baseOccupancy: number; minGuests: number; maxGuests?: number }, ctx: z.RefinementCtx) => {
+  if (v.maxGuests === undefined) return;
   if (v.maxGuests < v.baseOccupancy) ctx.addIssue({ code: "custom", message: "The most guests can't be fewer than the guests in the base price." });
   if (v.maxGuests < v.minGuests) ctx.addIssue({ code: "custom", message: "The most guests can't be fewer than the fewest." });
 };
+/** Empty optional fields clear their column. */
+const columns = (input: z.infer<typeof roomTypeFields>) => ({
+  ...input,
+  maxAdults: input.maxAdults ?? null,
+  maxGuests: input.maxGuests ?? null,
+  bedType: input.bedType ?? null,
+  sizeSqft: input.sizeSqft ?? null,
+  tagline: input.tagline ?? null,
+  description: input.description ?? null,
+  webGroup: input.webGroup ?? null,
+});
 const roomTypeInput = roomTypeFields
   .extend({
     code: z
@@ -62,7 +92,7 @@ export async function createRoomType(propertyId: string, _state: FormState, form
     const [last] = await db.select({ sortOrder: roomTypes.sortOrder }).from(roomTypes).where(eq(roomTypes.propertyId, propertyId)).orderBy(desc(roomTypes.sortOrder)).limit(1);
     const [created] = await db
       .insert(roomTypes)
-      .values({ propertyId, ...input, bedType: input.bedType ?? null, sizeSqft: input.sizeSqft ?? null, sortOrder: (last?.sortOrder ?? 0) + 1, createdBy: staff.userId })
+      .values({ propertyId, ...columns(input), code: input.code, sortOrder: (last?.sortOrder ?? 0) + 1, createdBy: staff.userId })
       .onConflictDoNothing({ target: [roomTypes.propertyId, roomTypes.code] })
       .returning();
     if (!created) return { error: `This resort already has a room type with the code ${input.code}.` };
@@ -143,7 +173,7 @@ export async function setRoomTypeStatus(roomTypeId: string, status: "active" | "
   revalidatePath(`/${property.code.toLowerCase()}/rooms`);
 }
 
-/** Changes a room type's name, kind, guest limits, bed and size (RM-01). Its code stays. */
+/** Changes a room type's name, kind, guest limits, bed, size and website text (RM-01). Its code stays. */
 export async function editRoomType(roomTypeId: string, _state: FormState, form: FormData): Promise<FormState> {
   try {
     z.uuid().parse(roomTypeId);
@@ -154,7 +184,7 @@ export async function editRoomType(roomTypeId: string, _state: FormState, form: 
     const input = roomTypeEdit.parse(filled(form));
     const [after] = await db
       .update(roomTypes)
-      .set({ ...input, bedType: input.bedType ?? null, sizeSqft: input.sizeSqft ?? null })
+      .set(columns(input))
       .where(eq(roomTypes.id, roomTypeId))
       .returning();
     await audit({ userId: staff.userId, propertyId: before.propertyId, action: "room_type.update", entity: "room_types", entityId: roomTypeId, before, after });
