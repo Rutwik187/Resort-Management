@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { hasBlog as blogIsLive } from "@repo/sanity";
 import { otherProperties } from "@repo/sites";
 import { contact, nav } from "@/content/resort";
 import { Logo } from "./logo";
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  // The blog link shows once Sanity has a live post.
+  const hasBlog = await blogIsLive("KS");
   return (
     <footer data-tone="dark" className="overflow-hidden bg-night text-paper">
       <div className="mx-auto grid max-w-[1680px] gap-14 px-5 pb-16 pt-24 sm:grid-cols-2 md:px-10 lg:grid-cols-12">
@@ -88,6 +91,11 @@ export function SiteFooter() {
               {item.label}
             </Link>
           ))}
+          {hasBlog && (
+            <Link href="/blog" className="tap hover:text-paper">
+              Blog
+            </Link>
+          )}
           <Link href="/policies" className="tap hover:text-paper">
             Policies
           </Link>

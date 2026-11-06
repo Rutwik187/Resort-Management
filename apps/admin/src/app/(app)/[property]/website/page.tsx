@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { and, count, desc, eq } from "drizzle-orm";
-import { ArrowRight, BadgePercent, BedDouble, CalendarRange, ExternalLink, Globe, Link2, Megaphone, Ticket } from "lucide-react";
+import { ArrowRight, BadgePercent, BedDouble, CalendarRange, ExternalLink, Globe, Link2, Megaphone, NotebookPen, Ticket } from "lucide-react";
 import { can } from "@repo/auth";
 import { getDb, roomTypes, siteNotices } from "@repo/db";
 import { todayInIndia, websiteCatalogue } from "@repo/engine";
+import { studioUrl } from "@repo/sanity/config";
 import { properties as sites } from "@repo/sites";
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/page-header";
@@ -114,6 +115,29 @@ export default async function WebsitePage({ params }: PageProps<"/[property]/web
           </div>
           <div className="max-sm:pl-12">
             <RefreshWebsiteButton propertyId={property.id} disabled={!connected} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="py-5 shadow-xs">
+        <CardContent className="flex flex-wrap items-start gap-x-3 gap-y-4">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/[0.07] text-primary ring-1 ring-primary/10 ring-inset">
+            <NotebookPen className="size-4" />
+          </span>
+          <div className="grid min-w-0 flex-1 basis-60 gap-1.5">
+            <p className="leading-none font-semibold">Blog, FAQs and policies</p>
+            <p className="text-sm text-muted-foreground">
+              Editors write these in Sanity Studio, in this resort&apos;s folder. The website shows a change a moment after it is published. Rates and
+              dates stay here in the admin, so keep them out of that text.
+            </p>
+          </div>
+          <div className="max-sm:pl-12">
+            <Button variant="outline" asChild>
+              <a href={`${studioUrl}/structure/resort-${property.code}`} target="_blank" rel="noreferrer">
+                <ExternalLink />
+                Open Sanity Studio
+              </a>
+            </Button>
           </div>
         </CardContent>
       </Card>

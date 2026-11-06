@@ -4,3 +4,9 @@ packages:
 # esbuild, used by drizzle-kit and tsx, checks its platform binary when installed.
 allowBuilds:
   esbuild: true
+# Sanity's CLI (@oclif/core) asks for supports-color 8; the rest of the repo
+# has 7.2.0. With both, pnpm resolved the shared packages against a second
+# copy of Next, and revalidateTag in @repo/website and @repo/sanity cleared a
+# different cache from the site's own. Version 7 has the same API.
+overrides:
+  "@oclif/core>supports-color": 7.2.0

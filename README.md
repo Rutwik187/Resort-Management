@@ -13,12 +13,14 @@ The plan for the whole platform is in [`docs/implementation-plan.md`](docs/imple
 | `apps/sinhagad-bliss` | `sinhagad-bliss` | Sinhagad Bliss: sinhagadbliss.com |
 | `apps/valley` | `valley` | Prathamesh Valley Resorts, Mahabaleshwar: prathameshvalleyresorts.com |
 | `apps/admin` | `admin` | The staff dashboard, built with shadcn/ui: sign-in, each resort's day (arrivals, sales, rooms booked), bookings with offline booking, changes and the front desk, leads from the websites, guests, the inventory calendar, reports, rooms (with their website text), prices, packages, offers and coupons, each website's page and notices, settings, staff and the audit log. Runs at http://localhost:3010 |
+| `apps/studio` | `studio` | Sanity Studio, where editors write each resort's blog posts, FAQs and policies. Hosted at https://prathamesh-resorts.sanity.studio; runs locally at http://localhost:3333 |
 | `packages/booking-ui` | `@repo/booking-ui` | The booking widget that all four sites share: the search bar, the room and day-pass lists, and the tray. Also the notice card |
 | `packages/db` | `@repo/db` | The database: Drizzle tables, migrations, the seed, and the roles and permissions |
 | `packages/auth` | `@repo/auth` | Staff sign-in with Better Auth, and the permission check `can()` |
 | `packages/engine` | `@repo/engine` | The booking engine: availability, holds, prices, bookings and blocks, with its tests |
 | `packages/sites` | `@repo/sites` | The group's four resorts: names, places, website addresses and the sections of each Stays page |
 | `packages/website` | `@repo/website` | What the sites read from the admin: their rooms, rates, day packages, offers and notices (cached until the admin says they changed), and the requests they keep as leads |
+| `packages/sanity` | `@repo/sanity` | What the sites read from Sanity: blog posts, FAQs and policies (cached, refreshed by Sanity's webhook through the admin), the photo component and the rich-text renderer |
 | `packages/typescript-config` | `@repo/typescript-config` | The TypeScript settings that every package extends |
 | `packages/eslint-config` | `@repo/eslint-config` | The ESLint rules that every package uses |
 
@@ -91,6 +93,7 @@ Until the booking engine and Razorpay arrive, the tray sends the request on What
 
 - Each site reads its rooms, rates, day packages, offers and notices from the admin through `packages/website`. The reads are cached for up to a day.
 - After staff change any of them, the admin calls the site's `/api/revalidate` with the shared `REVALIDATE_SECRET`, so the site shows the change at once. `WEBSITE_URLS` gives the admin each site's address, such as `KS=https://prathameshresorts.vercel.app`. See `.env.example`.
+- Each site reads its blog, FAQs and policies from Sanity through `packages/sanity`. When an editor publishes, Sanity's webhook calls the admin's `/api/sanity` (signed with `SANITY_WEBHOOK_SECRET`), and the admin calls the resort's `/api/revalidate?scope=content`. Blog pages also refresh every 15 minutes, for posts scheduled with "Show from". While a resort has no policies in Sanity, its site shows its own. See section 11 of the plan.
 - The admin's Website page shows each site's connection, its notices, and what its pages show from the admin. A notice shows in a small card at the foot of every page, one at a time, on its days only. A guest can close it.
 - A site without a database, or one that can't reach it, shows its own content from `src/content`.
 
@@ -112,7 +115,7 @@ The main addresses are the ones the old WordPress sites used, so search results 
 
 **The admin builds without Turbopack's build cache** (`turbopackFileSystemCacheForBuild: false` in `apps/admin/next.config.ts`). Vercel restores `.next/cache` from the last deployment, and with that cache on, a build shipped an old stylesheet next to new pages. After a deploy that changes `globals.css`, check that the live stylesheet has the change.
 
-**The admin's project** runs its functions in Singapore (`sin1`), next to the Neon database; the sites keep the default region. Its variables are `DATABASE_URL` (the pooled address), `BETTER_AUTH_SECRET` (its own, not the one in your `.env.local`), `BETTER_AUTH_URL` (https://prathamesh-admin.vercel.app), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `WEBSITE_URLS` (each site's address, such as `KS=https://prathameshresorts.vercel.app`) and `REVALIDATE_SECRET`.
+**The admin's project** runs its functions in Singapore (`sin1`), next to the Neon database; the sites keep the default region. Its variables are `DATABASE_URL` (the pooled address), `BETTER_AUTH_SECRET` (its own, not the one in your `.env.local`), `BETTER_AUTH_URL` (https://prathamesh-admin.vercel.app), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `WEBSITE_URLS` (each site's address, such as `KS=https://prathameshresorts.vercel.app`), `REVALIDATE_SECRET` and `SANITY_WEBHOOK_SECRET` (the secret of the Sanity webhook).
 
 **The sites' projects** have `DATABASE_URL` and the same `REVALIDATE_SECRET`. Each site's Stays and Day packages pages read the admin's catalogue when they build, and again when the admin calls the site's `/api/revalidate` after staff change rooms, rates or packages. Without the database, a site shows its own content as before. A changed variable takes effect only in a new deployment. Because the Ignored Build Step skips a commit that is already deployed, redeploy after changing only variables by clearing the step for one build, then setting it back.
 

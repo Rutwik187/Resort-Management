@@ -12,7 +12,7 @@
 | Stack | Turborepo, Next.js 16, Neon Postgres, Drizzle, Better Auth, Resend, Vercel, Razorpay |
 | Database plan | Neon Free. Section 4 explains its limits and when to upgrade |
 | Database region | Singapore. Neon has no India region |
-| Content | Sanity Free, for the blog only. The admin dashboard manages everything else |
+| Content | Sanity Free, for the blogs, FAQs and policies text. The admin dashboard manages everything else |
 | Group website | Built after the four resort sites |
 | Old data | None. This is a new application with no bookings to import |
 
@@ -55,7 +55,7 @@ flowchart TB
   admin["Admin dashboard, staff only"]
   engine["Shared booking engine: availability, holds, prices, GST, payments"]
   db[("Neon Postgres, Singapore")]
-  sanity["Sanity: blog only"]
+  sanity["Sanity: blogs, FAQs, policies"]
   razorpay["Razorpay: one account per company"]
   messages["Outbox: Resend email, WhatsApp, SMS"]
   sites --> engine
@@ -89,21 +89,23 @@ Each resort site has its own domain and its own design. All five apps share the 
 | Hosting | Vercel Pro | Pro is needed for commercial use and for jobs that run more than once a day. Five projects, functions in Singapore (`sin1`) |
 | Files | Vercel Blob | Photos go in a public store. ID proofs, invoice PDFs and database copies go in a private store |
 | Payments | Razorpay, four accounts | One account per company |
-| Blog | Sanity Free plan | One project per resort site |
+| Blog, FAQs, policies | Sanity Free plan | One project (`ipifz5ts`) for all four sites. Section 11 |
 | WhatsApp and SMS | Behind an adapter (a thin wrapper around the provider) | The providers are chosen with the client |
 | Admin interface | shadcn/ui, Tailwind 4, TanStack Table, React Hook Form, Zod | |
 | Errors and tests | Sentry, Vitest, Playwright | |
 
 ## 2. What goes in the admin, and what goes in Sanity
 
-**The rule:** anything with a price, a date, a count, a rule, a contact detail or a person goes in the admin. Sanity holds only blog posts.
+**The rule:** anything with a price, a date, a count, a rule for bookings, a contact detail or a person goes in the admin. Sanity holds long-form text that the admin has no screen for: the blogs, the FAQs and the policies pages.
+
+On 6 November 2026 the user asked for Sanity to take the content the admin can't handle yet. FAQs and policies moved from the admin's list to Sanity then. Page text, photos and reviews stay on the admin's list.
 
 | In the admin (our database) | In Sanity |
 |---|---|
-| Bookings, front desk, stock, payments, invoices, leads, guests, reports | Blog posts |
+| Bookings, front desk, stock, payments, invoices, leads, guests, reports | Blog posts, with their search text |
 | Rooms, units, prices, packages, add-ons, activities, offers, coupons, venues | Blog authors and categories |
-| Page text and photos, gallery, room and package photos | Search text for each post |
-| FAQs, policies, contact details, pop-ups, announcement bar | |
+| Page text and photos, gallery, room and package photos | FAQs |
+| Contact details, pop-ups, announcement bar, meal times | Policies pages: cancellation, terms, privacy, house rules |
 | Featured Google reviews, redirects, search text for other pages | |
 | Settings, message templates, users and roles | |
 
@@ -135,7 +137,7 @@ packages/
   auth/               Better Auth setup and the permission check
   booking-ui/         booking widget, calendar, checkout, manage-booking page
   sites/              each site's property code, domain and editable page text
-  blog/               Sanity client, queries and types
+  sanity/             Sanity client, queries, types and the rich-text renderer (apps/studio is the Studio)
   ui/                 admin components
   typescript-config/  shared TypeScript settings
   eslint-config/      shared ESLint rules
@@ -435,23 +437,25 @@ Today `packages/booking-ui` runs steps 1 to 3 on all four sites, without add-ons
 - A script moves today's rooms, photos and text from `src/content` into the admin.
 - The "Book a stay" drawer becomes the real booking widget.
 
-## 11. Blog (Sanity Free)
+## 11. Blog, FAQs and policies (Sanity Free)
 
-- **One Sanity project per resort site.** Each project has its own member list, so a Sinhagad Bliss editor sees only that blog.
-- **Each project gets the Free plan**, which includes:
-  - up to 20 seats
-  - 2 datasets, which are public
-  - 10,000 documents
-  - 250,000 API requests and 1 million CDN requests a month
+Built on 6 November 2026, on branch `sanity-content`.
 
-  A blog uses a small part of this, especially when published posts are read through Sanity's CDN.
-- **Datasets:** `production` and `staging`. Public datasets are fine for blog posts, and drafts stay private.
-- **Roles.** The Free plan has only the Administrator and Viewer roles, so editors are Administrators of their own resort's blog. To limit the risk:
-  - only trusted people are invited
-  - a nightly export (`sanity dataset export`) backs up each blog
-- **One Studio** (Sanity's editing app) with four workspaces, hosted by Sanity and linked from the admin.
-- **Scheduling.** Each post has a `publishAt` date, and the site hides it until then. A job refreshes the blog every 15 minutes, so we don't need Sanity's paid scheduling.
-- **Preview and refresh.** `next-sanity` v13 supports Next.js 16 Cache Components. A Sanity webhook calls the site's revalidate address.
+- **One Sanity project for all four sites:** `ipifz5ts` ("Prathamesh Resorts"), dataset `production`, which is public. Drafts stay private. Every document has a resort field (KS, GC, SB, PV), and each site reads only its own.
+  - The earlier plan was one project per site, so that each resort's editors see only their own blog. The user created one project instead. The Free plan has only the Administrator and Viewer roles anyway, so every editor can see every resort.
+  - To limit the risk: invite only trusted people, and export the dataset nightly (`sanity dataset export`).
+- **The Free plan** includes up to 20 seats, 2 datasets, 10,000 documents, and 250,000 API requests and 1 million CDN requests a month. The sites cache every read, so they use a small part of it.
+- **The Studio** (Sanity's editing app) lives in `apps/studio` and is hosted by Sanity at https://prathamesh-resorts.sanity.studio. Deploy it with `pnpm --filter studio run deploy`. Its menu has one folder per resort (blog posts, FAQs that editors drag into order, and the policies page), then the authors and categories that all four share. The admin's Website page links to each resort's folder.
+- **What the sites show:**
+  - `/blog` and `/blog/<address>` on each site, in that site's own design. The footer links to the blog once it has a live post. Posts are in the sitemap, with structured data (schema.org BlogPosting) and share images cropped to 1200 by 630.
+  - FAQs at the top of the policies page, as questions that open.
+  - The policies sections. While a resort has no published sections, its site shows the text in its own code. `apps/studio/scripts/import-policies.ts` copied each site's text into Sanity on 6 November 2026, so editors start from today's words. It never overwrites a document that exists. Go Crazy's meal times stay in code: they are times, so they belong to the admin later.
+  - Go Crazy's activities page still shows its safety and pool rules from code. An edit to those rules in Sanity changes only the policies page.
+- **Photos** come from Sanity's image service, cropped around the editor's hotspot, in AVIF or WebP. They skip Vercel's image optimisation and its monthly limit.
+- **Scheduling.** Each post has a "Show from" time (`publishAt`), and the site hides it until then. Blog pages refresh every 15 minutes, so a scheduled post appears on time without a job or Sanity's paid scheduling. Other Sanity reads (FAQs, policies, the footer link) last a day.
+- **Refresh on publish.** One Sanity webhook ("Refresh the resort websites") calls the admin's `/api/sanity`, signed with `SANITY_WEBHOOK_SECRET`. The admin then calls the resort's `/api/revalidate?scope=content`, which drops only the Sanity cache, so publishing never wakes the database. Authors and categories belong to no resort, so all four sites refresh. The sites read Sanity's live API, not its CDN: right after a publish, the CDN can still return the old text, and the site would cache it.
+- **No `next-sanity`.** It needs the whole Studio as a peer dependency. The sites use `@sanity/client`, `@sanity/image-url` and `@portabletext/react` through `packages/sanity`.
+- **pnpm.** `pnpm-workspace.yaml` overrides `supports-color` for Sanity's CLI. Without it, the shared packages resolved a second copy of Next, and their `revalidateTag` calls cleared a different cache from the site's own.
 
 ## 12. Background jobs
 
@@ -466,13 +470,12 @@ Today `packages/booking-ui` runs steps 1 to 3 on all four sites, without add-ons
 |---|---|---|
 | Day batch | Every 15 minutes, 7 am to 11 pm | Recheck pending payments. End expired holds and create abandoned-booking leads. Retry outbox messages. Send follow-up reminders and low-stock alerts |
 | Night batch | Every hour, 11 pm to 7 am | Recheck pending payments. End expired holds. Retry outbox messages |
-| Blog refresh | Every 15 minutes | Refresh posts whose `publishAt` time has passed. It reads only Sanity, so it doesn't wake the database |
 | Google reviews | Every 2 hours, 7 am to 11 pm | Sync reviews for all four listings |
 | Morning batch | Daily, 6 am | Pull Razorpay settlements. Delete ID proofs past their retention period |
 | Guest messages | Daily, 10 am | Pre-arrival messages, and thank-you messages with the review link |
 | Daily summary | Daily, 9 pm | Sales summary to management |
 | Weekly and monthly summaries | Monday 8 am, and the 1st of the month at 8 am | Summaries to management |
-| Database copies | Nightly, 2 am, through GitHub Actions | Back up Neon production and the four Sanity blogs |
+| Database copies | Nightly, 2 am, through GitHub Actions | Back up Neon production and the Sanity dataset |
 
 Expired holds can never block a booking, even between batches. The hold step clears them before it inserts new rows.
 
@@ -530,7 +533,7 @@ Expired holds can never block a booking, even between batches. The hold step cle
 | 1. Foundation | 1–2 | Turborepo, with this site moved in unchanged. Both Neon projects. Drizzle tables for resorts, staff and rooms. Better Auth, roles and permissions. The property switcher and settings. Room and unit screens. The audit log. Pull request checks | Staff can sign in and enter their rooms |
 | 2. Booking engine | 3–5 | Prices and GST, stock, holds, blocks, stay rules, packages, day stock, add-ons, offers, coupons and corporate codes, each with its admin screen. The inventory calendar. Tests | All engine tests pass, including the race for the last room |
 | 3. Payments and messages | 6–7 | Razorpay on four test accounts. Webhooks and the payment recheck. Refunds, payment links, payments taken at the desk. GST invoices and credit notes as PDFs. The outbox, Resend, and the WhatsApp and SMS adapters | A test payment, refund and invoice work on all four accounts |
-| 4. Khed Shivapur live | 8–9 | The booking flow and manage-booking page on prathameshresorts.com. Front desk and offline bookings. Page text, photos, FAQs and policies in the admin. The Sanity blog. Forms that create leads. Search setup and redirects. Tracking and consent | Khed Shivapur takes real bookings |
+| 4. Khed Shivapur live | 8–9 | The booking flow and manage-booking page on prathameshresorts.com. Front desk and offline bookings. Page text and photos in the admin. The blog, FAQs and policies in Sanity (done, 6 November 2026). Forms that create leads. Search setup and redirects. Tracking and consent | Khed Shivapur takes real bookings |
 | 5. Reports and leads | 10–11 | The dashboard. All reports and exports. Scheduled summaries. The leads board, assignment, follow-ups, Meta lead ads, abandoned bookings and quotations. Guest profiles. Guest data export and deletion | Staff run a full practice day |
 | 6. The other three sites | 10–14 | Go Crazy, then Sinhagad Bliss, then Valley. Each is copied from the starter, built to its design and filled with content, with reviews, search setup and redirects | Each site takes real bookings |
 | 7. Group site | 15–16 | Search across all four resorts, then a hand-off to the resort's own site for payment | It is live on the group domain |
@@ -566,7 +569,7 @@ These depend on outside companies:
 | Risk | What we do |
 |---|---|
 | Neon's free compute hours run out, which stops the database | Production has its own project, jobs run in batches, usage is checked weekly, and production moves to Launch before the limit |
-| A Sanity editor deletes content, because Free editors are Administrators | Invite only trusted editors. Export each blog nightly |
+| A Sanity editor deletes content, because Free editors are Administrators | Invite only trusted editors. Export the dataset nightly |
 | Razorpay approval is late | Build and test in test mode. Khed Shivapur's launch waits only for its own account |
 | WhatsApp templates are late | Email works from day one. WhatsApp switches on when approved |
 | Google's reviews API access is late | Link to the Google listing until access is approved |

@@ -1,11 +1,14 @@
 import Link from "next/link";
+import { hasBlog as blogIsLive } from "@repo/sanity";
 import { otherProperties } from "@repo/sites";
 import { contact, dayPasses, formatRupees, nav } from "@/content/resort";
 import { Logo } from "./logo";
 
 const fromPrice = formatRupees(Math.min(...dayPasses.map((p) => p.adult)));
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  // The blog link shows once Sanity has a live post.
+  const hasBlog = await blogIsLive("GC");
   return (
     <footer data-tone="dark" className="bg-pine-deep text-chalk">
       {/* The last thing on every page: a pass that leads straight to planning. */}
@@ -104,6 +107,11 @@ export function SiteFooter() {
               {item.label}
             </Link>
           ))}
+          {hasBlog && (
+            <Link href="/blog" className="tap hover:text-chalk">
+              Blog
+            </Link>
+          )}
           <Link href="/policies" className="tap hover:text-chalk">
             Rules and policies
           </Link>
