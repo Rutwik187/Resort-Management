@@ -1,6 +1,6 @@
 import "server-only";
 import { cacheLife, cacheTag, revalidateTag } from "next/cache";
-import { passesFromCatalogue, stayGroupsFromCatalogue, type ListingGroup, type Pass } from "@repo/booking-ui/catalogue";
+import { offerNotes, offersFor, passesFromCatalogue, stayGroupsFromCatalogue, type ListingGroup, type Pass } from "@repo/booking-ui/catalogue";
 import { getDb } from "@repo/db";
 import { websiteCatalogue } from "@repo/engine";
 import { propertyByCode, type PropertyCode } from "@repo/sites";
@@ -52,6 +52,24 @@ export async function liveDayPasses(code: PropertyCode, fallback: Pass[]): Promi
   const photos = new Map(fallback.map((pass) => [pass.id, pass.photo] as const));
   const passes = data ? passesFromCatalogue(data, (id) => photos.get(id)) : [];
   return passes.length ? passes : fallback;
+}
+
+/**
+ * The small print under a planner, with the admin's offers for stays or day
+ * visits first. A site's own offer lines give way to the admin's.
+ */
+export async function liveNotes(code: PropertyCode, kind: "stay" | "day", fallback: string[]): Promise<string[]> {
+  const data = await catalogue(code);
+  if (!data) return fallback;
+  return [...offerNotes(data, kind), ...fallback.filter((note) => !note.startsWith("Offer:"))];
+}
+
+/** The first offer for stays or day visits, from the admin, for a site's own offer banner. Null when there is none. */
+export async function liveOffer<T extends { title: string; note?: string }>(code: PropertyCode, kind: "stay" | "day", fallback: T | undefined): Promise<{ title: string; note?: string } | null> {
+  const data = await catalogue(code);
+  if (!data) return fallback ?? null;
+  const offer = offersFor(data, kind)[0];
+  return offer ? { title: offer.title, note: offer.details ?? undefined } : null;
 }
 
 /**

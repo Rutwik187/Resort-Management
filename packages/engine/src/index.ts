@@ -44,3 +44,4 @@ export { recordPayment, type PaymentInput, type PaymentMethod } from "./payments
 export { headcount, payingGuests, priceNight, priceOffering, priceStay, type AgeBand, type NightPrice, type Party, type Rate, type RoomPricing, type Season } from "./pricing";
 export { websiteCatalogue, type WebsiteCatalogue, type WebsitePass, type WebsiteRate, type WebsiteRoomType } from "./website";
 export { recordWebsiteLead, type LeadInterest, type WebsiteLeadInput } from "./leads";
+export { offerDiscount, offerLabel, offerProblem, type OfferRule, type OfferTarget } from "./offers";

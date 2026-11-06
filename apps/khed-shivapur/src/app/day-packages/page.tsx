@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { DayPlanner } from "@repo/booking-ui";
-import { liveDayPasses } from "@repo/website";
+import { liveDayPasses, liveNotes } from "@repo/website";
 import { sendBookingRequest } from "@/app/actions";
 import { dayNotes, dayPasses, desk } from "@/content/booking";
 import { pageMetadata } from "@/content/site";
@@ -17,6 +17,7 @@ export const metadata = pageMetadata({
 
 export default async function DayPackagesPage() {
   // Day packages and prices from the admin; the site's own content if the database is out of reach.
+  const notes = await liveNotes("KS", "day", dayNotes);
   const live = await liveDayPasses("KS", dayPasses);
   return (
     <PageTransition>
@@ -34,7 +35,7 @@ export default async function DayPackagesPage() {
         </header>
 
         <div className="mx-auto max-w-[1680px] px-5 pb-24 pt-10 md:px-10">
-          <DayPlanner passes={live} onRequest={sendBookingRequest} desk={desk} storageKey="ks" noun="day package" notes={dayNotes} />
+          <DayPlanner passes={live} onRequest={sendBookingRequest} desk={desk} storageKey="ks" noun="day package" notes={notes} />
         </div>
       </div>
 

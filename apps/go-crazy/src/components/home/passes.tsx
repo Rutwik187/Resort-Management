@@ -1,11 +1,14 @@
 import Link from "next/link";
+import { liveOffer } from "@repo/website";
 import { currentOffer, dayPasses } from "@/content/resort";
 import { InView, SnapLines } from "../in-view";
 import { OfferStamp } from "../offer-stamp";
 import { PassTicket } from "../pass-ticket";
 
 /** The four day passes, laid out like a book of tickets on a dark table. */
-export function Passes() {
+export async function Passes() {
+  // The admin's day offer; the site's own when the admin is out of reach.
+  const offer = await liveOffer("GC", "day", currentOffer);
   return (
     <section data-tone="dark" aria-labelledby="passes-title" className="overflow-hidden bg-pine text-chalk">
       <div className="mx-auto max-w-[1600px] px-4 py-20 md:px-8 md:py-28">
@@ -38,9 +41,9 @@ export function Passes() {
         <div className="mt-10 flex flex-wrap items-center justify-between gap-6 border-t border-chalk/20 pt-6">
           <p className="text-[0.95rem] text-mist">
             Prices per person, plus GST.{" "}
-            {currentOffer && (
+            {offer && (
               <span className="text-chalk md:hidden">
-                {currentOffer.title}. {currentOffer.note}
+                {offer.title}.{offer.note ? ` ${offer.note}` : ""}
               </span>
             )}
           </p>

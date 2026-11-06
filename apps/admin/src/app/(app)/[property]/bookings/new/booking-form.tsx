@@ -19,6 +19,13 @@ import { methodLabel, plural, price, rupees, shortDate, sourceLabel, offlineSour
 import { createOffline, quoteOffline, type BookingRequest, type QuoteView } from "./actions";
 
 /** A room type, or a ticket for a package, activity or sitting, that can be added. */
+/** An offer the guest may take: what it takes off, and why it can't apply here, if it can't. */
+export type OfferOption = { id: string; title: string; code: string | null; label: string; discountKind: "percent" | "amount" | "none"; discountValue: number | null; problem: string | null };
+
+/** What an offer takes off a price, as the server works it out. */
+const discountOf = (offer: OfferOption | undefined, total: number | null | undefined) =>
+  !offer || total == null ? 0 : offer.discountKind === "percent" ? Math.min(total, Math.round((total * (offer.discountValue ?? 0)) / 100)) : offer.discountKind === "amount" ? Math.min(total, offer.discountValue ?? 0) : 0;
+
 export type Option = { id: string; name: string; available: number; closedReason: string | null; maxAdults: number | null; maxGuests: number | null; extraBedAllowed: boolean };
 
 /** Steppers need a top. Where the resort publishes no limit, this one is high enough for any party. */
@@ -61,6 +68,7 @@ export function NewBookingForm({
   canOverride,
   canTakePayment,
   prefill,
+  offers = [],
 }: {
   propertyId: string;
   kind: "stay" | "day";
@@ -71,6 +79,8 @@ export function NewBookingForm({
   canTakePayment: boolean;
   /** The guest from a lead, when the booking comes from one. */
   prefill?: { leadId: string; name: string; phone: string; email: string };
+  /** The resort's offers for this kind of booking, each with why it doesn't cover these dates, if it doesn't. */
+  offers?: OfferOption[];
 }) {
   const [lines, setLines] = useState<Line[]>([]);
   const [nextKey, setNextKey] = useState(1);
@@ -79,6 +89,10 @@ export function NewBookingForm({
   const [override, setOverride] = useState(false);
   const [payMethod, setPayMethod] = useState("none");
   const [payAmount, setPayAmount] = useState("");
+  const [offerId, setOfferId] = useState("none");
+  const chosenOffer = offers.find((o) => o.id === offerId);
+  const discount = discountOf(chosenOffer, quote?.totalPaise);
+  const payable = quote?.totalPaise == null ? null : quote.totalPaise - discount;
   const [state, action, pending] = useActionState(createOffline.bind(null, propertyId), undefined);
 
   const noun = kind === "stay" ? "room" : "ticket";
@@ -104,6 +118,7 @@ export function NewBookingForm({
     <form action={action} className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
       <input type="hidden" name="request" value={JSON.stringify(request)} />
       {prefill && <input type="hidden" name="leadId" value={prefill.leadId} />}
+      {chosenOffer && <input type="hidden" name="offerId" value={chosenOffer.id} />}
       <div className="grid min-w-0 content-start gap-4">
         <Card className="shadow-xs">
           <CardHeader className="flex items-center gap-3">
@@ -291,7 +306,7 @@ export function NewBookingForm({
           </CardContent>
         </Card>
 
-        {(canOverride || canTakePayment) && (
+        {(canOverride || canTakePayment || offers.length > 0) && (
           <Card className="shadow-xs">
             <CardHeader className="flex items-center gap-3">
               <Step n={lines.length > 0 ? 5 : 4} />
@@ -299,7 +314,41 @@ export function NewBookingForm({
             </CardHeader>
             <CardContent>
               <FieldGroup className="gap-5">
-                {canOverride && (
+                {offers.length > 0 && (
+                  <Field>
+                    <FieldLabel htmlFor="offer">Offer or coupon</FieldLabel>
+                    <Select
+                      value={offerId}
+                      onValueChange={(value) => {
+                        setOfferId(value);
+                        if (value !== "none") setOverride(false);
+                      }}
+                    >
+                      <SelectTrigger id="offer" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No offer</SelectItem>
+                        {offers.map((offer) => (
+                          <SelectItem key={offer.id} value={offer.id} disabled={Boolean(offer.problem)}>
+                            {offer.title}
+                            {offer.code ? ` · ${offer.code}` : ""} · {offer.problem ?? offer.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {chosenOffer && (
+                      <FieldDescription className={discount ? "font-medium text-good" : undefined}>
+                        {chosenOffer.discountKind === "none"
+                          ? "It takes nothing off by itself: the team applies it, and it is noted on the booking."
+                          : quote?.totalPaise == null
+                            ? "Check the price to see what it saves."
+                            : `Saves ${rupees(discount)}: ${rupees(payable!)} instead of ${rupees(quote.totalPaise)}.`}
+                      </FieldDescription>
+                    )}
+                  </Field>
+                )}
+                {canOverride && !chosenOffer && (
                   <>
                     <div className="flex items-center justify-between gap-3">
                       <Label htmlFor="override">Use a different price</Label>
@@ -337,9 +386,9 @@ export function NewBookingForm({
                     {payMethod !== "none" && (
                       <div className="grid gap-3">
                         <Input name="payAmount" required inputMode="decimal" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} aria-label="Amount paid, in rupees" placeholder="Amount paid (₹)" />
-                        {quote?.totalPaise != null && !override && (
-                          <Button type="button" variant="link" className="h-auto justify-self-start p-0" onClick={() => setPayAmount(String(quote.totalPaise! / 100))}>
-                            The full {rupees(quote.totalPaise)}
+                        {payable != null && !override && (
+                          <Button type="button" variant="link" className="h-auto justify-self-start p-0" onClick={() => setPayAmount(String(payable / 100))}>
+                            The full {rupees(payable)}
                           </Button>
                         )}
                         <Input name="payReference" aria-label="Reference" placeholder="UPI, card or receipt reference" />

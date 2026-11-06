@@ -19,6 +19,7 @@ const labels: Record<string, string> = {
   rooms: "Rooms",
   prices: "Prices",
   packages: "Packages",
+  offers: "Offers",
   settings: "Settings",
   staff: "Staff",
   audit: "Audit log",

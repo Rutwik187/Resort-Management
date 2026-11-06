@@ -1,5 +1,7 @@
-import { and, asc, count, eq, inArray, isNull } from "drizzle-orm";
-import { ageBands, offeringChildPrices, offerings, offeringSlots, properties, rateChildPrices, rates, roomTypes, units, type Executor } from "@repo/db";
+import { and, asc, count, eq, gte, inArray, isNull, or } from "drizzle-orm";
+import { ageBands, offeringChildPrices, offerings, offeringSlots, offers, properties, rateChildPrices, rates, roomTypes, units, type Executor } from "@repo/db";
+import { todayInIndia } from "./dates";
+import { offerLabel } from "./offers";
 
 /*
  * What a resort's website shows from the admin: its room types with their
@@ -51,7 +53,10 @@ export type WebsitePass = {
   validTo: string | null;
 };
 
-export type WebsiteCatalogue = { roomTypes: WebsiteRoomType[]; passes: WebsitePass[] };
+/** An offer the website shows: what it is and what it covers. Codes stay with the team. */
+export type WebsiteOffer = { title: string; details: string | null; appliesTo: "stay" | "day" | "any"; label: string; startsOn: string | null; endsOn: string | null };
+
+export type WebsiteCatalogue = { roomTypes: WebsiteRoomType[]; passes: WebsitePass[]; offers: WebsiteOffer[] };
 
 /** A resort's website catalogue, or null when there is no such resort. A few queries, run one after another. */
 export async function websiteCatalogue(db: Executor, propertyCode: string): Promise<WebsiteCatalogue | null> {
@@ -101,7 +106,15 @@ export async function websiteCatalogue(db: Executor, propertyCode: string): Prom
         .where(inArray(offeringChildPrices.offeringId, passIds))
     : [];
 
+  // Offers on the website that haven't ended. A coupon's code isn't shown: the team gives it out.
+  const offerRows = await db
+    .select()
+    .from(offers)
+    .where(and(eq(offers.propertyId, property.id), eq(offers.active, true), eq(offers.onWebsite, true), or(isNull(offers.endsOn), gte(offers.endsOn, todayInIndia()))))
+    .orderBy(asc(offers.sortOrder), asc(offers.title));
+
   return {
+    offers: offerRows.map((offer) => ({ title: offer.title, details: offer.details, appliesTo: offer.appliesTo, label: offerLabel(offer), startsOn: offer.startsOn, endsOn: offer.endsOn })),
     roomTypes: types.map((type) => ({
       code: type.code,
       name: type.name,

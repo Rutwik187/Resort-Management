@@ -45,7 +45,10 @@ export type CataloguePass = {
   childPaise: Record<string, number>;
 };
 
-export type Catalogue = { roomTypes: CatalogueRoomType[]; passes: CataloguePass[] };
+/** An offer the website shows. Coupon codes stay with the team. */
+export type CatalogueOffer = { title: string; details: string | null; appliesTo: "stay" | "day" | "any" };
+
+export type Catalogue = { roomTypes: CatalogueRoomType[]; passes: CataloguePass[]; offers?: CatalogueOffer[] };
 export type Section = { id: string; title: string; line?: string };
 
 /** The sites' words for each meal plan. Room only says nothing. */
@@ -137,4 +140,13 @@ export function passesFromCatalogue(catalogue: Catalogue, photoFor: (code: strin
       child3to5: rupees(pass.childPaise.child_3_5),
       photo: photoFor(pass.code),
     }));
+}
+
+/** The offers for stays or for day visits, such as "Offer: 25% off for honeymooners." */
+export function offersFor(catalogue: Catalogue, kind: "stay" | "day"): CatalogueOffer[] {
+  return (catalogue.offers ?? []).filter((offer) => offer.appliesTo === "any" || offer.appliesTo === kind);
+}
+
+export function offerNotes(catalogue: Catalogue, kind: "stay" | "day"): string[] {
+  return offersFor(catalogue, kind).map((offer) => `Offer: ${offer.title}.${offer.details ? ` ${offer.details}` : ""}`);
 }

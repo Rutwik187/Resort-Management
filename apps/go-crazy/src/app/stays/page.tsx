@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { StayPlanner } from "@repo/booking-ui";
-import { liveStayGroups } from "@repo/website";
+import { liveNotes, liveStayGroups } from "@repo/website";
 import { sendBookingRequest } from "@/app/actions";
 import { desk, stayGroups, stayNotes } from "@/content/booking";
 import { contact } from "@/content/resort";
@@ -17,6 +17,7 @@ export const metadata = pageMetadata({
 export default async function StaysPage() {
   // Rooms, rates and text from the admin; the site's own content if the database is out of reach.
   const groups = await liveStayGroups("GC", stayGroups);
+  const notes = await liveNotes("GC", "stay", stayNotes);
   return (
     <PageTransition>
       <div className="bg-chalk">
@@ -32,7 +33,7 @@ export default async function StaysPage() {
         </header>
 
         <div className="mx-auto max-w-[1600px] px-4 pb-20 pt-10 md:px-8 md:pb-28">
-          <StayPlanner groups={groups} onRequest={sendBookingRequest} desk={desk} storageKey="gc" path="/stays" notes={stayNotes} />
+          <StayPlanner groups={groups} onRequest={sendBookingRequest} desk={desk} storageKey="gc" path="/stays" notes={notes} />
           <p className="mt-16 max-w-2xl text-[0.95rem] text-stone">
             Here for the day instead?{" "}
             <Link href="/day-packages" className="text-ink underline underline-offset-4">

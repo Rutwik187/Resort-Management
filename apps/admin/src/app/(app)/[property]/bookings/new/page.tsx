@@ -2,8 +2,8 @@ import Link from "next/link";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { BedDouble, CalendarSearch, CircleAlert, Inbox, Search, Ticket } from "lucide-react";
 import { can } from "@repo/auth";
-import { ageBands, getDb, leads, roomTypes } from "@repo/db";
-import { addDays, isDate, searchStays, seatsLeft, todayInIndia } from "@repo/engine";
+import { ageBands, getDb, leads, offers, roomTypes } from "@repo/db";
+import { addDays, isDate, offerLabel, offerProblem, searchStays, seatsLeft, todayInIndia } from "@repo/engine";
 import { DateField, DateRangeField } from "@/components/date-field";
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/page-header";
@@ -82,6 +82,12 @@ export default async function NewBookingPage({ params, searchParams }: PageProps
     }
   }
   const bands = await db.select({ code: ageBands.code, label: ageBands.label }).from(ageBands).where(eq(ageBands.propertyId, property.id)).orderBy(asc(ageBands.sortOrder));
+  // The resort's offers, each with whether it covers these dates.
+  const offerRows = asked && !problem ? await db.select().from(offers).where(and(eq(offers.propertyId, property.id), eq(offers.active, true))).orderBy(asc(offers.sortOrder), asc(offers.title)) : [];
+  const target = kind === "stay" ? { kind: "stay" as const, from: checkIn, to: checkOut, nights: Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000) } : { kind: "day" as const, from: day };
+  const offerOptions = offerRows
+    .filter((offer) => offer.appliesTo === "any" || offer.appliesTo === kind)
+    .map((offer) => ({ id: offer.id, title: offer.title, code: offer.code, label: offerLabel(offer), discountKind: offer.discountKind, discountValue: offer.discountValue, problem: offerProblem(offer, target) }));
   const base = `/${property.code.toLowerCase()}/bookings/new`;
   const nights = Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000);
 
@@ -178,6 +184,7 @@ export default async function NewBookingPage({ params, searchParams }: PageProps
           canOverride={can(staff, "prices.manage", property.id)}
           prefill={lead ? { leadId: lead.id, name: lead.name, phone: lead.phone ? (lead.phone.startsWith("91") && lead.phone.length === 12 ? lead.phone.slice(2) : lead.phone) : "", email: lead.email ?? "" } : undefined}
           canTakePayment={can(staff, "bookings.modify", property.id)}
+          offers={offerOptions}
         />
       )}
     </>

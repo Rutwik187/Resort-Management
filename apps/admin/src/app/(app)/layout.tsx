@@ -17,6 +17,7 @@ const sections: [Section["key"], string, Permission[]][] = [
   ["rooms", "Rooms", ["rooms.manage", "inventory.view"]],
   ["prices", "Prices", ["prices.view"]],
   ["packages", "Packages", ["prices.view"]],
+  ["offers", "Offers", ["prices.view"]],
   ["settings", "Settings", ["settings.manage"]],
 ];
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  BadgePercent,
   BedDouble,
   CalendarDays,
   Check,
@@ -48,7 +49,7 @@ import {
 } from "@/components/ui/sidebar";
 
 /** A resort section. Icons are named, because a server can't hand a component to the browser. */
-export type Section = { key: "today" | "bookings" | "leads" | "calendar" | "rooms" | "prices" | "packages" | "settings"; label: string };
+export type Section = { key: "today" | "bookings" | "leads" | "calendar" | "rooms" | "prices" | "packages" | "offers" | "settings"; label: string };
 export type SidebarResort = { code: string; name: string; shortName: string; place: string; website: string; sections: Section[]; canBook: boolean };
 export type SidebarData = {
   resorts: SidebarResort[];
@@ -64,6 +65,7 @@ const sectionIcon: Record<Section["key"], LucideIcon> = {
   rooms: BedDouble,
   prices: IndianRupee,
   packages: Ticket,
+  offers: BadgePercent,
   settings: Settings,
 };
 const groupIcon = { staff: Users, audit: ScrollText } as const;
@@ -71,7 +73,7 @@ const groupIcon = { staff: Users, audit: ScrollText } as const;
 /** The day's work first, then what is set up once and changed now and then. */
 const sectionGroups: { label: string; keys: Section["key"][] }[] = [
   { label: "Front office", keys: ["today", "bookings", "leads", "calendar"] },
-  { label: "Resort setup", keys: ["rooms", "prices", "packages", "settings"] },
+  { label: "Resort setup", keys: ["rooms", "prices", "packages", "offers", "settings"] },
 ];
 
 /** The current page stands out: white, raised, with a green icon. */

@@ -63,6 +63,10 @@ const actionLabel: Record<string, string> = {
   "room_type.move": "Moved a room type in the list",
   "unit.create": "Added a room",
   "unit.status": "Changed a room's status",
+  "offer.create": "Added an offer",
+  "offer.update": "Changed an offer",
+  "offer.active": "Turned an offer on or off",
+  "offer.delete": "Removed an offer",
   "lead.create": "Added a lead",
   "lead.status": "Changed a lead's status",
   "lead.assign": "Handed a lead to someone",
@@ -78,7 +82,7 @@ const actionLabel: Record<string, string> = {
 const kinds = {
   bookings: { label: "Bookings and payments", prefixes: ["booking.", "payment."] },
   inventory: { label: "Blocks, stay rules and seats", prefixes: ["block.", "stay_rules.", "capacity."] },
-  prices: { label: "Prices and packages", prefixes: ["rate.", "season.", "age_band.", "date_rates.", "property.weekend_nights", "offering.", "slot."] },
+  prices: { label: "Prices, packages and offers", prefixes: ["rate.", "season.", "age_band.", "date_rates.", "property.weekend_nights", "offering.", "slot.", "offer."] },
   rooms: { label: "Rooms", prefixes: ["room_type.", "unit."] },
   leads: { label: "Leads", prefixes: ["lead."] },
   people: { label: "Staff and sign-ins", prefixes: ["staff.", "auth."] },
@@ -95,7 +99,7 @@ const iconFor = (action: string): LucideIcon =>
         ? CalendarDays
         : action.startsWith("offering.") || action.startsWith("slot.")
           ? Ticket
-          : action.startsWith("rate.") || action.startsWith("season.") || action.startsWith("age_band.") || action.startsWith("date_rates.") || action === "property.weekend_nights"
+          : action.startsWith("rate.") || action.startsWith("season.") || action.startsWith("age_band.") || action.startsWith("date_rates.") || action === "property.weekend_nights" || action.startsWith("offer.")
             ? Tag
             : action.startsWith("room_type.") || action.startsWith("unit.")
               ? BedDouble

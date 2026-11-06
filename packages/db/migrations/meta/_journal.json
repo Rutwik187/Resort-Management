@@ -29,6 +29,13 @@
       "when": 1793946088053,
       "tag": "0003_leads",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793947147317,
+      "tag": "0004_offers",
+      "breakpoints": true
     }
   ]
 }

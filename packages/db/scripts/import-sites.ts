@@ -1,6 +1,6 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { databaseUrl } from "./env";
-import { ageBands, createDb, offeringChildPrices, offerings, offeringSlots, properties, rateChildPrices, rates, roomTypes, units } from "../src";
+import { ageBands, createDb, offeringChildPrices, offerings, offeringSlots, offers, properties, rateChildPrices, rates, roomTypes, units } from "../src";
 
 /*
  * Brings each resort website's rooms, rates and day packages into the admin
@@ -31,6 +31,8 @@ type Listing = {
 };
 type Group = { id: string; listings: Listing[] };
 type Pass = { id: string; name: string; hours: string; meals: string; adult: number; child5to11: number; child3to5: number };
+/** An offer a site lists in its resort.ts: Go Crazy's two for one, or Sinhagad Bliss's 25% for honeymooners. */
+type SiteOffer = { title?: string; note?: string; active?: boolean; percent?: number; label?: string; line?: string };
 
 const sites = [
   { code: "KS", app: "khed-shivapur" },
@@ -58,7 +60,8 @@ const times = (hours: string) => {
 for (const site of sites) {
   const content = new URL(`../../../apps/${site.app}/src/content/booking.ts`, import.meta.url).href;
   const mod = (await import(content)) as { stayGroups?: Group[]; passes?: Pass[]; dayPasses?: Pass[] };
-  const summary = { added: 0, filled: 0, units: 0, rates: 0, passes: 0 };
+  const resort = (await import(new URL(`../../../apps/${site.app}/src/content/resort.ts`, import.meta.url).href)) as { offers?: SiteOffer[] };
+  const summary = { added: 0, filled: 0, units: 0, rates: 0, passes: 0, offers: 0 };
 
   await db.transaction(async (tx) => {
     const [property] = await tx.select({ id: properties.id }).from(properties).where(eq(properties.code, site.code));
@@ -184,9 +187,30 @@ for (const site of sites) {
       await tx.insert(offeringSlots).values({ propertyId: property.id, offeringId: offering.id, label: pass.hours, ...times(pass.hours), defaultCapacity: 0 });
       summary.passes += 1;
     }
+
+    // Offers the site shows. A percentage the site publishes comes with it; others the team applies by hand.
+    for (const [i, offer] of (resort.offers ?? []).entries()) {
+      // Such as "25% off for honeymooners", from "For honeymooners" and 25.
+      const title = offer.title ?? `${offer.percent}% off for ${(offer.label ?? "everyone").replace(/^for\s+/i, "").toLowerCase()}`;
+      const [existing] = await tx.select({ id: offers.id }).from(offers).where(and(eq(offers.propertyId, property.id), eq(offers.title, title)));
+      if (existing) continue;
+      const words = `${title} ${offer.line ?? ""}`;
+      const appliesTo = /\bday\b/i.test(words) ? "day" : /\b(stay|night|room|cottage)s?\b/i.test(words) ? "stay" : "any";
+      await tx.insert(offers).values({
+        propertyId: property.id,
+        title,
+        details: offer.note ?? null,
+        discountKind: offer.percent ? "percent" : "none",
+        discountValue: offer.percent ?? null,
+        appliesTo,
+        active: offer.active ?? true,
+        sortOrder: i,
+      });
+      summary.offers += 1;
+    }
   });
 
-  console.log(`${site.code}: ${summary.added} room types added (${summary.units} rooms, ${summary.rates} rates), ${summary.filled} filled in, ${summary.passes} day packages added.`);
+  console.log(`${site.code}: ${summary.added} room types added (${summary.units} rooms, ${summary.rates} rates), ${summary.filled} filled in, ${summary.passes} day packages and ${summary.offers} offers added.`);
 }
 
 await db.pool.end();

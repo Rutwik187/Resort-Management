@@ -12,6 +12,7 @@ import {
   offeringChildPrices,
   offlinePayments,
   offerings,
+  offers,
   offeringSlots,
   properties,
   rateChildPrices,
@@ -34,6 +35,9 @@ import {
   holdSeats,
   holdStay,
   liftBlock,
+  offerDiscount,
+  offerLabel,
+  offerProblem,
   quoteSeats,
   quoteStay,
   recordPayment,
@@ -471,5 +475,37 @@ describe("website leads", () => {
     const other = await recordWebsiteLead(db, { propertyCode: "KS", source: "website_enquiry", interest: "day", name: "Arjun", phone: "98765 00002" });
     expect(other.merged).toBe(false);
     await expect(recordWebsiteLead(db, { propertyCode: "XX", source: "website_enquiry", interest: "day", name: "Arjun", phone: "98765 00002" })).rejects.toThrow();
+  });
+});
+
+describe("offers", () => {
+  const base = { title: "Monsoon", code: null, discountKind: "percent" as const, discountValue: 10, appliesTo: "stay" as const, startsOn: "2028-06-01", endsOn: "2028-09-30", minNights: 2, active: true };
+
+  it("covers a stay within its dates and nights, and says why it doesn't otherwise", () => {
+    expect(offerProblem(base, { kind: "stay", from: "2028-07-01", to: "2028-07-03", nights: 2 })).toBeNull();
+    // The last night is 30 September, so a check-out on 1 October is still covered.
+    expect(offerProblem(base, { kind: "stay", from: "2028-09-29", to: "2028-10-01", nights: 2 })).toBeNull();
+    expect(offerProblem(base, { kind: "stay", from: "2028-07-01", to: "2028-07-02", nights: 1 })).toMatch(/at least 2 nights/);
+    expect(offerProblem(base, { kind: "stay", from: "2028-09-30", to: "2028-10-02", nights: 2 })).toMatch(/ends on/);
+    expect(offerProblem(base, { kind: "day", from: "2028-07-01" })).toMatch(/stays only/);
+    expect(offerProblem({ ...base, active: false }, { kind: "stay", from: "2028-07-01", to: "2028-07-03", nights: 2 })).toMatch(/is off/);
+  });
+
+  it("takes a share or an amount, never more than the price", () => {
+    expect(offerDiscount(base, 1_300_000)).toBe(130_000);
+    expect(offerDiscount({ discountKind: "amount", discountValue: 50_000 }, 30_000)).toBe(30_000);
+    expect(offerDiscount({ discountKind: "none", discountValue: null }, 30_000)).toBe(0);
+    expect(offerLabel({ discountKind: "amount", discountValue: 50_000 })).toBe("₹500 off");
+  });
+
+  it("shows the website its offers that are on and haven't ended, without their codes", async () => {
+    await db.insert(offers).values([
+      { propertyId, title: "Two for one", details: "Day packages on weekdays.", appliesTo: "day" },
+      { propertyId, title: "Old offer", endsOn: "2020-01-01" },
+      { propertyId, title: "Hidden coupon", code: "STAFF10", discountKind: "percent", discountValue: 10, onWebsite: false },
+    ]);
+    const catalogue = await websiteCatalogue(db, "KS");
+    expect(catalogue?.offers.map((o) => o.title)).toEqual(["Two for one"]);
+    expect(catalogue?.offers[0]).toMatchObject({ appliesTo: "day", label: "Applied by the team" });
   });
 });
