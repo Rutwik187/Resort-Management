@@ -16,6 +16,7 @@ const labels: Record<string, string> = {
   new: "New booking",
   calendar: "Calendar",
   log: "Inventory log",
+  reports: "Reports",
   rooms: "Rooms",
   prices: "Prices",
   packages: "Packages",
