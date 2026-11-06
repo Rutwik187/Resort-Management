@@ -36,6 +36,13 @@
       "when": 1793947147317,
       "tag": "0004_offers",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793947899276,
+      "tag": "0005_guest_profiles",
+      "breakpoints": true
     }
   ]
 }

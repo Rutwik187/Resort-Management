@@ -67,6 +67,9 @@ const actionLabel: Record<string, string> = {
   "offer.update": "Changed an offer",
   "offer.active": "Turned an offer on or off",
   "offer.delete": "Removed an offer",
+  "guest.profile": "Changed a guest's tags or note",
+  "guest.export": "Downloaded a guest's data",
+  "guest.remove": "Removed a guest's personal details",
   "lead.create": "Added a lead",
   "lead.status": "Changed a lead's status",
   "lead.assign": "Handed a lead to someone",
@@ -80,7 +83,7 @@ const actionLabel: Record<string, string> = {
 
 /** Kinds of change to filter by, each a set of action prefixes. */
 const kinds = {
-  bookings: { label: "Bookings and payments", prefixes: ["booking.", "payment."] },
+  bookings: { label: "Bookings, payments and guests", prefixes: ["booking.", "payment.", "guest."] },
   inventory: { label: "Blocks, stay rules and seats", prefixes: ["block.", "stay_rules.", "capacity."] },
   prices: { label: "Prices, packages and offers", prefixes: ["rate.", "season.", "age_band.", "date_rates.", "property.weekend_nights", "offering.", "slot.", "offer."] },
   rooms: { label: "Rooms", prefixes: ["room_type.", "unit."] },
@@ -91,7 +94,7 @@ const kinds = {
 
 /** An icon for each kind of change, so the log can be scanned by eye. */
 const iconFor = (action: string): LucideIcon =>
-  action.startsWith("booking.")
+  action.startsWith("booking.") || action.startsWith("guest.")
     ? ClipboardList
     : action.startsWith("payment.")
       ? IndianRupee

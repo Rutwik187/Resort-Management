@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRightLeft, CalendarCheck, CircleAlert, Clock, IndianRupee, Mail, MessageCircle, MessageSquareText, Phone, PencilLine, Sparkles } from "lucide-react";
 import { can } from "@repo/auth";
@@ -163,6 +164,9 @@ export default async function BookingPage({ params }: PageProps<"/[property]/boo
                 </a>
               )}
               {!guest.phone && !guest.email && <p className="text-muted-foreground">No phone or email on this booking.</p>}
+              <Link href={`/${property.code.toLowerCase()}/guests/${guest.id}`} className="mt-1 text-sm font-medium text-primary hover:underline print:hidden">
+                Their other bookings and notes
+              </Link>
               {(guest.companyName || guest.companyGstin) && (
                 <>
                   <Separator className="my-1" />

@@ -13,6 +13,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 const labels: Record<string, string> = {
   bookings: "Bookings",
   leads: "Leads",
+  guests: "Guests",
   new: "New booking",
   calendar: "Calendar",
   log: "Inventory log",
@@ -36,7 +37,7 @@ export function SiteHeader({ resorts, canSearch }: { resorts: { code: string; sh
   if (resort) {
     crumbs.push({ label: resort.shortName, href: `/${segments[0]}` });
     crumbs.push({ label: segments[1] ? (labels[segments[1]] ?? segments[1]) : "Today", href: segments[1] ? `/${segments[0]}/${segments[1]}` : `/${segments[0]}` });
-    if (segments[2]) crumbs.push({ label: segments[1] === "leads" ? "Lead" : (labels[segments[2]] ?? segments[2].toUpperCase()), href: `/${segments.slice(0, 3).join("/")}` });
+    if (segments[2]) crumbs.push({ label: segments[1] === "leads" ? "Lead" : segments[1] === "guests" ? "Guest" : (labels[segments[2]] ?? segments[2].toUpperCase()), href: `/${segments.slice(0, 3).join("/")}` });
   } else {
     crumbs.push({ label: segments[0] ? (labels[segments[0]] ?? segments[0]) : "All resorts", href: `/${segments[0] ?? ""}` });
   }

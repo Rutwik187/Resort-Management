@@ -13,6 +13,7 @@ const sections: [Section["key"], string, Permission[]][] = [
   ["today", "Today", ["dashboard.view"]],
   ["bookings", "Bookings", ["bookings.view"]],
   ["leads", "Leads", ["leads.view"]],
+  ["guests", "Guests", ["bookings.view"]],
   ["calendar", "Calendar", ["inventory.view"]],
   ["reports", "Reports", ["reports.view", "reports.daily", "reports.leads"]],
   ["rooms", "Rooms", ["rooms.manage", "inventory.view"]],
