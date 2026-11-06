@@ -1,11 +1,14 @@
 import Link from "next/link";
+import { hasBlog as blogIsLive } from "@repo/sanity";
 import { otherProperties } from "@repo/sites";
 import { contact, dms, nav } from "@/content/resort";
 import { Email } from "./email";
 import { Logo } from "./logo";
 
-export function SiteFooter() {
+export async function SiteFooter() {
   const { lat, lng } = contact.geo;
+  // The blog link shows once Sanity has a live post.
+  const hasBlog = await blogIsLive("PV");
   return (
     <footer data-tone="dark" className="bg-night text-mist">
       {/* The chequered paving of the resort's paths, as the last thing on every page. */}
@@ -100,6 +103,11 @@ export function SiteFooter() {
               {item.label}
             </Link>
           ))}
+          {hasBlog && (
+            <Link href="/blog" className="tap hover:text-mist">
+              Blog
+            </Link>
+          )}
           <Link href="/policies" className="tap hover:text-mist">
             Terms, cancellation and privacy
           </Link>
