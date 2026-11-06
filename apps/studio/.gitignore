@@ -1,0 +1,3 @@
+# The built Studio, from `sanity build`
+dist
+.sanity
