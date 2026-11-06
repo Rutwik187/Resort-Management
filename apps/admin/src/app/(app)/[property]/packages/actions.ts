@@ -8,6 +8,7 @@ import { NotFoundError, RuleError, setDayCapacity } from "@repo/engine";
 import { shortDate } from "@/lib/format";
 import { checkbox, date, filled, problem, rupeesField, wholeNumber, type FormState } from "@/lib/forms";
 import { audit, requirePermission } from "@/lib/staff";
+import { websiteChanged } from "@/lib/website";
 
 const id = z.uuid({ error: "That no longer exists." });
 const forbidden = "Your role can't change packages at this resort.";
@@ -81,6 +82,7 @@ export async function createOffering(propertyId: string, _state: FormState, form
       return offering;
     });
     await audit({ userId: staff.userId, propertyId, action: "offering.create", entity: "offerings", entityId: created.id, after: { ...created, children, slot } });
+    websiteChanged(propertyId);
     refresh();
     return { done: `${created.name} added.` };
   } catch (error) {
@@ -113,6 +115,7 @@ export async function updateOffering(offeringId: string, _state: FormState, form
       return row;
     });
     await audit({ userId: staff.userId, propertyId: before.propertyId, action: "offering.update", entity: "offerings", entityId: offeringId, before, after: { ...after, children } });
+    websiteChanged(before.propertyId);
     refresh();
     return { done: "Saved." };
   } catch (error) {
@@ -127,6 +130,7 @@ export async function setOfferingActive(offeringId: string, active: boolean): Pr
     const staff = await requirePermission("prices.manage", before.propertyId);
     await getDb().update(offerings).set({ active: Boolean(active) }).where(eq(offerings.id, offeringId));
     await audit({ userId: staff.userId, propertyId: before.propertyId, action: "offering.active", entity: "offerings", entityId: offeringId, before: { active: before.active }, after: { active: Boolean(active) } });
+    websiteChanged(before.propertyId);
     refresh();
     return { done: active ? "On sale." : "Off sale." };
   } catch (error) {
@@ -190,6 +194,7 @@ export async function addSlot(offeringId: string, _state: FormState, form: FormD
       .returning();
     if (!created) return { error: `${offering.name} already has a slot called ${slot.label}.` };
     await audit({ userId: staff.userId, propertyId: offering.propertyId, action: "slot.create", entity: "offering_slots", entityId: created.id, after: created });
+    websiteChanged(offering.propertyId);
     refresh();
     return { done: `${slot.label} added.` };
   } catch (error) {
@@ -215,6 +220,7 @@ export async function updateSlot(slotId: string, _state: FormState, form: FormDa
       .where(eq(offeringSlots.id, slotId))
       .returning();
     await audit({ userId: staff.userId, propertyId: before.propertyId, action: "slot.update", entity: "offering_slots", entityId: slotId, before, after });
+    websiteChanged(before.propertyId);
     refresh();
     return { done: "Saved. Days already set keep their own seats." };
   } catch (error) {

@@ -43,6 +43,8 @@ type TrayProps = {
   blocker: string | null;
   desk: Desk;
   message: (guest: GuestDetails) => string;
+  /** Called once the request goes to WhatsApp, so the site can keep it too. */
+  onSend?: (guest: GuestDetails) => void;
   checkout: Checkout;
 };
 
@@ -54,7 +56,7 @@ const field =
  * places still to fill, the estimate, and the way to send it. Then the
  * guest's details, and the request goes to the resort on WhatsApp.
  */
-export function Tray({ heading, when, lines, emptySlots, emptyNote, onRemove, onEdit, fresh, coverage, total, pending = false, notes = [], blocker, desk, message, checkout }: TrayProps) {
+export function Tray({ heading, when, lines, emptySlots, emptyNote, onRemove, onEdit, fresh, coverage, total, pending = false, notes = [], blocker, desk, message, onSend, checkout }: TrayProps) {
   const id = useId();
   const { step, setStep, guest, setGuest } = checkout;
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -82,6 +84,7 @@ export function Tray({ heading, when, lines, emptySlots, emptyNote, onRemove, on
     }
     openWhatsApp(desk.whatsapp.number, message(guest));
     go("sent");
+    onSend?.(guest);
   }
 
   if (step === "sent") {

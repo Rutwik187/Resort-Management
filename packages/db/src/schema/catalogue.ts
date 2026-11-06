@@ -51,14 +51,24 @@ export const roomTypes = pgTable(
     baseOccupancy: smallint().notNull().default(2),
     /** The fewest paying guests it takes, such as 20 for a villa let to large groups. */
     minGuests: smallint().notNull().default(1),
-    maxAdults: smallint().notNull(),
+    /** Empty when the resort publishes no limit: then the engine sets none either. */
+    maxAdults: smallint(),
     maxChildren: smallint().notNull().default(0),
-    maxGuests: smallint().notNull(),
+    /** Empty when the resort publishes no limit. Nothing is guessed. */
+    maxGuests: smallint(),
     extraBedAllowed: boolean().notNull().default(false),
     sizeSqft: integer(),
     bedType: text(),
     status: roomTypeStatus().notNull().default("active"),
     sortOrder: integer().notNull().default(0),
+    /** On the resort's website: one line under the name, a longer description and the feature list. */
+    tagline: text(),
+    description: text(),
+    features: text().array().notNull().default(sql`'{}'::text[]`),
+    /** The website section it is listed under, such as "rooms" or "villas" (packages/sites lists each site's sections). */
+    webGroup: text(),
+    /** Off means the room type is still sold in the admin but not listed on the website. */
+    onWebsite: boolean().notNull().default(true),
     createdBy: createdBy(),
     ...timestamps,
   },
@@ -66,7 +76,7 @@ export const roomTypes = pgTable(
     unique().on(t.propertyId, t.code),
     check(
       "room_types_guests",
-      sql`${t.baseOccupancy} >= 1 and ${t.minGuests} >= 1 and ${t.maxGuests} >= ${t.baseOccupancy} and ${t.maxGuests} >= ${t.minGuests} and ${t.maxAdults} >= 1`,
+      sql`${t.baseOccupancy} >= 1 and ${t.minGuests} >= 1 and (${t.maxGuests} is null or (${t.maxGuests} >= ${t.baseOccupancy} and ${t.maxGuests} >= ${t.minGuests})) and (${t.maxAdults} is null or ${t.maxAdults} >= 1)`,
     ),
   ],
 );

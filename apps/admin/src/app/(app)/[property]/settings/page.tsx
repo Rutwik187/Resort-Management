@@ -1,5 +1,6 @@
 import { can } from "@repo/auth";
 import { NoAccess } from "@/components/no-access";
+import { PageHeader } from "@/components/page-header";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
 import { SettingsForm } from "./form";
 
@@ -11,9 +12,8 @@ export default async function SettingsPage({ params }: PageProps<"/[property]/se
   const property = await propertyFromCode((await params).property, staff);
   if (!can(staff, "settings.manage", property.id)) return <NoAccess what="the settings" />;
   return (
-    <div>
-      <h1 className="text-[1.35rem] font-semibold">Settings</h1>
-      <p className="mt-1 text-muted">Taxes, payment keys, cancellation rules and message templates come with payments and messages.</p>
+    <>
+      <PageHeader title="Settings" description={`${property.name}'s company details and booking settings. Taxes, payment keys, cancellation rules and message templates come with payments and messages.`} />
       <SettingsForm
         propertyId={property.id}
         settings={{
@@ -28,6 +28,6 @@ export default async function SettingsPage({ params }: PageProps<"/[property]/se
           lowStockThreshold: property.lowStockThreshold,
         }}
       />
-    </div>
+    </>
   );
 }

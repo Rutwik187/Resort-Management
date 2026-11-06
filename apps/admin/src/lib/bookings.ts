@@ -111,6 +111,20 @@ export async function findBookings(propertyIds: string[], filters: BookingFilter
   return { rows: rows.map((row) => ({ ...row, items: summaries.get(row.id) ?? "" })), total };
 }
 
+/** How many bookings each quick list on the Bookings page holds: all, arriving today, in the resort, and waiting for payment. */
+export async function quickCounts(propertyId: string, today: string) {
+  const [row] = await getDb()
+    .select({
+      all: count(),
+      arriving: sql<number>`count(*) filter (where ${arrival} = ${today})`.mapWith(Number),
+      inHouse: sql<number>`count(*) filter (where ${bookings.status} = 'checked_in')`.mapWith(Number),
+      waiting: sql<number>`count(*) filter (where ${bookings.status} = 'pending_payment')`.mapWith(Number),
+    })
+    .from(bookings)
+    .where(eq(bookings.propertyId, propertyId));
+  return row;
+}
+
 /** Each booking's rooms or tickets in a few words, such as "Chira Cottage × 2". */
 async function itemSummaries(bookingIds: string[]) {
   const result = new Map<string, string>();

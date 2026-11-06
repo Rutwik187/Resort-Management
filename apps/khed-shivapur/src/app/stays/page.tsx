@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { StayPlanner } from "@repo/booking-ui";
+import { liveNotes, liveStayGroups } from "@repo/website";
+import { sendBookingRequest } from "@/app/actions";
 import { desk, stayGroups, stayNotes } from "@/content/booking";
 import { contact, stays } from "@/content/resort";
 import { pageMetadata } from "@/content/site";
@@ -12,7 +14,10 @@ export const metadata = pageMetadata({
   path: "/stays",
 });
 
-export default function StaysPage() {
+export default async function StaysPage() {
+  // Rooms, rates and text from the admin; the site's own content if the database is out of reach.
+  const groups = await liveStayGroups("KS", stayGroups);
+  const notes = await liveNotes("KS", "stay", stayNotes);
   return (
     <PageTransition>
       <div className="bg-paper">
@@ -30,7 +35,7 @@ export default function StaysPage() {
         </header>
 
         <div className="mx-auto max-w-[1680px] px-5 pb-24 pt-10 md:px-10 md:pb-32">
-          <StayPlanner groups={stayGroups} desk={desk} storageKey="ks" path="/stays" notes={stayNotes} />
+          <StayPlanner groups={groups} onRequest={sendBookingRequest} desk={desk} storageKey="ks" path="/stays" notes={notes} />
 
           <p className="mt-16 max-w-2xl text-[0.95rem] text-fern">
             Planning a wedding, an event or a stay for a large group?{" "}

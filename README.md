@@ -12,12 +12,13 @@ The plan for the whole platform is in [`docs/implementation-plan.md`](docs/imple
 | `apps/go-crazy` | `go-crazy` | Prathamesh Go Crazy Resort, Sinhagad: gocrazyadventure.com |
 | `apps/sinhagad-bliss` | `sinhagad-bliss` | Sinhagad Bliss: sinhagadbliss.com |
 | `apps/valley` | `valley` | Prathamesh Valley Resorts, Mahabaleshwar: prathameshvalleyresorts.com |
-| `apps/admin` | `admin` | The staff dashboard: sign-in, each resort's day (arrivals, sales, rooms booked), bookings with offline booking and the front desk, rooms and units, and staff. Runs at http://localhost:3010 |
-| `packages/booking-ui` | `@repo/booking-ui` | The booking widget that all four sites share: the search bar, the room and day-pass lists, and the tray |
+| `apps/admin` | `admin` | The staff dashboard, built with shadcn/ui: sign-in, each resort's day (arrivals, sales, rooms booked), bookings with offline booking, changes and the front desk, leads from the websites, guests, the inventory calendar, reports, rooms (with their website text), prices, packages, offers and coupons, each website's page and notices, settings, staff and the audit log. Runs at http://localhost:3010 |
+| `packages/booking-ui` | `@repo/booking-ui` | The booking widget that all four sites share: the search bar, the room and day-pass lists, and the tray. Also the notice card |
 | `packages/db` | `@repo/db` | The database: Drizzle tables, migrations, the seed, and the roles and permissions |
 | `packages/auth` | `@repo/auth` | Staff sign-in with Better Auth, and the permission check `can()` |
 | `packages/engine` | `@repo/engine` | The booking engine: availability, holds, prices, bookings and blocks, with its tests |
-| `packages/sites` | `@repo/sites` | The group's four resorts: names, places and website addresses |
+| `packages/sites` | `@repo/sites` | The group's four resorts: names, places, website addresses and the sections of each Stays page |
+| `packages/website` | `@repo/website` | What the sites read from the admin: their rooms, rates, day packages, offers and notices (cached until the admin says they changed), and the requests they keep as leads |
 | `packages/typescript-config` | `@repo/typescript-config` | The TypeScript settings that every package extends |
 | `packages/eslint-config` | `@repo/eslint-config` | The ESLint rules that every package uses |
 
@@ -68,7 +69,7 @@ Staff sign in with Better Auth, run by the admin itself. Its tables are in the `
 **To work on the backend**
 
 1. Copy `.env.example` at the repo root to `.env.local` and fill it in: the two addresses and a `BETTER_AUTH_SECRET` (`openssl rand -base64 32`). Every app and script reads this one file, and git ignores it. Next.js reads env files only in an app's own folder, so the admin's `next.config.ts` loads the root file. Keep no other `.env` files.
-2. From `packages/db`: `pnpm db:migrate`, then `pnpm db:seed`. The seed adds the four resorts, the five roles from the URD and the main site's rooms. With `SEED_SUPER_ADMIN_EMAIL` set, it also adds the first Super Admin.
+2. From `packages/db`: `pnpm db:migrate`, then `pnpm db:seed`. The seed adds the four resorts, the five roles from the URD and the main site's rooms. With `SEED_SUPER_ADMIN_EMAIL` set, it also adds the first Super Admin. Then `pnpm db:import-sites` brings each website's rooms, rates and day packages from its `src/content/booking.ts` into the admin. It only adds what is missing and fills website text that is still empty, so it is safe to run again.
 3. `pnpm dev --filter=admin`, then open http://localhost:3010. Without Google keys, the sign-in page offers an emailed link, printed in the terminal, to people on the staff list.
 
 A variable set in the shell wins over the file. To work on a local database instead of Neon, start the command with `DATABASE_URL=postgresql://localhost:5432/prathamesh_dev`, for example `DATABASE_URL=postgresql://localhost:5432/prathamesh_dev pnpm db:migrate`. `pnpm db:reset` recreates a local database; it refuses any other.
@@ -79,12 +80,19 @@ The engine's tests need a local Postgres, which they reach at `TEST_DATABASE_ADM
 
 Every site books with the shared widget in `packages/booking-ui`, the way MakeMyTrip does it. The guest chooses dates, rooms and guests, adds a room and says who stays in it, then adds other rooms of any type. A bar under the site header names every room type and jumps to it. Adding a room opens a panel for its guests, which is a sheet from the foot of the screen on phones. A tray keeps the rooms, the guests still to place and the estimate; on phones it waits in a bar at the foot of the screen. Day passes work the same way, by date.
 
-Until the booking engine and Razorpay arrive, the tray sends the request on WhatsApp, to the resort's own number.
+Until the booking engine and Razorpay arrive, the tray sends the request on WhatsApp, to the resort's own number. The admin also keeps each request as a lead.
 
 - A site describes its rooms, packages and day passes in `src/content/booking.ts`, from the facts in `src/content/resort.ts`.
 - A site styles the widget with the `--bk-*` values in its `globals.css`. `packages/booking-ui/src/booking.css` lists them. `--bk-sticky-top` is the site header's height, set once for phones and once from md up, so the room bar and the tray stick just below the header.
 - Friday and Saturday nights take the weekend rate. Every other night takes the weekday rate.
 - When a resort doesn't publish a rate that the guests need, the widget leaves that price for the team to quote. It never guesses one.
+
+## The websites and the admin
+
+- Each site reads its rooms, rates, day packages, offers and notices from the admin through `packages/website`. The reads are cached for up to a day.
+- After staff change any of them, the admin calls the site's `/api/revalidate` with the shared `REVALIDATE_SECRET`, so the site shows the change at once. `WEBSITE_URLS` gives the admin each site's address, such as `KS=https://prathameshresorts.vercel.app`. See `.env.example`.
+- The admin's Website page shows each site's connection, its notices, and what its pages show from the admin. A notice shows in a small card at the foot of every page, one at a time, on its days only. A guest can close it.
+- A site without a database, or one that can't reach it, shows its own content from `src/content`.
 
 ## Deploy
 
@@ -96,8 +104,26 @@ Each app is its own Vercel project in the team "rutwik187's projects", linked to
 | `gocrazyadventure` | `apps/go-crazy` | www.gocrazyadventure.com | the bare domain, redirected |
 | `sinhagadbliss` | `apps/sinhagad-bliss` | sinhagadbliss.com | www, redirected |
 | `prathameshvalleyresorts` | `apps/valley` | www.prathameshvalleyresorts.com | the bare domain, redirected |
+| `prathamesh-admin` | `apps/admin` | prathamesh-admin.vercel.app | none |
 
 The main addresses are the ones the old WordPress sites used, so search results keep their links. Each app's `siteUrl` in `src/content/site.ts` matches.
+
+**The admin's look** comes from shadcn/ui. Its components are in `apps/admin/src/components/ui`, added with `npx shadcn@latest add <name>` from `apps/admin` (see `components.json`); after adding one, check that it imports `cn` from `@/lib/utils`. The brand colour and the chart green are in `apps/admin/src/app/globals.css`; the type is Geist. Each resort's photo for its cards is in `apps/admin/src/assets/resorts`, a small copy of a photo from its own site.
+
+**The admin builds without Turbopack's build cache** (`turbopackFileSystemCacheForBuild: false` in `apps/admin/next.config.ts`). Vercel restores `.next/cache` from the last deployment, and with that cache on, a build shipped an old stylesheet next to new pages. After a deploy that changes `globals.css`, check that the live stylesheet has the change.
+
+**The admin's project** runs its functions in Singapore (`sin1`), next to the Neon database; the sites keep the default region. Its variables are `DATABASE_URL` (the pooled address), `BETTER_AUTH_SECRET` (its own, not the one in your `.env.local`), `BETTER_AUTH_URL` (https://prathamesh-admin.vercel.app), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `WEBSITE_URLS` (each site's address, such as `KS=https://prathameshresorts.vercel.app`) and `REVALIDATE_SECRET`.
+
+**The sites' projects** have `DATABASE_URL` and the same `REVALIDATE_SECRET`. Each site's Stays and Day packages pages read the admin's catalogue when they build, and again when the admin calls the site's `/api/revalidate` after staff change rooms, rates or packages. Without the database, a site shows its own content as before. A changed variable takes effect only in a new deployment. Because the Ignored Build Step skips a commit that is already deployed, redeploy after changing only variables by clearing the step for one build, then setting it back.
+
+**Google sign-in** uses one OAuth client of the "web application" kind, in the Google Cloud console:
+
+| Where | Authorized JavaScript origin | Authorized redirect URI |
+|---|---|---|
+| This machine | http://localhost:3010 | http://localhost:3010/api/auth/callback/google |
+| Vercel | https://prathamesh-admin.vercel.app | https://prathamesh-admin.vercel.app/api/auth/callback/google |
+
+If the admin moves to its own domain, add that domain to both lists and change `BETTER_AUTH_URL`. Preview deployments can't sign in with Google, because their addresses change with every build.
 
 - Every project runs `npx turbo-ignore` as its Ignored Build Step: a push builds only the sites it changes, through their own files or a shared package.
 - Never set a custom Install Command: Vercel would fall back to pnpm 6. The root `package.json` pins pnpm 12 with `packageManager`.

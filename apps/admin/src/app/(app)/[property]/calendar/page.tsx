@@ -1,14 +1,22 @@
 import Link from "next/link";
 import { Fragment } from "react";
 import { eq } from "drizzle-orm";
+import { ChevronLeft, ChevronRight, History, Lock } from "lucide-react";
 import { can } from "@repo/auth";
 import { blocks, getDb, roomTypes, units, user } from "@repo/db";
 import { addDays, dayOfWeek, isDate, todayInIndia } from "@repo/engine";
+import { DateField } from "@/components/date-field";
 import { NoAccess } from "@/components/no-access";
+import { PageHeader } from "@/components/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { loadCalendar, type Cell } from "@/lib/calendar";
 import { longDate, plural, price, statusLabel, when } from "@/lib/format";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
-import { BlockForm, LiftBlockButton, PricesForm, RulesForm } from "./forms";
+import { BlockSheet, LiftBlockButton, PricesSheet, RulesSheet } from "./forms";
 
 export const metadata = { title: "Calendar" };
 
@@ -44,197 +52,289 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
       : "The whole resort";
   const blockBy = block?.createdBy ? (await getDb().select({ name: user.name }).from(user).where(eq(user.id, block.createdBy)))[0]?.name : null;
 
+  const weekendNight = new Set(calendar.nights.filter((night) => property.weekendNights.includes(dayOfWeek(night))));
+  const shade = (night: string) => (night === today ? "bg-primary/[0.05]" : weekendNight.has(night) ? "bg-muted/45" : "");
   const typesWithUnits = calendar.types.map((type) => ({ ...type, units: calendar.units.filter((u) => u.roomTypeId === type.id) }));
   const same = (a: Cell | undefined, b: Cell | undefined) =>
     Boolean(a && b && a.kind === b.kind && ((a.kind === "booked" && b.kind === "booked" && a.bookingId === b.bookingId) || (a.kind === "blocked" && b.kind === "blocked" && a.blockId === b.blockId) || a.kind === "held"));
 
   return (
-    <div>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-[1.35rem] font-semibold">Calendar</h1>
-          <p className="text-[0.88rem] text-muted">
-            {longDate(from)} to {longDate(last)}. Each row is a room. The shaded rows count each type&apos;s free rooms and give its price for the base number of guests.
-          </p>
-        </div>
-        <nav aria-label="Dates" className="flex flex-wrap items-center gap-2 text-[0.88rem]">
-          <Link href={at(addDays(from, -days))} className="button-quiet">
-            Earlier
-          </Link>
-          <Link href={at(today)} className="button-quiet">
-            Today
-          </Link>
-          <Link href={at(addDays(from, days))} className="button-quiet">
-            Later
-          </Link>
-          <form className="flex items-center gap-2">
-            <label htmlFor="cal-from" className="sr-only">
-              From
-            </label>
-            <input id="cal-from" name="from" type="date" defaultValue={from} className="field min-h-9 w-auto py-1" />
-            <label htmlFor="cal-days" className="sr-only">
-              Nights shown
-            </label>
-            <select id="cal-days" name="days" defaultValue={days} className="field min-h-9 w-auto py-1">
-              <option value={7}>7 nights</option>
-              <option value={14}>14 nights</option>
-              <option value={30}>30 nights</option>
-            </select>
-            <button type="submit" className="button-quiet">
-              Show
-            </button>
-          </form>
-        </nav>
-      </div>
+    <>
+      <PageHeader
+        title="Calendar"
+        description="Every room against the dates. The shaded rows count each room type's free rooms and give its price for the base number of guests. Click a booking or a block to open it, or a free night to book it."
+        actions={
+          <>
+            {may("inventory.block") && <BlockSheet propertyId={property.id} types={typesWithUnits} first={from} />}
+            {may("inventory.manage") && <RulesSheet propertyId={property.id} types={typesWithUnits} first={from} />}
+            {may("prices.manage") && <PricesSheet propertyId={property.id} types={typesWithUnits} first={from} />}
+          </>
+        }
+      />
 
-      <ul aria-label="Key" className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-[0.82rem]">
-        <li className="flex items-center gap-1.5">
-          <span className="size-3.5 rounded-sm border border-line bg-card" /> Free
+      <Card className="py-4">
+        <CardContent className="flex flex-wrap items-center justify-between gap-3 px-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center rounded-md border shadow-xs">
+              <Button variant="ghost" size="icon" asChild className="rounded-r-none border-r">
+                <Link href={at(addDays(from, -days))} aria-label="Earlier">
+                  <ChevronLeft />
+                </Link>
+              </Button>
+              <Button variant="ghost" asChild className="rounded-none">
+                <Link href={at(today)}>Today</Link>
+              </Button>
+              <Button variant="ghost" size="icon" asChild className="rounded-l-none border-l">
+                <Link href={at(addDays(from, days))} aria-label="Later">
+                  <ChevronRight />
+                </Link>
+              </Button>
+            </div>
+            <p className="text-sm font-medium">
+              {longDate(from)} – {longDate(last)}
+            </p>
+          </div>
+          <form className="flex flex-wrap items-center gap-2">
+            <div className="w-52">
+              <DateField id="cal-from" name="from" defaultValue={from} />
+            </div>
+            <Select name="days" defaultValue={String(days)}>
+              <SelectTrigger className="w-32" aria-label="Nights shown">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">7 nights</SelectItem>
+                <SelectItem value="14">14 nights</SelectItem>
+                <SelectItem value="30">30 nights</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button type="submit" variant="secondary">
+              Show
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <ul aria-label="Key" className="-mt-2 flex flex-wrap gap-x-5 gap-y-2 px-1 text-sm text-muted-foreground">
+        <li className="flex items-center gap-2">
+          <span className="size-3.5 rounded-sm border bg-card" /> Free
         </li>
-        <li className="flex items-center gap-1.5">
-          <span className="size-3.5 rounded-sm bg-good/20" /> Booked
+        <li className="flex items-center gap-2">
+          <span className="h-3.5 w-5 rounded-sm border-l-[3px] border-chart bg-chart/15" /> Booked
         </li>
-        <li className="flex items-center gap-1.5">
-          <span className="size-3.5 rounded-sm bg-accent" /> Checked in
+        <li className="flex items-center gap-2">
+          <span className="h-3.5 w-5 rounded-sm border-l-[3px] border-warn bg-warn/15" /> Booked, money due
         </li>
-        <li className="flex items-center gap-1.5">
-          <span className="size-3.5 rounded-sm bg-warn/20" /> Held while a guest pays
+        <li className="flex items-center gap-2">
+          <span className="h-3.5 w-5 rounded-sm bg-primary" /> Checked in
         </li>
-        <li className="flex items-center gap-1.5">
-          <span className="blocked-cell size-3.5 rounded-sm border border-line" /> Blocked
+        <li className="flex items-center gap-2">
+          <span className="h-3.5 w-5 rounded-sm border border-dashed border-warn/60 bg-warn/[0.07]" /> Held while a guest pays
         </li>
-        <li className="text-muted">• a price set for the date</li>
+        <li className="flex items-center gap-2">
+          <span className="blocked-cell h-3.5 w-5 rounded-sm border" /> Blocked
+        </li>
+        <li>• a price set for the date</li>
       </ul>
 
       {block && (
-        <section className="card mt-4 grid gap-2 p-5" aria-labelledby="block-heading">
-          <h2 id="block-heading" className="font-semibold">
-            {block.liftedAt ? "Lifted block" : "Block"}: {blockScope}
-          </h2>
-          <p className="text-[0.9rem]">
-            {longDate(block.startsOn)} to {longDate(block.endsOn)} (the last night) · {reasonLabel[block.reason]}
-            {block.note ? ` · ${block.note}` : ""}
-          </p>
-          <p className="text-[0.82rem] text-muted">
-            Made {when(block.createdAt)}
-            {blockBy ? ` by ${blockBy}` : ""}
-            {block.liftedAt ? `. Lifted ${when(block.liftedAt)}.` : "."}
-          </p>
-          {!block.liftedAt && may("inventory.block") && <LiftBlockButton blockId={block.id} />}
-        </section>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Lock className="size-4 text-muted-foreground" />
+              {block.liftedAt ? "Lifted block" : "Block"}: {blockScope}
+            </CardTitle>
+            <CardDescription>
+              {longDate(block.startsOn)} to {longDate(block.endsOn)} (the last night) · {reasonLabel[block.reason]}
+              {block.note ? ` · ${block.note}` : ""}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <p className="text-sm text-muted-foreground">
+              Made {when(block.createdAt)}
+              {blockBy ? ` by ${blockBy}` : ""}
+              {block.liftedAt ? `. Lifted ${when(block.liftedAt)}.` : "."}
+            </p>
+            {!block.liftedAt && may("inventory.block") && <LiftBlockButton blockId={block.id} />}
+          </CardContent>
+        </Card>
       )}
 
       {calendar.types.length === 0 ? (
-        <p className="card mt-4 p-5 text-muted">This resort has no room types on sale. Add them on the Rooms tab.</p>
+        <Empty className="border border-dashed">
+          <EmptyHeader>
+            <EmptyTitle>No room types on sale</EmptyTitle>
+            <EmptyDescription>Add them on the Rooms page.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
-        <div className="card mt-4 overflow-x-auto">
-          <table className="w-full border-separate border-spacing-0 text-[0.8rem]">
-            <thead>
-              <tr>
-                <th scope="col" className="sticky left-0 z-20 min-w-40 border-b border-line bg-card px-3 py-2 text-left font-semibold">
-                  Room
-                </th>
-                {calendar.nights.map((night, i) => {
-                  const weekend = property.weekendNights.includes(dayOfWeek(night));
-                  const firstOfMonth = i === 0 || night.endsWith("-01");
-                  return (
-                    <th key={night} scope="col" className={`min-w-16 border-b border-l border-line px-1 py-1.5 text-center font-normal ${weekend ? "bg-page" : ""} ${night === today ? "text-accent" : ""}`}>
-                      <span className="block text-[0.7rem] text-muted">{weekday(night)}</span>
-                      <span className="block font-semibold">{Number(night.slice(8))}</span>
-                      <span className="block text-[0.68rem] text-muted">{firstOfMonth ? new Date(`${night}T00:00:00Z`).toLocaleDateString("en-IN", { month: "short", timeZone: "UTC" }) : " "}</span>
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {typesWithUnits.map((type) => {
-                const active = type.units.filter((u) => u.status === "active");
-                return (
-                  <Fragment key={type.id}>
-                    <tr className="bg-page">
-                      <th scope="row" className="sticky left-0 z-10 border-b border-line bg-page px-3 py-1.5 text-left">
-                        <span className="block font-semibold">{type.name}</span>
-                        <span className="text-[0.72rem] font-normal text-muted">{plural(active.length, "room")} in use</span>
+        <Card className="gap-0 overflow-hidden py-0">
+          <div className="overflow-x-auto">
+            <table className="w-full border-separate border-spacing-0 text-xs">
+              <thead>
+                <tr>
+                  <th scope="col" className="sticky left-0 z-20 min-w-44 border-b bg-card px-4 py-2 text-left text-sm font-semibold">
+                    Room
+                  </th>
+                  {calendar.nights.map((night, i) => {
+                    const weekend = property.weekendNights.includes(dayOfWeek(night));
+                    const firstOfMonth = i === 0 || night.endsWith("-01");
+                    return (
+                      <th key={night} scope="col" className={`min-w-16 border-b border-l px-1 py-2 text-center font-normal ${night === today ? "bg-primary/[0.05]" : weekend ? "bg-muted/60" : ""}`}>
+                        <span className="block text-[0.68rem] text-muted-foreground">{weekday(night)}</span>
+                        <span className={`mx-auto flex size-7 items-center justify-center rounded-full text-sm font-semibold ${night === today ? "bg-primary text-primary-foreground" : ""}`}>{Number(night.slice(8))}</span>
+                        <span className="block text-[0.65rem] text-muted-foreground">{firstOfMonth ? new Date(`${night}T00:00:00Z`).toLocaleDateString("en-IN", { month: "short", timeZone: "UTC" }) : " "}</span>
                       </th>
-                      {calendar.nights.map((night) => {
-                        const free = active.filter((u) => !calendar.cell(u.id, night)).length;
-                        const nightPrice = calendar.price(type.id, night);
-                        const rule = calendar.rule(type.id, night);
-                        const ruleText = rule?.stopSell ? "Stop sell" : rule?.closedToArrival ? "No arrivals" : rule?.minNights ? `Min ${rule.minNights}` : rule?.maxNights ? `Max ${rule.maxNights}` : null;
-                        return (
-                          <td key={night} className="border-b border-l border-line px-1 py-1 text-center align-top">
-                            <span className={`block font-semibold ${free === 0 ? "text-danger" : free <= property.lowStockThreshold ? "text-warn" : ""}`}>{free === 0 ? "Full" : `${free} free`}</span>
-                            <span className="block text-[0.7rem] text-muted" title={nightPrice ? price(nightPrice.paise) : undefined}>
-                              {nightPrice?.paise == null ? "No rate" : `₹${compact.format(nightPrice.paise / 100)}`}
-                              {nightPrice?.source === "date" ? " •" : ""}
-                            </span>
-                            {ruleText && <span className="block text-[0.68rem] font-semibold text-danger">{ruleText}</span>}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                    {type.units.map((unit) => (
-                      <tr key={unit.id}>
-                        <th scope="row" className="sticky left-0 z-10 border-b border-line bg-card px-3 py-1 text-left font-normal">
-                          {unit.name}
-                          {unit.status !== "active" && <span className="ml-1.5 text-[0.7rem] text-muted">({unit.status === "maintenance" ? "maintenance" : "out of use"})</span>}
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {typesWithUnits.map((type) => {
+                  const active = type.units.filter((u) => u.status === "active");
+                  return (
+                    <Fragment key={type.id}>
+                      <tr className="bg-muted/50">
+                        <th scope="row" className="sticky left-0 z-10 border-b bg-muted px-4 py-2 text-left">
+                          <span className="block text-sm font-semibold">{type.name}</span>
+                          <span className="text-[0.7rem] font-normal text-muted-foreground">{plural(active.length, "room")} in use</span>
                         </th>
-                        {calendar.nights.map((night, i) => {
-                          const cell = calendar.cell(unit.id, night);
-                          const continues = i > 0 && same(calendar.cell(unit.id, calendar.nights[i - 1]), cell);
+                        {calendar.nights.map((night) => {
+                          const free = active.filter((u) => !calendar.cell(u.id, night)).length;
+                          const nightPrice = calendar.price(type.id, night);
+                          const rule = calendar.rule(type.id, night);
+                          const ruleText = rule?.stopSell ? "Stop sell" : rule?.closedToArrival ? "No arrivals" : rule?.minNights ? `Min ${rule.minNights}` : rule?.maxNights ? `Max ${rule.maxNights}` : null;
                           return (
-                            <td key={night} className={`h-9 border-b border-line p-0 ${continues ? "" : "border-l"}`}>
-                              <CellView cell={cell} label={!continues} unitActive={unit.status === "active"} bookHref={bookable ? `/${property.code.toLowerCase()}/bookings/new?checkIn=${night}&checkOut=${addDays(night, 1)}` : null} blockHref={(id) => `${at(from)}&block=${id}`} code={property.code} night={night} unit={unit.name} />
+                            <td key={night} className="border-b border-l bg-muted/40 px-1 py-1.5 text-center align-top">
+                              <span className={`block font-semibold ${free === 0 ? "text-danger" : free <= property.lowStockThreshold && free < active.length ? "text-warn" : ""}`}>{free === 0 ? "Full" : `${free} free`}</span>
+                              <span className="block text-[0.68rem] text-muted-foreground" title={nightPrice ? price(nightPrice.paise) : undefined}>
+                                {nightPrice?.paise == null ? "No rate" : `₹${compact.format(nightPrice.paise / 100)}`}
+                                {nightPrice?.source === "date" ? " •" : ""}
+                              </span>
+                              {ruleText && (
+                                <Badge variant="outline" className="mt-0.5 border-danger/30 bg-danger/10 px-1 py-0 text-[0.62rem] text-danger">
+                                  {ruleText}
+                                </Badge>
+                              )}
                             </td>
                           );
                         })}
                       </tr>
-                    ))}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      {type.units.map((unit) => (
+                        <tr key={unit.id}>
+                          <th scope="row" className="sticky left-0 z-10 border-b bg-card px-4 py-1 text-left text-sm font-normal">
+                            {unit.name}
+                            {unit.status !== "active" && <span className="ml-1.5 text-[0.7rem] text-muted-foreground">({unit.status === "maintenance" ? "maintenance" : "out of use"})</span>}
+                          </th>
+                          {calendar.nights.map((night, i) => {
+                            const cell = calendar.cell(unit.id, night);
+                            const continues = i > 0 && same(calendar.cell(unit.id, calendar.nights[i - 1]), cell);
+                            const goesOn = i < calendar.nights.length - 1 && same(cell, calendar.cell(unit.id, calendar.nights[i + 1]));
+                            return (
+                              <td key={night} className={`h-10 border-b p-0 ${continues ? "" : "border-l"} ${shade(night)}`}>
+                                <CellView
+                                  cell={cell}
+                                  start={!continues}
+                                  end={!goesOn}
+                                  unitActive={unit.status === "active"}
+                                  bookHref={bookable ? `/${property.code.toLowerCase()}/bookings/new?checkIn=${night}&checkOut=${addDays(night, 1)}` : null}
+                                  blockHref={(id) => `${at(from)}&block=${id}`}
+                                  code={property.code}
+                                  night={night}
+                                  unit={unit.name}
+                                />
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
 
-      <div className="mt-6 grid content-start gap-4 lg:grid-cols-3">
-        {may("inventory.block") && <BlockForm propertyId={property.id} types={typesWithUnits} first={from} last={from} />}
-        {may("inventory.manage") && <RulesForm propertyId={property.id} types={typesWithUnits} first={from} last={from} />}
-        {may("prices.manage") && <PricesForm propertyId={property.id} types={typesWithUnits} first={from} last={from} />}
+      <div>
+        <Button variant="ghost" asChild className="-ml-3 text-muted-foreground">
+          <Link href={`${base}/log`}>
+            <History />
+            Why is a room not free? See every change to the rooms
+          </Link>
+        </Button>
       </div>
-      <p className="mt-4 text-[0.88rem]">
-        <Link href={`${base}/log`} className="underline underline-offset-2">
-          Why is a room not free? See every change to the rooms
-        </Link>
-      </p>
-    </div>
+    </>
   );
 }
 
-function CellView({ cell, label, unitActive, bookHref, blockHref, code, night, unit }: { cell: Cell | undefined; label: boolean; unitActive: boolean; bookHref: string | null; blockHref: (id: string) => string; code: string; night: string; unit: string }) {
-  const box = "flex h-full w-full items-center overflow-hidden px-1.5 text-[0.72rem] whitespace-nowrap";
+/**
+ * One room on one night. A booking, hold or block draws as one bar across
+ * its nights: rounded where it starts and ends, named once at its start.
+ */
+function CellView({
+  cell,
+  start,
+  end,
+  unitActive,
+  bookHref,
+  blockHref,
+  code,
+  night,
+  unit,
+}: {
+  cell: Cell | undefined;
+  start: boolean;
+  end: boolean;
+  unitActive: boolean;
+  bookHref: string | null;
+  blockHref: (id: string) => string;
+  code: string;
+  night: string;
+  unit: string;
+}) {
+  const free = "flex h-full w-full items-center justify-center";
   if (!cell) {
-    if (!unitActive) return <span className={`${box} justify-center text-muted`}>–</span>;
-    return bookHref ? <Link href={bookHref} title={`${unit}, ${longDate(night)}: free. Book it.`} aria-label={`${unit}, ${longDate(night)}: free`} className={`${box} hover:bg-page`} /> : <span className={box} aria-label="Free" />;
+    if (!unitActive) return <span className={`${free} text-muted-foreground`}>–</span>;
+    return bookHref ? (
+      <Link href={bookHref} title={`${unit}, ${longDate(night)}: free. Book it.`} aria-label={`${unit}, ${longDate(night)}: free`} className={`${free} group/free hover:bg-accent`}>
+        <span aria-hidden="true" className="text-sm text-primary opacity-0 group-hover/free:opacity-100">
+          +
+        </span>
+      </Link>
+    ) : (
+      <span className={free} aria-label="Free" />
+    );
   }
+  const bar = `my-1.5 flex h-7 items-center overflow-hidden px-2 text-[0.72rem] whitespace-nowrap ${start ? "ml-1 rounded-l-md" : ""} ${end ? "mr-1 rounded-r-md" : ""}`;
   if (cell.kind === "booked") {
     const inHouse = cell.status === "checked_in";
+    const owes = cell.status === "pending_payment" || cell.status === "part_paid";
     return (
       <Link
         href={`/${code.toLowerCase()}/bookings/${cell.number.toLowerCase()}`}
         title={`${cell.number} · ${cell.guest} · ${statusLabel[cell.status]}`}
-        className={`${box} font-medium text-ellipsis ${inHouse ? "bg-accent text-accent-ink" : "bg-good/20 text-ink"} hover:opacity-85`}
+        className={`${bar} font-medium text-ellipsis transition-opacity hover:opacity-85 ${
+          inHouse ? "bg-primary text-primary-foreground" : owes ? "bg-warn/15 text-warn" : "bg-chart/15 text-[#1d5c3d]"
+        } ${start ? "border-l-[3px] " + (inHouse ? "border-primary-foreground/40" : owes ? "border-warn" : "border-chart") : ""}`}
       >
-        {label ? cell.guest.split(" ")[0] : ""}
+        {start ? cell.guest.split(" ")[0] : ""}
       </Link>
     );
   }
-  if (cell.kind === "held") return <span title={`Held until ${when(cell.until)} while a guest pays`} className={`${box} bg-warn/20 text-warn`}>{label ? "Held" : ""}</span>;
+  if (cell.kind === "held")
+    return (
+      <span
+        title={`Held until ${when(cell.until)} while a guest pays`}
+        className={`${bar} border-y border-dashed border-warn/50 bg-warn/[0.07] text-warn ${start ? "border-l" : ""} ${end ? "border-r" : ""}`}
+      >
+        {start ? "Held" : ""}
+      </span>
+    );
   return (
-    <Link href={blockHref(cell.blockId)} title={`Blocked: ${reasonLabel[cell.reason]}${cell.note ? `, ${cell.note}` : ""}`} className={`${box} blocked-cell text-muted hover:opacity-80`}>
-      {label ? reasonLabel[cell.reason] : ""}
+    <Link href={blockHref(cell.blockId)} title={`Blocked: ${reasonLabel[cell.reason]}${cell.note ? `, ${cell.note}` : ""}`} className={`${bar} blocked-cell text-muted-foreground hover:opacity-80`}>
+      {start ? reasonLabel[cell.reason] : ""}
     </Link>
   );
 }

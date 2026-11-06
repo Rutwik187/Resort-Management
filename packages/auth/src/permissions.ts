@@ -6,6 +6,8 @@ export type StaffAccess = {
   userId: string;
   name: string;
   email: string;
+  /** The profile photo from Google, when the person signed in with Google. */
+  image: string | null;
   role: { key: string; name: string };
   permissions: ReadonlySet<Permission>;
   /** Every resort, now and later. */
@@ -26,6 +28,7 @@ export async function loadStaffAccess(db: Database, userId: string): Promise<Sta
       roleName: roles.name,
       name: user.name,
       email: user.email,
+      image: user.image,
     })
     .from(staffMembers)
     .innerJoin(roles, eq(roles.id, staffMembers.roleId))
@@ -42,6 +45,7 @@ export async function loadStaffAccess(db: Database, userId: string): Promise<Sta
     userId: member.userId,
     name: member.name,
     email: member.email,
+    image: member.image,
     role: { key: member.roleKey, name: member.roleName },
     permissions: new Set(granted.map((row) => row.permission as Permission)),
     allProperties: member.allProperties,

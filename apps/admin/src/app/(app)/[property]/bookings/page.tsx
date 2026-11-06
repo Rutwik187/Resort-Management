@@ -1,11 +1,20 @@
 import Link from "next/link";
+import { ChevronLeft, ChevronRight, Inbox, Plus, X } from "lucide-react";
 import { z } from "zod";
 import { can } from "@repo/auth";
 import { allowedMoves, todayInIndia } from "@repo/engine";
 import { NoAccess } from "@/components/no-access";
-import { findBookings, pageSize, type BookingFilters } from "@/lib/bookings";
-import { balance, price, rupees, shortDate, sourceLabel, statusLabel, statusLook, when } from "@/lib/format";
+import { PageHeader } from "@/components/page-header";
+import { PersonAvatar } from "@/components/person-avatar";
+import { StatusBadge } from "@/components/status-badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { findBookings, pageSize, quickCounts, type BookingFilters as Filters } from "@/lib/bookings";
+import { balance, plural, rupees, shortDate, sourceLabel, statusLabel, when } from "@/lib/format";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
+import { BookingFilters } from "./filters";
 
 export const metadata = { title: "Bookings" };
 
@@ -31,182 +40,188 @@ export default async function BookingsPage({ params, searchParams }: PageProps<"
   if (!can(staff, "bookings.view", property.id)) return <NoAccess what="bookings" />;
 
   const raw = Object.fromEntries(Object.entries(await searchParams).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value || undefined]));
-  const filters: BookingFilters = filterInput.parse(raw);
+  const filters: Filters = filterInput.parse(raw);
   const { rows, total } = await findBookings([property.id], filters);
   const base = `/${property.code.toLowerCase()}/bookings`;
   const today = todayInIndia();
-  const filtered = Object.values(filters).some((value) => value !== undefined && value !== "");
+  const filtered = Object.entries(filters).some(([key, value]) => key !== "page" && value !== undefined && value !== "");
   const pageNumber = filters.page ?? 1;
-  const linkTo = (changes: Partial<BookingFilters>) => {
+  const linkTo = (changes: Partial<Filters>) => {
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries({ ...filters, ...changes })) if (value !== undefined && value !== "") query.set(key, String(value));
     const text = query.toString();
     return text ? `${base}?${text}` : base;
   };
+  const counts = await quickCounts(property.id, today);
+  const views = [
+    { label: "All", href: base, active: !filtered, count: counts.all },
+    { label: "Arriving today", href: `${base}?arrivingFrom=${today}&arrivingTo=${today}`, active: filters.arrivingFrom === today && filters.arrivingTo === today && !filters.status, count: counts.arriving },
+    { label: "In the resort", href: `${base}?status=checked_in`, active: filters.status === "checked_in" && !filters.arrivingFrom, count: counts.inHouse },
+    { label: "Waiting for payment", href: `${base}?status=pending_payment`, active: filters.status === "pending_payment" && !filters.arrivingFrom, count: counts.waiting },
+  ];
 
   return (
-    <div>
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h1 className="text-[1.35rem] font-semibold">Bookings</h1>
-        <nav aria-label="Quick lists" className="flex flex-wrap gap-2 text-[0.88rem]">
-          <Link href={`${base}?arrivingFrom=${today}&arrivingTo=${today}`} className="button-quiet">
-            Arriving today
-          </Link>
-          <Link href={`${base}?status=checked_in`} className="button-quiet">
-            In the resort
-          </Link>
-          <Link href={`${base}?status=pending_payment`} className="button-quiet">
-            Waiting for payment
-          </Link>
-        </nav>
-      </div>
+    <>
+      <PageHeader
+        title="Bookings"
+        description="Every booking at this resort, newest first. Search by number, name, phone or email, or narrow the list with the filters."
+        actions={
+          can(staff, "bookings.create", property.id) && (
+            <Button asChild>
+              <Link href={`${base}/new`}>
+                <Plus />
+                New booking
+              </Link>
+            </Button>
+          )
+        }
+      />
 
-      <form className="card mt-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4" role="search">
-        <div className="sm:col-span-2">
-          <label className="label" htmlFor="q">
-            Search
-          </label>
-          <input id="q" name="q" type="search" defaultValue={filters.q} placeholder="Booking number, name, phone or email" className="field" />
-        </div>
-        <div>
-          <label className="label" htmlFor="status">
-            Status
-          </label>
-          <select id="status" name="status" defaultValue={filters.status ?? ""} className="field">
-            <option value="">Any status</option>
-            {statuses.map((status) => (
-              <option key={status} value={status}>
-                {statusLabel[status]}
-              </option>
+      <Card className="gap-0 overflow-hidden py-0">
+        <div className="grid gap-3 border-b bg-muted/30 p-4">
+          <nav aria-label="Quick lists" className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5">
+            {views.map((view) => (
+              <Link
+                key={view.label}
+                href={view.href}
+                aria-current={view.active ? "page" : undefined}
+                className={`flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${view.active ? "bg-background text-foreground shadow-xs ring-1 ring-border" : "text-muted-foreground hover:bg-background/70 hover:text-foreground"}`}
+              >
+                {view.label}
+                <span className={`rounded-full px-1.5 text-xs tabular-nums ${view.active ? "bg-primary/10 text-primary" : "bg-foreground/[0.06]"}`}>{view.count}</span>
+              </Link>
             ))}
-          </select>
+            {filtered && (
+              <Button variant="ghost" size="sm" asChild className="ml-auto shrink-0 text-muted-foreground">
+                <Link href={base}>
+                  <X />
+                  Clear filters
+                </Link>
+              </Button>
+            )}
+          </nav>
+          <BookingFilters
+            key={JSON.stringify(filters)}
+            base={base}
+            values={{ q: filters.q, status: filters.status, paid: filters.paid, source: filters.source, arrivingFrom: filters.arrivingFrom, arrivingTo: filters.arrivingTo, bookedFrom: filters.bookedFrom, bookedTo: filters.bookedTo }}
+            statuses={statuses.map((status) => ({ value: status, label: statusLabel[status] }))}
+            sources={sources.map((source) => ({ value: source, label: sourceLabel[source] }))}
+          />
         </div>
-        <div>
-          <label className="label" htmlFor="paid">
-            Payment
-          </label>
-          <select id="paid" name="paid" defaultValue={filters.paid ?? ""} className="field">
-            <option value="">Any payment</option>
-            <option value="unpaid">Nothing paid</option>
-            <option value="part">Part paid</option>
-            <option value="full">Fully paid</option>
-          </select>
-        </div>
-        <div>
-          <label className="label" htmlFor="arrivingFrom">
-            Arriving from
-          </label>
-          <input id="arrivingFrom" name="arrivingFrom" type="date" defaultValue={filters.arrivingFrom} className="field" />
-        </div>
-        <div>
-          <label className="label" htmlFor="arrivingTo">
-            Arriving to
-          </label>
-          <input id="arrivingTo" name="arrivingTo" type="date" defaultValue={filters.arrivingTo} className="field" />
-        </div>
-        <div>
-          <label className="label" htmlFor="bookedFrom">
-            Booked from
-          </label>
-          <input id="bookedFrom" name="bookedFrom" type="date" defaultValue={filters.bookedFrom} className="field" />
-        </div>
-        <div>
-          <label className="label" htmlFor="bookedTo">
-            Booked to
-          </label>
-          <input id="bookedTo" name="bookedTo" type="date" defaultValue={filters.bookedTo} className="field" />
-        </div>
-        <div>
-          <label className="label" htmlFor="source">
-            Source
-          </label>
-          <select id="source" name="source" defaultValue={filters.source ?? ""} className="field">
-            <option value="">Any source</option>
-            {sources.map((source) => (
-              <option key={source} value={source}>
-                {sourceLabel[source]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-3">
-          <button type="submit" className="button">
-            Show bookings
-          </button>
-          {filtered && (
-            <Link href={base} className="button-quiet">
-              Clear
-            </Link>
-          )}
-        </div>
-      </form>
 
-      <p className="mt-6 text-[0.88rem] text-muted" role="status">
-        {total === 0 ? (filtered ? "No bookings match." : "No bookings yet.") : `${total} ${total === 1 ? "booking" : "bookings"}${total > pageSize ? `, page ${pageNumber} of ${Math.ceil(total / pageSize)}` : ""}.`}
-      </p>
-
-      {rows.length > 0 && (
-        <div className="card mt-2 overflow-x-auto">
-          <table className="w-full min-w-[54rem] text-left text-[0.88rem]">
-            <thead className="border-b border-line text-[0.78rem] text-muted">
-              <tr>
-                <th className="px-4 py-2.5 font-semibold">Booking</th>
-                <th className="px-4 py-2.5 font-semibold">Guest</th>
-                <th className="px-4 py-2.5 font-semibold">Dates</th>
-                <th className="px-4 py-2.5 font-semibold">Rooms or tickets</th>
-                <th className="px-4 py-2.5 font-semibold">Status</th>
-                <th className="px-4 py-2.5 text-right font-semibold">Total</th>
-                <th className="px-4 py-2.5 text-right font-semibold">To pay</th>
-                <th className="px-4 py-2.5 font-semibold">Booked</th>
-              </tr>
-            </thead>
-            <tbody>
+        {rows.length === 0 ? (
+          <Empty className="m-4 border border-dashed">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Inbox />
+              </EmptyMedia>
+              <EmptyTitle>{filtered ? "No bookings match" : "No bookings yet"}</EmptyTitle>
+              <EmptyDescription>{filtered ? "Try fewer filters, or search for another name or number." : "Bookings made on the website or here appear in this list."}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <Table>
+            <TableHeader className="bg-muted/30">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="pl-4">Booking</TableHead>
+                <TableHead>Guest</TableHead>
+                <TableHead>Dates</TableHead>
+                <TableHead className="hidden xl:table-cell">Rooms or tickets</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-right">To pay</TableHead>
+                <TableHead className="hidden pr-4 lg:table-cell">Booked</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((row) => {
                 const due = balance(row);
+                const nights = row.checkIn && row.checkOut ? Math.round((Date.parse(row.checkOut) - Date.parse(row.checkIn)) / 86_400_000) : 0;
                 return (
-                  <tr key={row.id} className="border-b border-line last:border-0 hover:bg-page">
-                    <td className="px-4 py-2.5 font-medium whitespace-nowrap">
-                      <Link href={`${base}/${row.number.toLowerCase()}`} className="underline-offset-2 hover:underline">
+                  <TableRow key={row.id} className="relative">
+                    <TableCell className="pl-4">
+                      <Link href={`${base}/${row.number.toLowerCase()}`} className="font-mono text-[0.8rem] font-medium after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring/50 focus-visible:after:ring-inset">
                         {row.number}
                       </Link>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span className="block">{row.guestName}</span>
-                      {row.guestPhone && <span className="text-[0.8rem] text-muted">+{row.guestPhone}</span>}
-                    </td>
-                    <td className="px-4 py-2.5 whitespace-nowrap">{row.checkIn && row.checkOut ? `${shortDate(row.checkIn)} to ${shortDate(row.checkOut)}` : row.visitDate ? shortDate(row.visitDate) : ""}</td>
-                    <td className="px-4 py-2.5">{row.items}</td>
-                    <td className="px-4 py-2.5">
-                      <span className={`rounded-full px-2 py-0.5 text-[0.75rem] font-medium whitespace-nowrap ${statusLook[row.status]}`}>{statusLabel[row.status]}</span>
-                    </td>
-                    <td className="px-4 py-2.5 text-right whitespace-nowrap">{price(row.totalPaise)}</td>
-                    <td className="px-4 py-2.5 text-right whitespace-nowrap">{due === null ? "" : due === 0 ? "Paid" : rupees(due)}</td>
-                    <td className="px-4 py-2.5 whitespace-nowrap text-muted">
-                      {when(row.createdAt)}
-                      <span className="block text-[0.78rem]">{sourceLabel[row.source]}</span>
-                    </td>
-                  </tr>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2.5">
+                        <PersonAvatar name={row.guestName} className="size-8 rounded-full max-md:hidden" />
+                        <div className="min-w-0">
+                          <span className="block max-w-48 truncate font-medium">{row.guestName}</span>
+                          {row.guestPhone && <span className="text-xs text-muted-foreground tabular-nums">+{row.guestPhone}</span>}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {row.checkIn && row.checkOut ? (
+                        <>
+                          <span className="block">
+                            {shortDate(row.checkIn)} – {shortDate(row.checkOut)}
+                          </span>
+                          <span className="text-xs text-muted-foreground">{plural(nights, "night")}</span>
+                        </>
+                      ) : row.visitDate ? (
+                        <>
+                          <span className="block">{shortDate(row.visitDate)}</span>
+                          <span className="text-xs text-muted-foreground">Day visit</span>
+                        </>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="hidden max-w-56 truncate text-muted-foreground xl:table-cell" title={row.items}>
+                      {row.items}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={row.status} />
+                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">{row.totalPaise === null ? <span className="font-normal text-muted-foreground">Rate to confirm</span> : rupees(row.totalPaise)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{due === null ? "" : due === 0 ? <span className="text-muted-foreground">Paid</span> : <span className="font-medium text-warn">{rupees(due)}</span>}</TableCell>
+                    <TableCell className="hidden pr-4 text-muted-foreground lg:table-cell">
+                      <span className="block whitespace-nowrap">{when(row.createdAt)}</span>
+                      <span className="text-xs">{sourceLabel[row.source]}</span>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
+        )}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          <p role="status">
+            {total === 0 ? "No bookings" : total > pageSize ? `${(pageNumber - 1) * pageSize + 1}–${Math.min(total, pageNumber * pageSize)} of ${total} bookings` : plural(total, "booking")}
+          </p>
+          {total > pageSize && (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" asChild={pageNumber > 1} disabled={pageNumber <= 1}>
+                {pageNumber > 1 ? (
+                  <Link href={linkTo({ page: pageNumber - 1 })}>
+                    <ChevronLeft />
+                    Newer
+                  </Link>
+                ) : (
+                  <span>
+                    <ChevronLeft />
+                    Newer
+                  </span>
+                )}
+              </Button>
+              <Button variant="outline" size="sm" asChild={pageNumber * pageSize < total} disabled={pageNumber * pageSize >= total}>
+                {pageNumber * pageSize < total ? (
+                  <Link href={linkTo({ page: pageNumber + 1 })}>
+                    Older
+                    <ChevronRight />
+                  </Link>
+                ) : (
+                  <span>
+                    Older
+                    <ChevronRight />
+                  </span>
+                )}
+              </Button>
+            </div>
+          )}
         </div>
-      )}
-
-      {total > pageSize && (
-        <nav aria-label="Pages" className="mt-4 flex gap-2">
-          {pageNumber > 1 && (
-            <Link href={linkTo({ page: pageNumber - 1 })} className="button-quiet">
-              Newer
-            </Link>
-          )}
-          {pageNumber * pageSize < total && (
-            <Link href={linkTo({ page: pageNumber + 1 })} className="button-quiet">
-              Older
-            </Link>
-          )}
-        </nav>
-      )}
-    </div>
+      </Card>
+    </>
   );
 }

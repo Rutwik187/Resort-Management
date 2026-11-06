@@ -67,8 +67,9 @@ export type Pass = {
   hours: string;
   meals: string;
   adult: number;
-  child5to11: number;
-  child3to5: number;
+  /** Missing when the resort doesn't publish it: the team then quotes it. */
+  child5to11?: number;
+  child3to5?: number;
   /** A photo for the card, if the site has one. */
   photo?: Photo;
 };

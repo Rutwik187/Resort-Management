@@ -12,6 +12,7 @@
   "dependencies": {
     "@repo/booking-ui": "workspace:*",
     "@repo/sites": "workspace:*",
+    "@repo/website": "workspace:*",
     "lenis": "^1.3.27",
     "motion": "^14.9.0",
     "next": "16.4.3",

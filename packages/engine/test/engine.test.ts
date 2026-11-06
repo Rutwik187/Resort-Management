@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import {
   ageBands,
   bookingEvents,
@@ -7,14 +7,18 @@ import {
   bookings,
   capacityDays,
   holds,
+  leadActivities,
+  leads,
   offeringChildPrices,
   offlinePayments,
   offerings,
+  offers,
   offeringSlots,
   properties,
   rateChildPrices,
   rates,
   roomTypes,
+  siteNotices,
   stayRules,
   unitNights,
   units,
@@ -23,8 +27,10 @@ import {
 import { createTestDatabase } from "@repo/db/testing";
 import {
   addBookingNote,
+  addDays,
   assignUnit,
   changeBookingStatus,
+  changeStay,
   confirmBooking,
   createBlock,
   createBooking,
@@ -32,16 +38,22 @@ import {
   holdSeats,
   holdStay,
   liftBlock,
+  offerDiscount,
+  offerLabel,
+  offerProblem,
   quoteSeats,
   quoteStay,
   recordPayment,
+  recordWebsiteLead,
   RuleError,
   searchStays,
   seatsLeft,
   setDayCapacity,
   setBookingPrice,
   SoldOutError,
+  todayInIndia,
   TransitionError,
+  websiteCatalogue,
 } from "../src";
 
 /*
@@ -421,5 +433,146 @@ describe("day capacity", () => {
     expect(result).toEqual({ changed: 1, kept: [day] });
     expect((await seatsLeft(db, propertyId, "2028-01-10")).find((s) => s.slotId === lunchSlotId)).toMatchObject({ capacity: 2 });
     await expect(setDayCapacity(db, { slotId: lunchSlotId, days: [day], capacity: -1 })).rejects.toBeInstanceOf(RuleError);
+  });
+});
+
+describe("the website", () => {
+  it("takes any party for a room type that publishes no guest limit", async () => {
+    const [villa] = await db
+      .insert(roomTypes)
+      .values({ propertyId, code: "open-villa", name: "Open villa", category: "villa", baseOccupancy: 1, maxAdults: null, maxGuests: null, sortOrder: 3 })
+      .returning();
+    await db.insert(units).values({ propertyId, roomTypeId: villa.id, name: "Open villa" });
+    await db.insert(rates).values({ propertyId, roomTypeId: villa.id, dayKind: "any", basis: "person", basePaise: 250_000 });
+    const hold = await holdStay(db, { propertyId, checkIn: "2028-02-01", checkOut: "2028-02-02", rooms: [{ roomTypeId: villa.id, party: { adults: 25, children: {} } }] });
+    // Priced per adult: 25 × ₹2,500.
+    expect(hold.quote.totalPaise).toBe(6_250_000);
+  });
+
+  it("lists what is on sale and on the website, with base rates and child prices by band code", async () => {
+    const [hidden] = await db
+      .insert(roomTypes)
+      .values({ propertyId, code: "staff-room", name: "Staff room", maxAdults: 2, maxGuests: 2, onWebsite: false, sortOrder: 9 })
+      .returning();
+    const catalogue = await websiteCatalogue(db, "KS");
+    expect(catalogue?.roomTypes.map((t) => t.code)).not.toContain(hidden.code);
+    const glass = catalogue!.roomTypes.find((t) => t.code === "glass-house")!;
+    expect(glass).toMatchObject({ units: 1, maxGuests: 5 });
+    expect(glass.rates.map((r) => r.dayKind).sort()).toEqual(["weekday", "weekend"]);
+    expect(glass.rates[0].childPaise).toEqual({ child_5_11: 80_000 });
+    const lunch = catalogue!.passes.find((p) => p.code === "sunday-lunch")!;
+    expect(lunch).toMatchObject({ hours: "12:30 to 3:30 pm", adultPaise: 60_000, childPaise: { child_5_11: 30_000 } });
+    expect(await websiteCatalogue(db, "XX")).toBeNull();
+  });
+
+  it("gives the website its notices that are on or still to come, newest first, with their dates", async () => {
+    const today = todayInIndia();
+    await db.insert(siteNotices).values([
+      { propertyId, message: "Pool closed", createdAt: new Date("2028-01-01T00:00:00Z") },
+      { propertyId, message: "Diwali dinner", startsOn: addDays(today, 3), endsOn: addDays(today, 5), linkLabel: "See the menu", linkUrl: "/dining", createdAt: new Date("2028-01-02T00:00:00Z") },
+      { propertyId, message: "Long over", endsOn: addDays(today, -10) },
+      { propertyId, message: "Turned off", active: false },
+    ]);
+    const catalogue = await websiteCatalogue(db, "KS");
+    expect(catalogue?.notices.map((n) => n.message)).toEqual(["Diwali dinner", "Pool closed"]);
+    // The page decides on the day, so a cached page never shows one too early.
+    expect(catalogue?.notices[0]).toMatchObject({ startsOn: addDays(today, 3), endsOn: addDays(today, 5), linkLabel: "See the menu", linkUrl: "/dining" });
+  });
+});
+
+describe("website leads", () => {
+  it("saves a request as a lead, and a second request from the same phone joins it", async () => {
+    const first = await recordWebsiteLead(db, { propertyCode: "KS", source: "website_booking", interest: "stay", name: "Meera", phone: "98765 00001", dateFrom: "2028-03-01", dateTo: "2028-03-03", request: { total: 10_000 } });
+    const again = await recordWebsiteLead(db, { propertyCode: "KS", source: "website_enquiry", interest: "wedding", name: "Meera", phone: "+91 98765 00001", message: "And a wedding?" });
+    expect(again).toEqual({ leadId: first.leadId, merged: true });
+    const [lead] = await db.select().from(leads).where(eq(leads.id, first.leadId));
+    expect(lead).toMatchObject({ phone: "919876500001", interest: "wedding", message: "And a wedding?", status: "new", source: "website_booking" });
+    const timeline = await db.select().from(leadActivities).where(eq(leadActivities.leadId, first.leadId));
+    expect(timeline.map((a) => a.type).sort()).toEqual(["created", "request"]);
+
+    const other = await recordWebsiteLead(db, { propertyCode: "KS", source: "website_enquiry", interest: "day", name: "Arjun", phone: "98765 00002" });
+    expect(other.merged).toBe(false);
+    await expect(recordWebsiteLead(db, { propertyCode: "XX", source: "website_enquiry", interest: "day", name: "Arjun", phone: "98765 00002" })).rejects.toThrow();
+  });
+});
+
+describe("offers", () => {
+  const base = { title: "Monsoon", code: null, discountKind: "percent" as const, discountValue: 10, appliesTo: "stay" as const, startsOn: "2028-06-01", endsOn: "2028-09-30", minNights: 2, active: true };
+
+  it("covers a stay within its dates and nights, and says why it doesn't otherwise", () => {
+    expect(offerProblem(base, { kind: "stay", from: "2028-07-01", to: "2028-07-03", nights: 2 })).toBeNull();
+    // The last night is 30 September, so a check-out on 1 October is still covered.
+    expect(offerProblem(base, { kind: "stay", from: "2028-09-29", to: "2028-10-01", nights: 2 })).toBeNull();
+    expect(offerProblem(base, { kind: "stay", from: "2028-07-01", to: "2028-07-02", nights: 1 })).toMatch(/at least 2 nights/);
+    expect(offerProblem(base, { kind: "stay", from: "2028-09-30", to: "2028-10-02", nights: 2 })).toMatch(/ends on/);
+    expect(offerProblem(base, { kind: "day", from: "2028-07-01" })).toMatch(/stays only/);
+    expect(offerProblem({ ...base, active: false }, { kind: "stay", from: "2028-07-01", to: "2028-07-03", nights: 2 })).toMatch(/is off/);
+  });
+
+  it("takes a share or an amount, never more than the price", () => {
+    expect(offerDiscount(base, 1_300_000)).toBe(130_000);
+    expect(offerDiscount({ discountKind: "amount", discountValue: 50_000 }, 30_000)).toBe(30_000);
+    expect(offerDiscount({ discountKind: "none", discountValue: null }, 30_000)).toBe(0);
+    expect(offerLabel({ discountKind: "amount", discountValue: 50_000 })).toBe("₹500 off");
+  });
+
+  it("shows the website its offers that are on and haven't ended, without their codes", async () => {
+    await db.insert(offers).values([
+      { propertyId, title: "Two for one", details: "Day packages on weekdays.", appliesTo: "day" },
+      { propertyId, title: "Old offer", endsOn: "2020-01-01" },
+      { propertyId, title: "Hidden coupon", code: "STAFF10", discountKind: "percent", discountValue: 10, onWebsite: false },
+    ]);
+    const catalogue = await websiteCatalogue(db, "KS");
+    expect(catalogue?.offers.map((o) => o.title)).toEqual(["Two for one"]);
+    expect(catalogue?.offers[0]).toMatchObject({ appliesTo: "day", label: "Applied by the team" });
+  });
+});
+
+describe("changing a stay", () => {
+  const guest = { name: "Kavya", phone: "98765 00010" };
+  const booked = async (roomTypeId: string, checkIn: string, checkOut: string, confirm = true) => {
+    const hold = await holdStay(db, { propertyId, checkIn, checkOut, rooms: [{ roomTypeId, party: couple }] });
+    return createBooking(db, { holdId: hold.holdId, guest, source: "phone", confirm });
+  };
+  const nightsOfBooking = async (bookingId: string) => (await db.select({ night: unitNights.night }).from(unitNights).where(eq(unitNights.bookingId, bookingId))).map((r) => r.night).sort();
+
+  it("moves a paid stay to free nights, frees the old ones and prices it again", async () => {
+    const { bookingId } = await booked(lastRoomId, "2028-04-03", "2028-04-05"); // Monday and Tuesday nights
+    const change = await changeStay(db, { bookingId, checkIn: "2028-04-07", checkOut: "2028-04-09", rooms: [{ roomTypeId: lastRoomId, party: couple }], reason: "Guest's plans moved" });
+    // Friday and Saturday are weekend nights: ₹8,000 each.
+    expect(change).toMatchObject({ fromPaise: 1_000_000, toPaise: 1_600_000 });
+    expect(await nightsOfBooking(bookingId)).toEqual(["2028-04-07", "2028-04-08"]);
+    // Someone else can now have the old nights.
+    const other = await holdStay(db, { propertyId, checkIn: "2028-04-03", checkOut: "2028-04-05", rooms: [{ roomTypeId: lastRoomId, party: couple }] });
+    expect(other.quote.totalPaise).toBe(1_000_000);
+    const [event] = await db.select().from(bookingEvents).where(eq(bookingEvents.bookingId, bookingId)).orderBy(desc(bookingEvents.id)).limit(1);
+    expect(event).toMatchObject({ type: "changed", note: "Guest's plans moved" });
+  });
+
+  it("changes nothing when the new nights are taken", async () => {
+    const { bookingId } = await booked(lastRoomId, "2028-05-01", "2028-05-02");
+    await booked(lastRoomId, "2028-05-10", "2028-05-11");
+    await expect(changeStay(db, { bookingId, checkIn: "2028-05-10", checkOut: "2028-05-11", rooms: [{ roomTypeId: lastRoomId, party: couple }], reason: "Wanted another day" })).rejects.toBeInstanceOf(SoldOutError);
+    expect(await nightsOfBooking(bookingId)).toEqual(["2028-05-01"]);
+    const [row] = await db.select().from(bookings).where(eq(bookings.id, bookingId));
+    expect(row).toMatchObject({ checkIn: "2028-05-01", checkOut: "2028-05-02" });
+  });
+
+  it("keeps a stay that waits for payment on its new hold, booked once paid", async () => {
+    const { bookingId } = await booked(pairId, "2028-06-05", "2028-06-06", false);
+    await changeStay(db, { bookingId, checkIn: "2028-06-12", checkOut: "2028-06-14", rooms: [{ roomTypeId: pairId, party: couple }], reason: "New dates" });
+    const live = await db.select().from(holds).where(eq(holds.bookingId, bookingId));
+    expect(live).toHaveLength(1);
+    await changeBookingStatus(db, { bookingId, to: "confirmed" });
+    expect(await nightsOfBooking(bookingId)).toEqual(["2028-06-12", "2028-06-13"]);
+  });
+
+  it("keeps a checked-in guest's check-in day", async () => {
+    const { bookingId } = await booked(pairId, "2028-07-01", "2028-07-03");
+    await changeBookingStatus(db, { bookingId, to: "checked_in", today: "2028-07-01" });
+    await expect(changeStay(db, { bookingId, checkIn: "2028-07-02", checkOut: "2028-07-04", rooms: [{ roomTypeId: pairId, party: couple }], reason: "Wrong", today: "2028-07-01" })).rejects.toThrow(/check-in stays/);
+    const longer = await changeStay(db, { bookingId, checkIn: "2028-07-01", checkOut: "2028-07-04", rooms: [{ roomTypeId: pairId, party: couple }], reason: "One more night", today: "2028-07-01" });
+    // Saturday 1 July is a weekend night, then Sunday and Monday: ₹8,000 + ₹5,000 + ₹5,000.
+    expect(longer.toPaise).toBe(1_800_000);
   });
 });

@@ -8,7 +8,7 @@ import { ListingCard, PartyPrice } from "./listing-card";
 import { PickDialog } from "./pick-dialog";
 import { PlannerNav } from "./planner-nav";
 import { describeParty, formatRupees, headcount, priceForStay } from "./pricing";
-import { requestMessage, type RequestLine } from "./request";
+import { keep, requestMessage, type RequestLine, type WebsiteRequest } from "./request";
 import { addressFor, newKey, readSaved, searchFromAddress } from "./saved";
 import { SearchBar, defaultSearch } from "./search-bar";
 import { Sheet } from "./sheet";
@@ -34,6 +34,8 @@ type StayPlannerProps = {
   /** Small print under the tray: check-in times, offers, GST. */
   notes?: string[];
   imageSizes?: string;
+  /** Keeps each sent request, such as a server action that saves it as a lead. Its failure never stops the guest. */
+  onRequest?: (request: WebsiteRequest) => Promise<unknown> | void;
 };
 
 /**
@@ -42,7 +44,7 @@ type StayPlannerProps = {
  * rooms of any type. The tray keeps the rooms, the guests still to place
  * and the estimate, and sends the request.
  */
-export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageSizes }: StayPlannerProps) {
+export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageSizes, onRequest }: StayPlannerProps) {
   const listings = groups.flatMap((group) => group.listings);
   const byId = new Map(listings.map((listing) => [listing.id, listing]));
   const navItems = useMemo(() => groups.flatMap((group) => group.listings.map((listing) => ({ id: listing.id, label: listing.name }))), [groups]);
@@ -174,6 +176,17 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
       blocker={blocker}
       desk={desk}
       checkout={checkout}
+      onSend={(guest) =>
+        keep(onRequest, {
+          kind: "stay",
+          from: search.checkIn,
+          to: search.checkOut,
+          guests: placed,
+          lines: lines.map(({ title, detail, amount }) => ({ title, detail, amount })),
+          total,
+          guest,
+        })
+      }
       message={(guest) =>
         requestMessage({
           desk,

@@ -1,9 +1,20 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Search, SearchX } from "lucide-react";
 import { accessibleProperties, can } from "@repo/auth";
 import { getDb } from "@repo/db";
+import { properties as sites } from "@repo/sites";
+import { PageHeader } from "@/components/page-header";
+import { PersonAvatar } from "@/components/person-avatar";
+import { ResortMark } from "@/components/resort-mark";
+import { StatusBadge } from "@/components/status-badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { findBookings } from "@/lib/bookings";
-import { price, shortDate, statusLabel, statusLook } from "@/lib/format";
+import { price, shortDate } from "@/lib/format";
 import { requireStaffPage } from "@/lib/staff";
 
 export const metadata = { title: "Find a booking" };
@@ -22,42 +33,94 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
   }
 
   return (
-    <div>
-      <h1 className="text-[1.35rem] font-semibold">Find a booking</h1>
-      <form className="mt-4 flex max-w-xl gap-2" role="search">
-        <label htmlFor="search-q" className="sr-only">
-          Booking number, phone, name or email
-        </label>
-        <input id="search-q" name="q" type="search" defaultValue={q} placeholder="Booking number, phone, name or email" className="field" />
-        <button type="submit" className="button">
+    <>
+      <PageHeader title="Find a booking" description="Search every resort you work at by booking number, phone, name or email." />
+      <form role="search" className="flex max-w-2xl gap-2">
+        <InputGroup className="h-11 shadow-xs">
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+          <InputGroupInput id="search-q" name="q" type="search" defaultValue={q} autoFocus={!q} placeholder="Booking number, phone, name or email" aria-label="Booking number, phone, name or email" className="text-base" />
+        </InputGroup>
+        <Button type="submit" size="lg" className="h-11">
           Search
-        </button>
+        </Button>
       </form>
-      {q && (
-        <p className="mt-5 text-[0.88rem] text-muted" role="status">
-          {total === 0 ? `Nothing matches “${q}”.` : `${total} ${total === 1 ? "booking matches" : "bookings match"} “${q}”${total > rows.length ? `; the newest ${rows.length} are shown` : ""}.`}
-        </p>
+      {!q && (
+        <Empty className="border border-dashed bg-muted/20">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Search />
+            </EmptyMedia>
+            <EmptyTitle>Search every resort at once</EmptyTitle>
+            <EmptyDescription>Type a booking number such as KS-26-000001, the last digits of a phone, or part of a name or email. A full booking number opens the booking.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
+      {q && rows.length === 0 && (
+        <Empty className="border border-dashed">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <SearchX />
+            </EmptyMedia>
+            <EmptyTitle>Nothing matches &ldquo;{q}&rdquo;</EmptyTitle>
+            <EmptyDescription>Check the number, or try part of the name or the last digits of the phone.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       )}
       {rows.length > 0 && (
-        <ul className="card mt-2 divide-y divide-line">
-          {rows.map((row) => (
-            <li key={row.id}>
-              <Link href={`/${row.propertyCode.toLowerCase()}/bookings/${row.number.toLowerCase()}`} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-page">
-                <span>
-                  <span className="font-medium">{row.number}</span>
-                  <span className="text-muted"> · {row.guestName}</span>
-                  {row.guestPhone && <span className="text-muted"> · +{row.guestPhone}</span>}
-                </span>
-                <span className="flex items-center gap-3 text-[0.88rem]">
-                  <span className="text-muted">{row.checkIn ? `${shortDate(row.checkIn)} to ${shortDate(row.checkOut!)}` : row.visitDate ? shortDate(row.visitDate) : ""}</span>
-                  <span>{price(row.totalPaise)}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[0.75rem] font-medium ${statusLook[row.status]}`}>{statusLabel[row.status]}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <Card className="gap-0 overflow-hidden py-0 shadow-xs">
+          <Table>
+            <TableHeader className="bg-muted/30">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="pl-6">Booking</TableHead>
+                <TableHead>Resort</TableHead>
+                <TableHead>Guest</TableHead>
+                <TableHead>Dates</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="pr-6 text-right">Total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow key={row.id} className="relative">
+                  <TableCell className="pl-6">
+                    <Link
+                      href={`/${row.propertyCode.toLowerCase()}/bookings/${row.number.toLowerCase()}`}
+                      className="font-mono text-[0.8rem] font-medium after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring/50 focus-visible:after:ring-inset"
+                    >
+                      {row.number}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <span className="flex items-center gap-2">
+                      <ResortMark code={row.propertyCode} className="size-6 rounded-md" />
+                      {sites.find((site) => site.code === row.propertyCode)?.shortName ?? row.propertyCode}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2.5">
+                      <PersonAvatar name={row.guestName} className="size-8 rounded-full max-md:hidden" />
+                      <div>
+                        <span className="block font-medium">{row.guestName}</span>
+                        {row.guestPhone && <span className="text-xs text-muted-foreground tabular-nums">+{row.guestPhone}</span>}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>{row.checkIn ? `${shortDate(row.checkIn)} – ${shortDate(row.checkOut!)}` : row.visitDate ? shortDate(row.visitDate) : ""}</TableCell>
+                  <TableCell>
+                    <StatusBadge status={row.status} />
+                  </TableCell>
+                  <TableCell className="pr-6 text-right tabular-nums">{price(row.totalPaise)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <p className="border-t bg-muted/30 px-6 py-3 text-sm text-muted-foreground" role="status">
+            {total} {total === 1 ? "booking matches" : "bookings match"} &ldquo;{q}&rdquo;{total > rows.length ? `; the newest ${rows.length} are shown` : ""}.
+          </p>
+        </Card>
       )}
-    </div>
+    </>
   );
 }

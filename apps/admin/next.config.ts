@@ -11,6 +11,12 @@ if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
 
 // The staff dashboard. Every page is per person and per resort, so nothing here is cached.
 const nextConfig: NextConfig = {
+  experimental: {
+    // Vercel restores .next/cache from the last deployment. With Turbopack's build cache on,
+    // a build on 4 Nov 2026 shipped the stylesheet of an older globals.css next to the new
+    // pages, so the live admin lost its colours. A clean build of this app takes under a minute.
+    turbopackFileSystemCacheForBuild: false,
+  },
   turbopack: {
     rules: {
       "*.css": {

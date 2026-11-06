@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import { SiteNotices } from "@repo/website/notice";
 import { BookingDrawer } from "@/components/booking-drawer";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <SiteHeader />
         <main id="main">{children}</main>
         <SiteFooter />
+        <SiteNotices code="GC" />
         <BookingDrawer />
       </body>
     </html>

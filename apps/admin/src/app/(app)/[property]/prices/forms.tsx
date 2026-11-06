@@ -1,7 +1,27 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { FormNote } from "@/components/form-note";
+import { useState } from "react";
+import { CalendarPlus, Pencil, Plus, Trash2 } from "lucide-react";
+import { DateField } from "@/components/date-field";
+import { FormNote, useToastAction } from "@/components/form-note";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { mealLabel, nightsLabel } from "@/lib/format";
 import { createSeason, deleteSeason, removeRate, saveBand, saveRate, saveWeekendNights } from "./actions";
 
@@ -21,21 +41,28 @@ const asRupees = (paise: number | null | undefined) => (paise == null ? "" : Str
 
 /** Which nights take the weekend rate (PR-02). The night of a Friday is the night from Friday to Saturday. */
 export function WeekendForm({ propertyId, nights }: { propertyId: string; nights: number[] }) {
-  const [state, action, pending] = useActionState(saveWeekendNights.bind(null, propertyId), undefined);
+  const [state, action, pending] = useToastAction(saveWeekendNights.bind(null, propertyId));
   return (
-    <form action={action} className="mt-3 grid gap-3">
-      <fieldset className="flex flex-wrap gap-x-4 gap-y-2">
+    <form action={action} className="grid gap-4">
+      <fieldset className="flex flex-wrap gap-2">
         <legend className="sr-only">Weekend nights</legend>
         {weekdays.map((day, i) => (
-          <label key={day} className="flex items-center gap-1.5 text-[0.9rem]">
-            <input type="checkbox" name="nights" value={i} defaultChecked={nights.includes(i)} className="size-4" /> {day}
-          </label>
+          <Label
+            key={day}
+            htmlFor={`weekend-${i}`}
+            className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 font-normal transition-colors hover:bg-muted/60 has-[[data-state=checked]]:border-primary/40 has-[[data-state=checked]]:bg-primary/[0.06] has-[[data-state=checked]]:font-medium"
+          >
+            <Checkbox id={`weekend-${i}`} name="nights" value={String(i)} defaultChecked={nights.includes(i)} />
+            {day.slice(0, 3)}
+            <span className="sr-only">{day.slice(3)}</span>
+          </Label>
         ))}
       </fieldset>
       <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" disabled={pending} className="button-quiet">
+        <Button type="submit" variant="secondary" disabled={pending}>
+          {pending && <Spinner />}
           Save weekend nights
-        </button>
+        </Button>
         <FormNote state={state} />
       </div>
     </form>
@@ -47,244 +74,274 @@ export function WeekendForm({ propertyId, nights }: { propertyId: string; nights
  * as its base rate or a season's. Choosing a room type and nights fills in
  * the rate already saved for them.
  */
-export function RateForm({
+export function RateDialog({
   propertyId,
   roomTypes,
   seasonId,
   bands,
   existing,
+  trigger,
+  title,
 }: {
   propertyId: string;
   roomTypes: { id: string; name: string }[];
   seasonId?: string;
   bands: { id: string; label: string }[];
   existing: RateValues[];
+  trigger: "add" | "change" | "season";
+  title: string;
 }) {
-  const [state, action, pending] = useActionState(saveRate.bind(null, propertyId), undefined);
+  const [open, setOpen] = useState(false);
+  const [state, action, pending] = useToastAction(saveRate.bind(null, propertyId), () => setOpen(false));
   const [roomTypeId, setRoomTypeId] = useState(roomTypes.length === 1 ? roomTypes[0].id : "");
   const [dayKind, setDayKind] = useState<RateValues["dayKind"]>("weekday");
   const current = existing.find((r) => r.roomTypeId === roomTypeId && r.dayKind === dayKind);
   const prefix = `${seasonId ?? "base"}-${roomTypes.length === 1 ? roomTypes[0].id : "any"}`;
 
   return (
-    <form action={action} className="grid gap-3">
-      {seasonId && <input type="hidden" name="seasonId" value={seasonId} />}
-      <div className="grid gap-3 sm:grid-cols-2">
-        {roomTypes.length === 1 ? (
-          <input type="hidden" name="roomTypeId" value={roomTypes[0].id} />
-        ) : (
-          <div>
-            <label className="label" htmlFor={`${prefix}-type`}>
-              Room type
-            </label>
-            <select id={`${prefix}-type`} name="roomTypeId" required value={roomTypeId} onChange={(e) => setRoomTypeId(e.target.value)} className="field">
-              <option value="" disabled>
-                Choose
-              </option>
-              {roomTypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.name}
-                </option>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant={trigger === "add" ? "default" : "outline"} size="sm">
+          {trigger === "change" ? <Pencil /> : <Plus />}
+          {trigger === "change" ? "Change or add a rate" : trigger === "season" ? "Set a season rate" : "Add a rate"}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-xl">
+        <form action={action} className="grid gap-5">
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>Leave a price empty when the resort hasn&apos;t published it. Guests who need it see &ldquo;rate to confirm&rdquo;, never a guess.</DialogDescription>
+          </DialogHeader>
+          {seasonId && <input type="hidden" name="seasonId" value={seasonId} />}
+          <FieldGroup>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {roomTypes.length === 1 ? (
+                <input type="hidden" name="roomTypeId" value={roomTypes[0].id} />
+              ) : (
+                <Field>
+                  <FieldLabel htmlFor={`${prefix}-type`}>Room type</FieldLabel>
+                  <input type="hidden" name="roomTypeId" value={roomTypeId} />
+                  <Select value={roomTypeId} onValueChange={setRoomTypeId}>
+                    <SelectTrigger id={`${prefix}-type`} className="w-full">
+                      <SelectValue placeholder="Choose" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roomTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              )}
+              <Field>
+                <FieldLabel htmlFor={`${prefix}-nights`}>Nights</FieldLabel>
+                <input type="hidden" name="dayKind" value={dayKind} />
+                <Select value={dayKind} onValueChange={(value) => setDayKind(value as RateValues["dayKind"])}>
+                  <SelectTrigger id={`${prefix}-nights`} className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(nightsLabel).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+            {/* Remounted for each room type and nights, so the fields show what is saved for them. */}
+            <div key={`${roomTypeId}-${dayKind}`} className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor={`${prefix}-basis`}>Price is for</FieldLabel>
+                <Select name="basis" defaultValue={current?.basis ?? "room"}>
+                  <SelectTrigger id={`${prefix}-basis`} className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="room">A room</SelectItem>
+                    <SelectItem value="person">Each adult</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`${prefix}-base`}>Price a night (₹)</FieldLabel>
+                <Input id={`${prefix}-base`} name="base" required inputMode="decimal" defaultValue={asRupees(current?.basePaise)} />
+              </Field>
+              <Field className="sm:col-span-2">
+                <FieldLabel htmlFor={`${prefix}-meals`}>Meals</FieldLabel>
+                <Select name="mealPlan" defaultValue={current?.mealPlan ?? "CP"}>
+                  <SelectTrigger id={`${prefix}-meals`} className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(mealLabel).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`${prefix}-extra-adult`}>Each extra adult (₹)</FieldLabel>
+                <Input id={`${prefix}-extra-adult`} name="extraAdult" inputMode="decimal" defaultValue={asRupees(current?.extraAdultPaise)} placeholder="Not published" />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`${prefix}-extra-bed`}>Each extra bed (₹)</FieldLabel>
+                <Input id={`${prefix}-extra-bed`} name="extraBed" inputMode="decimal" defaultValue={asRupees(current?.extraBedPaise)} placeholder="Not published" />
+              </Field>
+              {bands.map((band) => (
+                <Field key={band.id}>
+                  <FieldLabel htmlFor={`${prefix}-child-${band.id}`}>Child, {band.label} (₹)</FieldLabel>
+                  <Input id={`${prefix}-child-${band.id}`} name={`child:${band.id}`} inputMode="decimal" defaultValue={asRupees(current?.children[band.id])} placeholder="Not published" />
+                </Field>
               ))}
-            </select>
-          </div>
-        )}
-        <div>
-          <label className="label" htmlFor={`${prefix}-nights`}>
-            Nights
-          </label>
-          <select id={`${prefix}-nights`} name="dayKind" value={dayKind} onChange={(e) => setDayKind(e.target.value as RateValues["dayKind"])} className="field">
-            {Object.entries(nightsLabel).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      {/* Remounted for each room type and nights, so the fields show what is saved for them. */}
-      <div key={`${roomTypeId}-${dayKind}`} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <div>
-          <label className="label" htmlFor={`${prefix}-basis`}>
-            Price is for
-          </label>
-          <select id={`${prefix}-basis`} name="basis" defaultValue={current?.basis ?? "room"} className="field">
-            <option value="room">A room</option>
-            <option value="person">Each adult</option>
-          </select>
-        </div>
-        <div>
-          <label className="label" htmlFor={`${prefix}-base`}>
-            Price a night (₹)
-          </label>
-          <input id={`${prefix}-base`} name="base" required inputMode="decimal" defaultValue={asRupees(current?.basePaise)} className="field" />
-        </div>
-        <div>
-          <label className="label" htmlFor={`${prefix}-meals`}>
-            Meals
-          </label>
-          <select id={`${prefix}-meals`} name="mealPlan" defaultValue={current?.mealPlan ?? "CP"} className="field">
-            {Object.entries(mealLabel).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="label" htmlFor={`${prefix}-extra-adult`}>
-            Each extra adult (₹)
-          </label>
-          <input id={`${prefix}-extra-adult`} name="extraAdult" inputMode="decimal" defaultValue={asRupees(current?.extraAdultPaise)} placeholder="Not published" className="field" />
-        </div>
-        <div>
-          <label className="label" htmlFor={`${prefix}-extra-bed`}>
-            Each extra bed (₹)
-          </label>
-          <input id={`${prefix}-extra-bed`} name="extraBed" inputMode="decimal" defaultValue={asRupees(current?.extraBedPaise)} placeholder="Not published" className="field" />
-        </div>
-        {bands.map((band) => (
-          <div key={band.id}>
-            <label className="label" htmlFor={`${prefix}-child-${band.id}`}>
-              Child, {band.label} (₹)
-            </label>
-            <input id={`${prefix}-child-${band.id}`} name={`child:${band.id}`} inputMode="decimal" defaultValue={asRupees(current?.children[band.id])} placeholder="Not published" className="field" />
-          </div>
-        ))}
-      </div>
-      <p className="text-[0.82rem] text-muted">Leave a price empty when the resort hasn&apos;t published it. Guests who need it see &ldquo;rate to confirm&rdquo;, never a guess.</p>
-      <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" disabled={pending} className="button">
-          {current ? "Save changes" : "Add rate"}
-        </button>
-        <FormNote state={state} />
-      </div>
-    </form>
+            </div>
+          </FieldGroup>
+          <FormNote state={state} />
+          <DialogFooter>
+            <Button type="submit" disabled={pending}>
+              {pending && <Spinner />}
+              {current ? "Save changes" : "Add rate"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 /** A removal that asks once more before it happens. */
-function ConfirmRemove({ action, pending, label, question }: { action: () => void; pending: boolean; label: string; question: string }) {
-  const [asking, setAsking] = useState(false);
-  if (!asking) {
-    return (
-      <button type="button" onClick={() => setAsking(true)} className="text-[0.8rem] text-danger underline underline-offset-2">
-        {label}
-      </button>
-    );
-  }
+function ConfirmRemove({ label, title, description, run }: { label: string; title: string; description: string; run: () => Promise<{ error?: string; done?: string } | undefined> }) {
+  const [open, setOpen] = useState(false);
+  const [state, action, pending] = useToastAction(run, () => setOpen(false));
   return (
-    <form action={action} className="inline-flex flex-wrap items-center justify-end gap-2 text-[0.8rem]">
-      <span>{question}</span>
-      <button type="submit" disabled={pending} className="font-semibold text-danger underline underline-offset-2">
-        Yes, remove
-      </button>
-      <button type="button" onClick={() => setAsking(false)} className="underline underline-offset-2">
-        Keep
-      </button>
-    </form>
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger asChild>
+        <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive">
+          <Trash2 />
+          {label}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <form action={action} className="grid gap-4">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{title}</AlertDialogTitle>
+            <AlertDialogDescription>{description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <FormNote state={state} />
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">Keep it</AlertDialogCancel>
+            <Button type="submit" variant="destructive" disabled={pending}>
+              {pending && <Spinner />}
+              Yes, remove
+            </Button>
+          </AlertDialogFooter>
+        </form>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
 export function RemoveRateButton({ rateId }: { rateId: string }) {
-  const [state, action, pending] = useActionState(removeRate.bind(null, rateId), undefined);
-  return (
-    <>
-      <ConfirmRemove action={action} pending={pending} label="Remove" question="Remove this rate?" />
-      <FormNote state={state} />
-    </>
-  );
+  return <ConfirmRemove label="Remove" title="Remove this rate?" description="Nights it priced then take the next rate that applies, or show “rate to confirm”." run={removeRate.bind(null, rateId)} />;
 }
 
-export function SeasonForm({ propertyId }: { propertyId: string }) {
-  const [state, action, pending] = useActionState(createSeason.bind(null, propertyId), undefined);
-  return (
-    <form action={action} className="grid gap-3 sm:grid-cols-[1.5fr_1fr_1fr_0.7fr_auto] sm:items-end">
-      <div>
-        <label className="label" htmlFor="season-name">
-          Season
-        </label>
-        <input id="season-name" name="name" required placeholder="Diwali" className="field" />
-      </div>
-      <div>
-        <label className="label" htmlFor="season-from">
-          First night
-        </label>
-        <input id="season-from" name="startsOn" type="date" required className="field" />
-      </div>
-      <div>
-        <label className="label" htmlFor="season-to">
-          Last night
-        </label>
-        <input id="season-to" name="endsOn" type="date" required className="field" />
-      </div>
-      <div>
-        <label className="label" htmlFor="season-priority">
-          Priority
-        </label>
-        <input id="season-priority" name="priority" type="number" min={0} max={100} defaultValue={0} className="field" />
-      </div>
-      <button type="submit" disabled={pending} className="button">
-        Add season
-      </button>
-      <div className="sm:col-span-5">
-        <FormNote state={state} />
-      </div>
-    </form>
-  );
+export function DeleteSeasonButton({ seasonId, name }: { seasonId: string; name: string }) {
+  return <ConfirmRemove label="Remove season" title={`Remove ${name} and its rates?`} description="Its nights go back to the usual rates." run={deleteSeason.bind(null, seasonId)} />;
 }
 
-export function DeleteSeasonButton({ seasonId }: { seasonId: string }) {
-  const [state, action, pending] = useActionState(deleteSeason.bind(null, seasonId), undefined);
+/** A named run of nights with its own rates (PR-03). */
+export function SeasonDialog({ propertyId }: { propertyId: string }) {
+  const [open, setOpen] = useState(false);
+  const [state, action, pending] = useToastAction(createSeason.bind(null, propertyId), () => setOpen(false));
   return (
-    <div>
-      <ConfirmRemove action={action} pending={pending} label="Remove season and its rates" question="Remove the season and all its rates?" />
-      <FormNote state={state} />
-    </div>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <CalendarPlus />
+          Add a season
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <form action={action} className="grid gap-5">
+          <DialogHeader>
+            <DialogTitle>Add a season</DialogTitle>
+            <DialogDescription>Such as Diwali, or Christmas and New Year. Where seasons overlap, the higher priority wins. Give it rates once it&apos;s added.</DialogDescription>
+          </DialogHeader>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="season-name">Season</FieldLabel>
+              <Input id="season-name" name="name" required placeholder="Diwali" />
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field>
+                <FieldLabel htmlFor="season-from">First night</FieldLabel>
+                <DateField id="season-from" name="startsOn" />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="season-to">Last night</FieldLabel>
+                <DateField id="season-to" name="endsOn" />
+              </Field>
+            </div>
+            <Field>
+              <FieldLabel htmlFor="season-priority">Priority</FieldLabel>
+              <Input id="season-priority" name="priority" type="number" min={0} max={100} defaultValue={0} />
+              <FieldDescription>Higher wins where seasons overlap.</FieldDescription>
+            </Field>
+          </FieldGroup>
+          <FormNote state={state} />
+          <DialogFooter>
+            <Button type="submit" disabled={pending}>
+              {pending && <Spinner />}
+              Add season
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 type Band = { id: string; code: string; label: string; minAge: number; maxAge: number; free: boolean };
 
-/** Adds a child age band, or changes one (its code stays). */
+/** Adds a child age band, or changes one (its code stays). One row, under the column names above. */
 export function BandForm({ propertyId, band }: { propertyId: string; band?: Band }) {
-  const [state, action, pending] = useActionState(saveBand.bind(null, propertyId, band?.id ?? null), undefined);
+  const [state, action, pending] = useToastAction(saveBand.bind(null, propertyId, band?.id ?? null));
   const key = band?.id ?? "new";
+  const of = band ? ` for ${band.label}` : " for the new band";
   return (
-    <form action={action} className="grid gap-2 sm:grid-cols-[1.2fr_1fr_0.6fr_0.6fr_auto_auto] sm:items-end">
-      <div>
-        <label className="label" htmlFor={`${key}-label`}>
-          Band
-        </label>
-        <input id={`${key}-label`} name="label" required defaultValue={band?.label} placeholder="5 to 11" className="field" />
+    <form action={action} className="grid gap-1.5">
+      {!band && <p className="text-sm font-medium">Add a band</p>}
+      <div className="grid grid-cols-2 items-center gap-2 sm:grid-cols-[1.3fr_1.1fr_0.6fr_0.6fr_4rem_5.5rem] sm:gap-3">
+        <Input id={`${key}-label`} name="label" required defaultValue={band?.label} placeholder="5 to 11" aria-label={`Band name${of}`} />
+        <Input
+          id={`${key}-code`}
+          name="code"
+          required
+          readOnly={Boolean(band)}
+          defaultValue={band?.code}
+          placeholder="child_5_11"
+          aria-label={`Code${of}`}
+          className={band ? "bg-muted/50 font-mono text-xs text-muted-foreground" : "font-mono text-xs"}
+        />
+        <Input id={`${key}-min`} name="minAge" type="number" min={0} max={17} required defaultValue={band?.minAge} placeholder="From" aria-label={`From age${of}`} />
+        <Input id={`${key}-max`} name="maxAge" type="number" min={0} max={17} required defaultValue={band?.maxAge} placeholder="To" aria-label={`To age${of}`} />
+        <div className="flex h-9 items-center gap-2">
+          <Checkbox id={`${key}-free`} name="free" defaultChecked={band?.free} aria-label={`Free${of}`} />
+          <Label htmlFor={`${key}-free`} className="font-normal sm:sr-only">
+            Free
+          </Label>
+        </div>
+        <Button type="submit" variant={band ? "outline" : "default"} disabled={pending}>
+          {pending && <Spinner />}
+          {band ? "Save" : "Add band"}
+        </Button>
       </div>
-      <div>
-        <label className="label" htmlFor={`${key}-code`}>
-          Code
-        </label>
-        <input id={`${key}-code`} name="code" required readOnly={Boolean(band)} defaultValue={band?.code} placeholder="child_5_11" className={`field ${band ? "text-muted" : ""}`} />
-      </div>
-      <div>
-        <label className="label" htmlFor={`${key}-min`}>
-          From age
-        </label>
-        <input id={`${key}-min`} name="minAge" type="number" min={0} max={17} required defaultValue={band?.minAge} className="field" />
-      </div>
-      <div>
-        <label className="label" htmlFor={`${key}-max`}>
-          To age
-        </label>
-        <input id={`${key}-max`} name="maxAge" type="number" min={0} max={17} required defaultValue={band?.maxAge} className="field" />
-      </div>
-      <label className="flex items-center gap-2 pb-2.5 text-[0.9rem]">
-        <input type="checkbox" name="free" defaultChecked={band?.free} className="size-4" /> Free
-      </label>
-      <button type="submit" disabled={pending} className="button-quiet">
-        {band ? "Save" : "Add band"}
-      </button>
-      <div className="sm:col-span-6">
-        <FormNote state={state} />
-      </div>
+      <FormNote state={state} />
     </form>
   );
 }

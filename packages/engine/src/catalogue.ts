@@ -9,9 +9,11 @@ export type RoomTypeInfo = {
   name: string;
   baseOccupancy: number;
   minGuests: number;
-  maxAdults: number;
+  /** Empty when the resort publishes no limit. */
+  maxAdults: number | null;
   maxChildren: number;
-  maxGuests: number;
+  /** Empty when the resort publishes no limit. */
+  maxGuests: number | null;
   extraBedAllowed: boolean;
 };
 

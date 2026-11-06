@@ -15,6 +15,48 @@
       "when": 1793785759097,
       "tag": "0001_offline_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793945196461,
+      "tag": "0002_website_text",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793946088053,
+      "tag": "0003_leads",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793947147317,
+      "tag": "0004_offers",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793947899276,
+      "tag": "0005_guest_profiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793948599369,
+      "tag": "0006_site_notices",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793948914882,
+      "tag": "0007_website_permission",
+      "breakpoints": true
     }
   ]
 }

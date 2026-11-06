@@ -7,6 +7,25 @@ export type RequestLine = { key: string; title: string; detail: string; amount: 
 export type GuestDetails = { name: string; phone: string; note: string };
 
 /**
+ * A request as the site keeps it, besides the WhatsApp message: what the
+ * guest chose, when, the estimate and their details. Sites pass a server
+ * action that saves it as a lead in the admin.
+ */
+export type WebsiteRequest = {
+  kind: "stay" | "day";
+  /** Check-in for a stay; the date of a day visit. yyyy-mm-dd. */
+  from: string;
+  /** Check-out, for a stay. */
+  to?: string;
+  /** Everyone coming, babies included. */
+  guests: number;
+  lines: { title: string; detail: string; amount: number | null }[];
+  /** Null when a line has no published rate. */
+  total: number | null;
+  guest: GuestDetails;
+};
+
+/**
  * The booking request as a WhatsApp message. It lists what the guest chose,
  * the estimate and their details, so the team can confirm in one reply.
  */
@@ -43,4 +62,14 @@ export function requestMessage({
 
 export function openWhatsApp(number: string, text: string) {
   window.open(`https://wa.me/${number}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+}
+
+/** Hands a sent request to the site, if it keeps them. A failure is logged, never shown: WhatsApp already has the request. */
+export function keep(onRequest: ((request: WebsiteRequest) => Promise<unknown> | void) | undefined, request: WebsiteRequest) {
+  if (!onRequest) return;
+  try {
+    Promise.resolve(onRequest(request)).catch((error) => console.error("The request wasn't kept.", error));
+  } catch (error) {
+    console.error("The request wasn't kept.", error);
+  }
 }

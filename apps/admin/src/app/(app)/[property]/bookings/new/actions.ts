@@ -1,10 +1,10 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getDb, properties } from "@repo/db";
-import { createBooking, holdSeats, holdStay, quoteSeats, quoteStay, releaseHold, type Quote } from "@repo/engine";
+import { getDb, leadActivities, leads, offers, properties } from "@repo/db";
+import { createBooking, holdSeats, holdStay, nightsOf, offerDiscount, offerProblem, quoteSeats, quoteStay, releaseHold, type Quote } from "@repo/engine";
 import { offlineSources } from "@/lib/format";
 import { checkbox, date, filled, problem, rupeesField, type FormState } from "@/lib/forms";
 import { audit, requirePermission } from "@/lib/staff";
@@ -83,11 +83,16 @@ const details = z
     payMethod: z.enum(methods, { error: "Choose how the guest paid." }).optional(),
     payAmount: rupeesField("Amount paid").optional(),
     payReference: z.string().trim().max(100).optional(),
+    /** The lead this booking comes from, which it marks as booked. */
+    leadId: z.uuid().optional(),
+    /** An offer or coupon. The server works out what it takes off. */
+    offerId: z.uuid().optional(),
   })
   .refine((v) => !v.override || v.overridePrice !== undefined, { error: "Write the price you agreed." })
   .refine((v) => !v.override || (v.overrideReason?.length ?? 0) >= 3, { error: "Say why the price is different." })
   .refine((v) => !v.payMethod || v.payAmount !== undefined, { error: "Write how much the guest paid." })
-  .refine((v) => v.payMethod || v.payAmount === undefined, { error: "Choose how the guest paid." });
+  .refine((v) => v.payMethod || v.payAmount === undefined, { error: "Choose how the guest paid." })
+  .refine((v) => !(v.override && v.offerId), { error: "Choose an offer or a price set by hand, not both." });
 
 /**
  * Books for a walk-in, phone, WhatsApp, travel agent or corporate guest
@@ -106,12 +111,28 @@ export async function createOffline(propertyId: string, _state: FormState, form:
     if (guest.payMethod) await requirePermission("bookings.modify", propertyId);
 
     const db = getDb();
+    // An offer must cover these dates before anything is held.
+    const [offer] = guest.offerId ? await db.select().from(offers).where(and(eq(offers.id, guest.offerId), eq(offers.propertyId, propertyId))) : [];
+    if (guest.offerId && !offer) return { error: "That offer no longer exists." };
+    if (offer) {
+      const why = offerProblem(offer, input.kind === "stay" ? { kind: "stay", from: input.checkIn, to: input.checkOut, nights: nightsOf(input.checkIn, input.checkOut).length } : { kind: "day", from: input.day });
+      if (why) return { error: why };
+    }
     const hold =
       input.kind === "stay"
         ? await holdStay(db, { propertyId, checkIn: input.checkIn, checkOut: input.checkOut, rooms: input.lines.map(({ id, adults, children, extraBeds }) => ({ roomTypeId: id, party: { adults, children }, extraBeds })) })
         : await holdSeats(db, { propertyId, day: input.day, seats: input.lines.map(({ id, adults, children }) => ({ slotId: id, party: { adults, children } })) });
 
-    const priceOverride = guest.override ? { totalPaise: guest.overridePrice!, reason: guest.overrideReason! } : undefined;
+    const offerName = offer ? `Offer: ${offer.title}${offer.code ? ` (${offer.code})` : ""}` : null;
+    if (offer && offer.discountKind !== "none" && hold.quote.totalPaise === null) {
+      await releaseHold(db, hold.holdId);
+      return { error: "This booking has no price yet, so the offer has nothing to take off. Book without it and set the price on the booking." };
+    }
+    const priceOverride = guest.override
+      ? { totalPaise: guest.overridePrice!, reason: guest.overrideReason! }
+      : offer && offer.discountKind !== "none"
+        ? { totalPaise: hold.quote.totalPaise! - offerDiscount(offer, hold.quote.totalPaise!), reason: offerName! }
+        : undefined;
     const payment = guest.payMethod ? { method: guest.payMethod, amountPaise: guest.payAmount!, reference: guest.payReference } : undefined;
     let made: { bookingId: string; number: string };
     try {
@@ -119,7 +140,8 @@ export async function createOffline(propertyId: string, _state: FormState, form:
         holdId: hold.holdId,
         guest: { name: guest.name, phone: guest.phone, email: guest.email, companyName: guest.companyName, companyGstin: guest.companyGstin },
         source: guest.source,
-        notes: guest.notes,
+        // An offer that takes nothing off by itself is noted for the team.
+        notes: offer && offer.discountKind === "none" ? [guest.notes, offerName].filter(Boolean).join("\n") : guest.notes,
         userId: staff.userId,
         priceOverride,
         payment,
@@ -131,6 +153,18 @@ export async function createOffline(propertyId: string, _state: FormState, form:
     }
 
     await audit({ userId: staff.userId, propertyId, action: "booking.create", entity: "bookings", entityId: made.bookingId, after: { number: made.number, source: guest.source, quote: hold.quote, priceOverride, payment } });
+    if (guest.leadId) {
+      // The lead it came from is booked now, with the booking on its timeline.
+      const [won] = await db
+        .update(leads)
+        .set({ status: "won", bookingId: made.bookingId })
+        .where(and(eq(leads.id, guest.leadId), eq(leads.propertyId, propertyId)))
+        .returning({ id: leads.id });
+      if (won) {
+        await db.insert(leadActivities).values({ leadId: won.id, userId: staff.userId, type: "booked", data: { number: made.number, bookingId: made.bookingId } });
+        await audit({ userId: staff.userId, propertyId, action: "lead.booked", entity: "leads", entityId: won.id, after: { number: made.number } });
+      }
+    }
     const [property] = await db.select({ code: properties.code }).from(properties).where(eq(properties.id, propertyId));
     path = `/${property.code.toLowerCase()}/bookings/${made.number.toLowerCase()}`;
   } catch (error) {

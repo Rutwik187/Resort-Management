@@ -7,6 +7,7 @@ import { ageBands, getDb, properties, rateChildPrices, rates, roomTypes, seasons
 import { NotFoundError, RuleError } from "@repo/engine";
 import { checkbox, date, filled, problem, rupeesField, wholeNumber, type FormState } from "@/lib/forms";
 import { audit, requirePermission } from "@/lib/staff";
+import { websiteChanged } from "@/lib/website";
 
 const id = z.uuid({ error: "That no longer exists." });
 const forbidden = "Your role can't change prices at this resort.";
@@ -85,6 +86,7 @@ export async function saveRate(propertyId: string, _state: FormState, form: Form
       return { before: existing ?? null, after: { ...rate, children } };
     });
     await audit({ userId: staff.userId, propertyId, action: saved.before ? "rate.update" : "rate.create", entity: "rates", entityId: saved.after.id, before: saved.before, after: saved.after });
+    websiteChanged(propertyId);
     refresh();
     return { done: `${type.name}: rate saved.` };
   } catch (error) {
@@ -101,6 +103,7 @@ export async function removeRate(rateId: string): Promise<FormState> {
     const staff = await requirePermission("prices.manage", rate.propertyId);
     await getDb().delete(rates).where(eq(rates.id, rateId));
     await audit({ userId: staff.userId, propertyId: rate.propertyId, action: "rate.delete", entity: "rates", entityId: rateId, before: rate });
+    websiteChanged(rate.propertyId);
     refresh();
     return { done: "Rate removed." };
   } catch (error) {

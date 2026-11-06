@@ -6,6 +6,8 @@ import { OfferStamp } from "@/components/offer-stamp";
 import { PageTransition } from "@/components/page-transition";
 import { PaidList } from "@/components/paid-list";
 import { DayPlanner } from "@repo/booking-ui";
+import { liveDayPasses, liveNotes } from "@repo/website";
+import { sendBookingRequest } from "@/app/actions";
 import { dayNotes, desk, passes } from "@/content/booking";
 import { groundCourse } from "@/content/resort";
 import { pageMetadata } from "@/content/site";
@@ -17,7 +19,10 @@ export const metadata = pageMetadata({
   path: "/day-packages",
 });
 
-export default function DayPackagesPage() {
+export default async function DayPackagesPage() {
+  // Day packages and prices from the admin; the site's own content if the database is out of reach.
+  const notes = await liveNotes("GC", "day", dayNotes);
+  const live = await liveDayPasses("GC", passes);
   return (
     <PageTransition>
       <div className="bg-chalk">
@@ -33,7 +38,7 @@ export default function DayPackagesPage() {
           </div>
         </header>
         <div className="mx-auto max-w-[1600px] px-4 pb-20 pt-10 md:px-8 md:pb-28">
-          <DayPlanner passes={passes} desk={desk} storageKey="gc" noun="day pass" notes={dayNotes} />
+          <DayPlanner passes={live} onRequest={sendBookingRequest} desk={desk} storageKey="gc" noun="day pass" notes={notes} />
         </div>
       </div>
 

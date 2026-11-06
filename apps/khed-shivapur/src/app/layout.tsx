@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Albert_Sans } from "next/font/google";
 import localFont from "next/font/local";
+import { SiteNotices } from "@repo/website/notice";
 import { BookingDrawer } from "@/components/booking-drawer";
 import { Cursor } from "@/components/cursor";
 import { SmoothScroll } from "@/components/smooth-scroll";
@@ -74,6 +75,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <SiteHeader />
         <main id="main">{children}</main>
         <SiteFooter />
+        <SiteNotices code="KS" />
         <BookingDrawer />
         <Cursor />
         <div aria-hidden className="grain" />

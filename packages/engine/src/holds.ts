@@ -91,7 +91,7 @@ export async function quoteStay(db: Database, input: StayInput): Promise<Quote> 
   return rolledBack(db, async (tx) => (await holdStayIn(tx, input)).quote);
 }
 
-async function holdStayIn(tx: Tx, input: StayInput): Promise<HoldResult> {
+export async function holdStayIn(tx: Tx, input: StayInput): Promise<HoldResult> {
   const nights = nightsOf(input.checkIn, input.checkOut);
   if (input.rooms.length === 0) throw new RuleError("Choose at least one room.");
 
@@ -114,7 +114,8 @@ async function holdStayIn(tx: Tx, input: StayInput): Promise<HoldResult> {
     if (problem) throw new RuleError(`${roomType.name}: ${problem}`);
     const guests = headcount(room.party);
     if (room.party.adults < 1) throw new RuleError(`${roomType.name}: at least one adult stays in each room.`);
-    if (guests > roomType.maxGuests || room.party.adults > roomType.maxAdults) throw new RuleError(`${roomType.name} takes at most ${roomType.maxGuests} guests.`);
+    if (roomType.maxGuests !== null && guests > roomType.maxGuests) throw new RuleError(`${roomType.name} takes at most ${roomType.maxGuests} guests.`);
+    if (roomType.maxAdults !== null && room.party.adults > roomType.maxAdults) throw new RuleError(`${roomType.name} takes at most ${roomType.maxAdults} adults.`);
     if (payingGuests(room.party, pricing.bands) < roomType.minGuests) throw new RuleError(`${roomType.name} needs at least ${roomType.minGuests} guests.`);
     if ((room.extraBeds ?? 0) > 0 && !roomType.extraBedAllowed) throw new RuleError(`${roomType.name} has no extra beds.`);
   }

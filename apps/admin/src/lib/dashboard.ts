@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, count, eq, gt, gte, inArray, ne, or, sql } from "drizzle-orm";
-import { bookings, getDb, guests, holds } from "@repo/db";
+import { bookings, getDb, guests, holds, roomTypes, unitNights, units } from "@repo/db";
 import { addDays, type BookingStatus } from "@repo/engine";
 import { bookedOn } from "./bookings";
 import { nightlyStock } from "./stock";
@@ -94,4 +94,73 @@ export async function resortToday(property: { id: string; lowStockThreshold: num
     .sort((a, b) => a.night.localeCompare(b.night) || a.roomType.localeCompare(b.roomType));
 
   return { arrivals, departures, inHouse, sales, collect, salesDays, nights, unitsInUse, tonight: nights[0], low };
+}
+
+export type ResortGlance = {
+  arrivals: number;
+  departures: number;
+  inHouse: number;
+  roomTypes: number;
+  units: number;
+  bookedTonight: number;
+  salesMonthPaise: number;
+  salesMonthCount: number;
+};
+
+/**
+ * Each resort's day in a few numbers, for the page of all resorts: arrivals,
+ * departures, guests in, rooms booked tonight, and sales this month. The
+ * same rules as a resort's Today page, counted for every resort at once.
+ */
+export async function resortsAtAGlance(propertyIds: string[], today: string): Promise<Map<string, ResortGlance>> {
+  const glance = new Map<string, ResortGlance>(
+    propertyIds.map((id) => [id, { arrivals: 0, departures: 0, inHouse: 0, roomTypes: 0, units: 0, bookedTonight: 0, salesMonthPaise: 0, salesMonthCount: 0 }]),
+  );
+  if (propertyIds.length === 0) return glance;
+  const db = getDb();
+  const live = or(ne(bookings.status, "pending_payment"), gt(holds.expiresAt, sql`now()`));
+  const arriving = or(eq(bookings.checkIn, today), eq(bookings.visitDate, today));
+  const statusIn = (list: BookingStatus[]) => sql.join(list.map((status) => sql`${status}`), sql`, `);
+
+  const [people, sales, stock, tonight] = await Promise.all([
+    db
+      .select({
+        propertyId: bookings.propertyId,
+        arrivals: sql<number>`count(*) filter (where ${arriving} and ${bookings.status} in (${statusIn(["pending_payment", ...owing])}))`.mapWith(Number),
+        departures: sql<number>`count(*) filter (where ${bookings.checkOut} = ${today} and ${bookings.status} in (${statusIn(owing)}))`.mapWith(Number),
+        inHouse: sql<number>`count(*) filter (where ${bookings.status} = 'checked_in')`.mapWith(Number),
+      })
+      .from(bookings)
+      .leftJoin(holds, eq(holds.bookingId, bookings.id))
+      .where(and(inArray(bookings.propertyId, propertyIds), live, or(arriving, eq(bookings.checkOut, today), eq(bookings.status, "checked_in"))))
+      .groupBy(bookings.propertyId),
+    db
+      .select({ propertyId: bookings.propertyId, paise: sql<number>`coalesce(sum(${bookings.totalPaise}), 0)`.mapWith(Number), count: count() })
+      .from(bookings)
+      .where(and(inArray(bookings.propertyId, propertyIds), inArray(bookings.status, sold), gte(bookedOn, `${today.slice(0, 8)}01`)))
+      .groupBy(bookings.propertyId),
+    db
+      .select({
+        propertyId: roomTypes.propertyId,
+        types: sql<number>`count(distinct ${roomTypes.id})`.mapWith(Number),
+        units: sql<number>`count(${units.id}) filter (where ${units.status} = 'active')`.mapWith(Number),
+      })
+      .from(roomTypes)
+      .leftJoin(units, eq(units.roomTypeId, roomTypes.id))
+      .where(and(inArray(roomTypes.propertyId, propertyIds), eq(roomTypes.status, "active")))
+      .groupBy(roomTypes.propertyId),
+    db
+      .select({ propertyId: unitNights.propertyId, booked: count(unitNights.bookingId) })
+      .from(unitNights)
+      .innerJoin(units, and(eq(units.id, unitNights.unitId), eq(units.status, "active")))
+      .innerJoin(roomTypes, and(eq(roomTypes.id, units.roomTypeId), eq(roomTypes.status, "active")))
+      .where(and(inArray(unitNights.propertyId, propertyIds), eq(unitNights.night, today)))
+      .groupBy(unitNights.propertyId),
+  ]);
+
+  for (const row of people) Object.assign(glance.get(row.propertyId)!, { arrivals: row.arrivals, departures: row.departures, inHouse: row.inHouse });
+  for (const row of sales) Object.assign(glance.get(row.propertyId)!, { salesMonthPaise: row.paise, salesMonthCount: row.count });
+  for (const row of stock) Object.assign(glance.get(row.propertyId)!, { roomTypes: row.types, units: row.units });
+  for (const row of tonight) glance.get(row.propertyId)!.bookedTonight = row.booked;
+  return glance;
 }
