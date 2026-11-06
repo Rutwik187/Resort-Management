@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import {
   ageBands,
   bookingEvents,
@@ -28,6 +28,7 @@ import {
   addBookingNote,
   assignUnit,
   changeBookingStatus,
+  changeStay,
   confirmBooking,
   createBlock,
   createBooking,
@@ -507,5 +508,54 @@ describe("offers", () => {
     const catalogue = await websiteCatalogue(db, "KS");
     expect(catalogue?.offers.map((o) => o.title)).toEqual(["Two for one"]);
     expect(catalogue?.offers[0]).toMatchObject({ appliesTo: "day", label: "Applied by the team" });
+  });
+});
+
+describe("changing a stay", () => {
+  const guest = { name: "Kavya", phone: "98765 00010" };
+  const booked = async (roomTypeId: string, checkIn: string, checkOut: string, confirm = true) => {
+    const hold = await holdStay(db, { propertyId, checkIn, checkOut, rooms: [{ roomTypeId, party: couple }] });
+    return createBooking(db, { holdId: hold.holdId, guest, source: "phone", confirm });
+  };
+  const nightsOfBooking = async (bookingId: string) => (await db.select({ night: unitNights.night }).from(unitNights).where(eq(unitNights.bookingId, bookingId))).map((r) => r.night).sort();
+
+  it("moves a paid stay to free nights, frees the old ones and prices it again", async () => {
+    const { bookingId } = await booked(lastRoomId, "2028-04-03", "2028-04-05"); // Monday and Tuesday nights
+    const change = await changeStay(db, { bookingId, checkIn: "2028-04-07", checkOut: "2028-04-09", rooms: [{ roomTypeId: lastRoomId, party: couple }], reason: "Guest's plans moved" });
+    // Friday and Saturday are weekend nights: ₹8,000 each.
+    expect(change).toMatchObject({ fromPaise: 1_000_000, toPaise: 1_600_000 });
+    expect(await nightsOfBooking(bookingId)).toEqual(["2028-04-07", "2028-04-08"]);
+    // Someone else can now have the old nights.
+    const other = await holdStay(db, { propertyId, checkIn: "2028-04-03", checkOut: "2028-04-05", rooms: [{ roomTypeId: lastRoomId, party: couple }] });
+    expect(other.quote.totalPaise).toBe(1_000_000);
+    const [event] = await db.select().from(bookingEvents).where(eq(bookingEvents.bookingId, bookingId)).orderBy(desc(bookingEvents.id)).limit(1);
+    expect(event).toMatchObject({ type: "changed", note: "Guest's plans moved" });
+  });
+
+  it("changes nothing when the new nights are taken", async () => {
+    const { bookingId } = await booked(lastRoomId, "2028-05-01", "2028-05-02");
+    await booked(lastRoomId, "2028-05-10", "2028-05-11");
+    await expect(changeStay(db, { bookingId, checkIn: "2028-05-10", checkOut: "2028-05-11", rooms: [{ roomTypeId: lastRoomId, party: couple }], reason: "Wanted another day" })).rejects.toBeInstanceOf(SoldOutError);
+    expect(await nightsOfBooking(bookingId)).toEqual(["2028-05-01"]);
+    const [row] = await db.select().from(bookings).where(eq(bookings.id, bookingId));
+    expect(row).toMatchObject({ checkIn: "2028-05-01", checkOut: "2028-05-02" });
+  });
+
+  it("keeps a stay that waits for payment on its new hold, booked once paid", async () => {
+    const { bookingId } = await booked(pairId, "2028-06-05", "2028-06-06", false);
+    await changeStay(db, { bookingId, checkIn: "2028-06-12", checkOut: "2028-06-14", rooms: [{ roomTypeId: pairId, party: couple }], reason: "New dates" });
+    const live = await db.select().from(holds).where(eq(holds.bookingId, bookingId));
+    expect(live).toHaveLength(1);
+    await changeBookingStatus(db, { bookingId, to: "confirmed" });
+    expect(await nightsOfBooking(bookingId)).toEqual(["2028-06-12", "2028-06-13"]);
+  });
+
+  it("keeps a checked-in guest's check-in day", async () => {
+    const { bookingId } = await booked(pairId, "2028-07-01", "2028-07-03");
+    await changeBookingStatus(db, { bookingId, to: "checked_in", today: "2028-07-01" });
+    await expect(changeStay(db, { bookingId, checkIn: "2028-07-02", checkOut: "2028-07-04", rooms: [{ roomTypeId: pairId, party: couple }], reason: "Wrong", today: "2028-07-01" })).rejects.toThrow(/check-in stays/);
+    const longer = await changeStay(db, { bookingId, checkIn: "2028-07-01", checkOut: "2028-07-04", rooms: [{ roomTypeId: pairId, party: couple }], reason: "One more night", today: "2028-07-01" });
+    // Saturday 1 July is a weekend night, then Sunday and Monday: ₹8,000 + ₹5,000 + ₹5,000.
+    expect(longer.toPaise).toBe(1_800_000);
   });
 });

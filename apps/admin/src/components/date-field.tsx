@@ -72,13 +72,21 @@ export function DateRangeField({
   className?: string;
 }) {
   const [range, setRange] = useState<DateRange | undefined>(defaultValue?.[0] ? { from: parseISO(defaultValue[0]), to: defaultValue[1] ? parseISO(defaultValue[1]) : undefined } : undefined);
+  // A new pick always takes two clicks, the first date then the last, even when dates are already set.
+  const [start, setStart] = useState<Date | undefined>();
   const [open, setOpen] = useState(false);
   const show = short ? (date: Date) => format(date, "d MMM") : shown;
   return (
     <>
       <input type="hidden" name={names[0]} value={iso(range?.from)} />
       <input type="hidden" name={names[1]} value={iso(range?.to)} />
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          setStart(undefined);
+        }}
+      >
         <PopoverTrigger asChild>
           <Button id={id} type="button" variant="outline" className={cn("w-full justify-start font-normal", !range?.from && "text-muted-foreground", className)}>
             <CalendarIcon />
@@ -86,18 +94,24 @@ export function DateRangeField({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
+          {start && <p className="border-b px-3 py-2 text-sm text-muted-foreground">From {show(start)}. Now choose the last date.</p>}
           <Calendar
             mode="range"
-            selected={range}
-            defaultMonth={range?.from}
+            selected={start ? { from: start, to: undefined } : range}
+            defaultMonth={start ?? range?.from}
             numberOfMonths={months}
             disabled={min ? { before: parseISO(min) } : undefined}
-            onSelect={(picked) => {
-              setRange(picked);
-              if (picked?.from && picked.to && picked.to > picked.from) {
-                setOpen(false);
-                onChange?.(iso(picked.from), iso(picked.to));
+            onSelect={(_, day) => {
+              // The first click, or a day on or before it, starts the pick again.
+              if (!start || day <= start) {
+                setStart(day);
+                return;
               }
+              const picked = { from: start, to: day };
+              setRange(picked);
+              setStart(undefined);
+              setOpen(false);
+              onChange?.(iso(picked.from), iso(picked.to));
             }}
           />
           {onChange && range?.from && (

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRightLeft, CalendarCheck, CircleAlert, Clock, IndianRupee, Mail, MessageCircle, MessageSquareText, Phone, PencilLine, Sparkles } from "lucide-react";
+import { ArrowRightLeft, CalendarCheck, CalendarRange, CircleAlert, Clock, IndianRupee, Mail, MessageCircle, MessageSquareText, Phone, PencilLine, Sparkles } from "lucide-react";
 import { can } from "@repo/auth";
 import { getDb } from "@repo/db";
 import { freeUnits, todayInIndia, type Quote } from "@repo/engine";
@@ -8,6 +8,7 @@ import { NoAccess } from "@/components/no-access";
 import { PersonAvatar } from "@/components/person-avatar";
 import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }: PageProps<"/[property]/bookin
 const open = ["pending_payment", "part_paid", "confirmed", "checked_in"];
 
 /** One booking: guest, stay, prices, payments, actions and timeline (ADM-04, ADM-05). */
-export default async function BookingPage({ params }: PageProps<"/[property]/bookings/[number]">) {
+export default async function BookingPage({ params, searchParams }: PageProps<"/[property]/bookings/[number]">) {
   const staff = await requireStaffPage();
   const { property: code, number } = await params;
   const property = await propertyFromCode(code, staff);
@@ -35,6 +36,9 @@ export default async function BookingPage({ params }: PageProps<"/[property]/boo
 
   const may = (permission: Parameters<typeof can>[1]) => can(staff, permission, property.id);
   const today = todayInIndia();
+  // After a change, what the guest paid over the new price, to give back.
+  const refundParam = (await searchParams).refund;
+  const refund = Math.max(0, Number(Array.isArray(refundParam) ? refundParam[0] : refundParam) || 0);
   const due = booking.checkIn ?? booking.visitDate;
   const arrived = due !== null && today >= due;
   const left = balance(booking);
@@ -128,6 +132,14 @@ export default async function BookingPage({ params }: PageProps<"/[property]/boo
         </dl>
       </Card>
 
+      {refund > 0 && (
+        <Alert className="border-good/30 bg-good/5 text-good print:hidden">
+          <IndianRupee />
+          <AlertTitle>Changed. Refund {rupees(refund)} to the guest</AlertTitle>
+          <AlertDescription className="text-good/90">They have paid more than the new price. Pay it back the way they paid, and note it on the timeline.</AlertDescription>
+        </Alert>
+      )}
+
       {booking.status === "pending_payment" && hold && (
         <Alert className="border-warn/30 bg-warn/5 text-warn print:hidden">
           <Clock />
@@ -188,6 +200,14 @@ export default async function BookingPage({ params }: PageProps<"/[property]/boo
                 {may("bookings.modify") && roomsBooked && arrived && <MoveButton bookingId={booking.id} to="checked_in" />}
                 {may("bookings.modify") && booking.status === "checked_in" && <MoveButton bookingId={booking.id} to="checked_out" />}
                 {may("bookings.modify") && roomsBooked && arrived && <NoShowButton bookingId={booking.id} />}
+                {may("bookings.modify") && booking.checkIn && ["pending_payment", "part_paid", "confirmed", "checked_in"].includes(booking.status) && (
+                  <Button variant="outline" asChild className="w-full">
+                    <Link href={`/${property.code.toLowerCase()}/bookings/${booking.number.toLowerCase()}/change`}>
+                      <CalendarRange />
+                      Change dates or rooms
+                    </Link>
+                  </Button>
+                )}
                 {may("prices.manage") && booking.status !== "checked_out" && <PriceForm bookingId={booking.id} current={booking.totalPaise === null ? "" : String(booking.totalPaise / 100)} />}
                 {may("bookings.cancel") && booking.status !== "checked_in" && <CancelForm bookingId={booking.id} />}
               </CardContent>
@@ -298,7 +318,7 @@ export default async function BookingPage({ params }: PageProps<"/[property]/boo
   );
 }
 
-const eventIcon = { created: Sparkles, status: CalendarCheck, payment: IndianRupee, price_override: PencilLine, unit_assigned: ArrowRightLeft, note: MessageSquareText } as const;
+const eventIcon = { created: Sparkles, status: CalendarCheck, payment: IndianRupee, price_override: PencilLine, unit_assigned: ArrowRightLeft, note: MessageSquareText, changed: CalendarRange } as const;
 
 /** Everything that happened to the booking, newest first. */
 function Timeline({ loaded }: { loaded: LoadedBooking }) {
@@ -319,6 +339,11 @@ function Timeline({ loaded }: { loaded: LoadedBooking }) {
         return data.from ? `Moved from ${data.from} to ${data.to}` : `Given ${data.to}`;
       case "note":
         return "Note";
+      case "changed": {
+        const from = data.from as { checkIn?: string; checkOut?: string; totalPaise?: number | null } | undefined;
+        const to = data.to as { checkIn?: string; checkOut?: string; totalPaise?: number | null } | undefined;
+        return `Changed from ${from?.checkIn ? shortDate(from.checkIn) : "?"} – ${from?.checkOut ? shortDate(from.checkOut) : "?"} to ${to?.checkIn ? shortDate(to.checkIn) : "?"} – ${to?.checkOut ? shortDate(to.checkOut) : "?"}, ${price(to?.totalPaise ?? null)}`;
+      }
       default:
         return event.type;
     }

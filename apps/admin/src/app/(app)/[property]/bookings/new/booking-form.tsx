@@ -33,7 +33,7 @@ const noLimit = 60;
 type Band = { code: string; label: string };
 type Line = { key: number; id: string; adults: number; children: Record<string, number>; extraBeds: number };
 
-function Stepper({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (value: number) => void }) {
+export function Stepper({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (value: number) => void }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-sm">{label}</span>

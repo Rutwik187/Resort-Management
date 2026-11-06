@@ -91,7 +91,7 @@ export async function quoteStay(db: Database, input: StayInput): Promise<Quote> 
   return rolledBack(db, async (tx) => (await holdStayIn(tx, input)).quote);
 }
 
-async function holdStayIn(tx: Tx, input: StayInput): Promise<HoldResult> {
+export async function holdStayIn(tx: Tx, input: StayInput): Promise<HoldResult> {
   const nights = nightsOf(input.checkIn, input.checkOut);
   if (input.rooms.length === 0) throw new RuleError("Choose at least one room.");
 
