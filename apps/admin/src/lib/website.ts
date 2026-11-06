@@ -21,13 +21,16 @@ export function websiteUrls(): Record<string, string> {
   return urls;
 }
 
-/** Asks one website to load its catalogue again. Says whether it answered. */
-export async function refreshWebsite(code: string): Promise<{ ok: boolean; reason?: string }> {
+/**
+ * Asks one website to load its catalogue again, or with "content" its
+ * Sanity blog, FAQs and policies. Says whether it answered.
+ */
+export async function refreshWebsite(code: string, scope: "catalogue" | "content" = "catalogue"): Promise<{ ok: boolean; reason?: string }> {
   const url = websiteUrls()[code.toUpperCase()];
   const secret = process.env.REVALIDATE_SECRET;
   if (!url || !secret) return { ok: false, reason: "The website isn't connected to the admin yet." };
   try {
-    const response = await fetch(`${url}/api/revalidate`, { method: "POST", headers: { authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(8000) });
+    const response = await fetch(`${url}/api/revalidate${scope === "content" ? "?scope=content" : ""}`, { method: "POST", headers: { authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(8000) });
     return response.ok ? { ok: true } : { ok: false, reason: `The website answered ${response.status}.` };
   } catch {
     return { ok: false, reason: "The website didn't answer." };

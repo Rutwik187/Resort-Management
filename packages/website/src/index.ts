@@ -3,6 +3,7 @@ import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 import { offerNotes, offersFor, passesFromCatalogue, stayGroupsFromCatalogue, type ListingGroup, type Pass } from "@repo/booking-ui/catalogue";
 import { getDb } from "@repo/db";
 import { websiteCatalogue, type WebsiteNotice } from "@repo/engine";
+import { contentTag, revalidateContent } from "@repo/sanity";
 import { propertyByCode, type PropertyCode } from "@repo/sites";
 
 /*
@@ -81,13 +82,19 @@ export async function liveNotices(code: PropertyCode): Promise<WebsiteNotice[]> 
 /**
  * The site's POST /api/revalidate. The admin calls it, with the secret both
  * share, after staff change this resort's rooms, rates, packages, offers or
- * notices. The next visit then loads the new catalogue.
+ * notices. The next visit then loads the new catalogue. With ?scope=content,
+ * it drops the Sanity content instead (blog, FAQs, policies): the admin
+ * passes Sanity's webhook on, so publishing a post doesn't wake the database.
  */
 export function revalidateRoute(code: PropertyCode) {
   return async function POST(request: Request) {
     const secret = process.env.REVALIDATE_SECRET;
     if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
       return Response.json({ error: "Not allowed." }, { status: 401 });
+    }
+    if (new URL(request.url).searchParams.get("scope") === "content") {
+      revalidateContent(code);
+      return Response.json({ revalidated: contentTag(code) });
     }
     revalidateTag(catalogueTag(code), { expire: 0 });
     return Response.json({ revalidated: catalogueTag(code) });
