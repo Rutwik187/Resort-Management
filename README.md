@@ -12,13 +12,13 @@ The plan for the whole platform is in [`docs/implementation-plan.md`](docs/imple
 | `apps/go-crazy` | `go-crazy` | Prathamesh Go Crazy Resort, Sinhagad: gocrazyadventure.com |
 | `apps/sinhagad-bliss` | `sinhagad-bliss` | Sinhagad Bliss: sinhagadbliss.com |
 | `apps/valley` | `valley` | Prathamesh Valley Resorts, Mahabaleshwar: prathameshvalleyresorts.com |
-| `apps/admin` | `admin` | The staff dashboard, built with shadcn/ui: sign-in, each resort's day (arrivals, sales, rooms booked), bookings with offline booking and the front desk, leads from the websites, the inventory calendar, rooms (with their website text), prices, packages, settings, staff and the audit log. Runs at http://localhost:3010 |
-| `packages/booking-ui` | `@repo/booking-ui` | The booking widget that all four sites share: the search bar, the room and day-pass lists, and the tray |
+| `apps/admin` | `admin` | The staff dashboard, built with shadcn/ui: sign-in, each resort's day (arrivals, sales, rooms booked), bookings with offline booking, changes and the front desk, leads from the websites, guests, the inventory calendar, reports, rooms (with their website text), prices, packages, offers and coupons, each website's page and notices, settings, staff and the audit log. Runs at http://localhost:3010 |
+| `packages/booking-ui` | `@repo/booking-ui` | The booking widget that all four sites share: the search bar, the room and day-pass lists, and the tray. Also the notice card |
 | `packages/db` | `@repo/db` | The database: Drizzle tables, migrations, the seed, and the roles and permissions |
 | `packages/auth` | `@repo/auth` | Staff sign-in with Better Auth, and the permission check `can()` |
 | `packages/engine` | `@repo/engine` | The booking engine: availability, holds, prices, bookings and blocks, with its tests |
 | `packages/sites` | `@repo/sites` | The group's four resorts: names, places, website addresses and the sections of each Stays page |
-| `packages/website` | `@repo/website` | What the sites read from the admin: their rooms, rates and day packages (cached until the admin says they changed), and the requests they keep as leads |
+| `packages/website` | `@repo/website` | What the sites read from the admin: their rooms, rates, day packages, offers and notices (cached until the admin says they changed), and the requests they keep as leads |
 | `packages/typescript-config` | `@repo/typescript-config` | The TypeScript settings that every package extends |
 | `packages/eslint-config` | `@repo/eslint-config` | The ESLint rules that every package uses |
 
@@ -80,12 +80,19 @@ The engine's tests need a local Postgres, which they reach at `TEST_DATABASE_ADM
 
 Every site books with the shared widget in `packages/booking-ui`, the way MakeMyTrip does it. The guest chooses dates, rooms and guests, adds a room and says who stays in it, then adds other rooms of any type. A bar under the site header names every room type and jumps to it. Adding a room opens a panel for its guests, which is a sheet from the foot of the screen on phones. A tray keeps the rooms, the guests still to place and the estimate; on phones it waits in a bar at the foot of the screen. Day passes work the same way, by date.
 
-Until the booking engine and Razorpay arrive, the tray sends the request on WhatsApp, to the resort's own number.
+Until the booking engine and Razorpay arrive, the tray sends the request on WhatsApp, to the resort's own number. The admin also keeps each request as a lead.
 
 - A site describes its rooms, packages and day passes in `src/content/booking.ts`, from the facts in `src/content/resort.ts`.
 - A site styles the widget with the `--bk-*` values in its `globals.css`. `packages/booking-ui/src/booking.css` lists them. `--bk-sticky-top` is the site header's height, set once for phones and once from md up, so the room bar and the tray stick just below the header.
 - Friday and Saturday nights take the weekend rate. Every other night takes the weekday rate.
 - When a resort doesn't publish a rate that the guests need, the widget leaves that price for the team to quote. It never guesses one.
+
+## The websites and the admin
+
+- Each site reads its rooms, rates, day packages, offers and notices from the admin through `packages/website`. The reads are cached for up to a day.
+- After staff change any of them, the admin calls the site's `/api/revalidate` with the shared `REVALIDATE_SECRET`, so the site shows the change at once. `WEBSITE_URLS` gives the admin each site's address, such as `KS=https://prathameshresorts.vercel.app`. See `.env.example`.
+- The admin's Website page shows each site's connection, its notices, and what its pages show from the admin. A notice shows in a small card at the foot of every page, one at a time, on its days only. A guest can close it.
+- A site without a database, or one that can't reach it, shows its own content from `src/content`.
 
 ## Deploy
 
