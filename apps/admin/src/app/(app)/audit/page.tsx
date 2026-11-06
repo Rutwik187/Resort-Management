@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gte, inArray, isNull, like, lte, or, sql } from "dr
 import { accessibleProperties, can } from "@repo/auth";
 import { auditLog, getDb, properties, staffMembers, user } from "@repo/db";
 import { isDate } from "@repo/engine";
-import { BedDouble, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Inbox, IndianRupee, Lock, LogIn, ScrollText, Settings, Tag, Ticket, Users, type LucideIcon } from "lucide-react";
+import { BedDouble, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Globe, Inbox, IndianRupee, Lock, LogIn, ScrollText, Settings, Tag, Ticket, Users, type LucideIcon } from "lucide-react";
 import { properties as sites } from "@repo/sites";
 import { DateField } from "@/components/date-field";
 import { PageHeader } from "@/components/page-header";
@@ -63,6 +63,10 @@ const actionLabel: Record<string, string> = {
   "room_type.move": "Moved a room type in the list",
   "unit.create": "Added a room",
   "unit.status": "Changed a room's status",
+  "notice.create": "Added a website notice",
+  "notice.update": "Changed a website notice",
+  "notice.active": "Turned a website notice on or off",
+  "notice.delete": "Removed a website notice",
   "offer.create": "Added an offer",
   "offer.update": "Changed an offer",
   "offer.active": "Turned an offer on or off",
@@ -89,7 +93,7 @@ const kinds = {
   rooms: { label: "Rooms", prefixes: ["room_type.", "unit."] },
   leads: { label: "Leads", prefixes: ["lead."] },
   people: { label: "Staff and sign-ins", prefixes: ["staff.", "auth."] },
-  settings: { label: "Settings and websites", prefixes: ["property.settings", "website."] },
+  settings: { label: "Settings and websites", prefixes: ["property.settings", "website.", "notice."] },
 } as const;
 
 /** An icon for each kind of change, so the log can be scanned by eye. */
@@ -112,8 +116,10 @@ const iconFor = (action: string): LucideIcon =>
                   ? Inbox
                 : action.startsWith("auth.")
                   ? LogIn
-                  : action === "property.settings" || action.startsWith("website.")
-                    ? Settings
+                  : action.startsWith("website.") || action.startsWith("notice.")
+                    ? Globe
+                    : action === "property.settings"
+                      ? Settings
                     : ScrollText;
 
 /** Entries in runs by their day in India, newest first: Today, Yesterday, then dates. */

@@ -2,12 +2,12 @@ import "server-only";
 import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 import { offerNotes, offersFor, passesFromCatalogue, stayGroupsFromCatalogue, type ListingGroup, type Pass } from "@repo/booking-ui/catalogue";
 import { getDb } from "@repo/db";
-import { websiteCatalogue } from "@repo/engine";
+import { websiteCatalogue, type WebsiteNotice } from "@repo/engine";
 import { propertyByCode, type PropertyCode } from "@repo/sites";
 
 /*
  * What a resort website reads from the admin (docs/implementation-plan.md,
- * section 10): its rooms, rates and day packages. Each read is cached until
+ * section 10): its rooms, rates, day packages, offers and notices. Each read is cached until
  * the admin says the resort's catalogue changed, and refreshed once a day
  * anyway, so browsing doesn't wake the database. A site without a database,
  * or one that can't reach it, shows its own content instead.
@@ -72,10 +72,16 @@ export async function liveOffer<T extends { title: string; note?: string }>(code
   return offer ? { title: offer.title, note: offer.details ?? undefined } : null;
 }
 
+/** The resort's notices from the admin, newest first. None without a database. */
+export async function liveNotices(code: PropertyCode): Promise<WebsiteNotice[]> {
+  const data = await catalogue(code);
+  return data?.notices ?? [];
+}
+
 /**
  * The site's POST /api/revalidate. The admin calls it, with the secret both
- * share, after staff change this resort's rooms, rates or packages. The next
- * visit then loads the new catalogue.
+ * share, after staff change this resort's rooms, rates, packages, offers or
+ * notices. The next visit then loads the new catalogue.
  */
 export function revalidateRoute(code: PropertyCode) {
   return async function POST(request: Request) {

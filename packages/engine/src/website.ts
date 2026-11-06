@@ -1,6 +1,6 @@
-import { and, asc, count, eq, gte, inArray, isNull, or } from "drizzle-orm";
-import { ageBands, offeringChildPrices, offerings, offeringSlots, offers, properties, rateChildPrices, rates, roomTypes, units, type Executor } from "@repo/db";
-import { todayInIndia } from "./dates";
+import { and, asc, count, desc, eq, gte, inArray, isNull, or } from "drizzle-orm";
+import { ageBands, offeringChildPrices, offerings, offeringSlots, offers, properties, rateChildPrices, rates, roomTypes, siteNotices, units, type Executor } from "@repo/db";
+import { addDays, todayInIndia } from "./dates";
 import { offerLabel } from "./offers";
 
 /*
@@ -56,7 +56,13 @@ export type WebsitePass = {
 /** An offer the website shows: what it is and what it covers. Codes stay with the team. */
 export type WebsiteOffer = { title: string; details: string | null; appliesTo: "stay" | "day" | "any"; label: string; startsOn: string | null; endsOn: string | null };
 
-export type WebsiteCatalogue = { roomTypes: WebsiteRoomType[]; passes: WebsitePass[]; offers: WebsiteOffer[] };
+/**
+ * A notice for the website, newest first. Its dates are kept, so the page
+ * shows it on exactly those days whenever the page was cached.
+ */
+export type WebsiteNotice = { id: string; message: string; linkLabel: string | null; linkUrl: string | null; startsOn: string | null; endsOn: string | null };
+
+export type WebsiteCatalogue = { roomTypes: WebsiteRoomType[]; passes: WebsitePass[]; offers: WebsiteOffer[]; notices: WebsiteNotice[] };
 
 /** A resort's website catalogue, or null when there is no such resort. A few queries, run one after another. */
 export async function websiteCatalogue(db: Executor, propertyCode: string): Promise<WebsiteCatalogue | null> {
@@ -113,7 +119,15 @@ export async function websiteCatalogue(db: Executor, propertyCode: string): Prom
     .where(and(eq(offers.propertyId, property.id), eq(offers.active, true), eq(offers.onWebsite, true), or(isNull(offers.endsOn), gte(offers.endsOn, todayInIndia()))))
     .orderBy(asc(offers.sortOrder), asc(offers.title));
 
+  // Notices on now or later, newest first. A day's grace keeps one that ends today, whatever the server's clock.
+  const noticeRows = await db
+    .select()
+    .from(siteNotices)
+    .where(and(eq(siteNotices.propertyId, property.id), eq(siteNotices.active, true), or(isNull(siteNotices.endsOn), gte(siteNotices.endsOn, addDays(todayInIndia(), -1)))))
+    .orderBy(desc(siteNotices.createdAt));
+
   return {
+    notices: noticeRows.map((n) => ({ id: n.id, message: n.message, linkLabel: n.linkLabel, linkUrl: n.linkUrl, startsOn: n.startsOn, endsOn: n.endsOn })),
     offers: offerRows.map((offer) => ({ title: offer.title, details: offer.details, appliesTo: offer.appliesTo, label: offerLabel(offer), startsOn: offer.startsOn, endsOn: offer.endsOn })),
     roomTypes: types.map((type) => ({
       code: type.code,

@@ -18,6 +18,7 @@ import {
   rateChildPrices,
   rates,
   roomTypes,
+  siteNotices,
   stayRules,
   unitNights,
   units,
@@ -26,6 +27,7 @@ import {
 import { createTestDatabase } from "@repo/db/testing";
 import {
   addBookingNote,
+  addDays,
   assignUnit,
   changeBookingStatus,
   changeStay,
@@ -49,6 +51,7 @@ import {
   setDayCapacity,
   setBookingPrice,
   SoldOutError,
+  todayInIndia,
   TransitionError,
   websiteCatalogue,
 } from "../src";
@@ -460,6 +463,20 @@ describe("the website", () => {
     const lunch = catalogue!.passes.find((p) => p.code === "sunday-lunch")!;
     expect(lunch).toMatchObject({ hours: "12:30 to 3:30 pm", adultPaise: 60_000, childPaise: { child_5_11: 30_000 } });
     expect(await websiteCatalogue(db, "XX")).toBeNull();
+  });
+
+  it("gives the website its notices that are on or still to come, newest first, with their dates", async () => {
+    const today = todayInIndia();
+    await db.insert(siteNotices).values([
+      { propertyId, message: "Pool closed", createdAt: new Date("2028-01-01T00:00:00Z") },
+      { propertyId, message: "Diwali dinner", startsOn: addDays(today, 3), endsOn: addDays(today, 5), linkLabel: "See the menu", linkUrl: "/dining", createdAt: new Date("2028-01-02T00:00:00Z") },
+      { propertyId, message: "Long over", endsOn: addDays(today, -10) },
+      { propertyId, message: "Turned off", active: false },
+    ]);
+    const catalogue = await websiteCatalogue(db, "KS");
+    expect(catalogue?.notices.map((n) => n.message)).toEqual(["Diwali dinner", "Pool closed"]);
+    // The page decides on the day, so a cached page never shows one too early.
+    expect(catalogue?.notices[0]).toMatchObject({ startsOn: addDays(today, 3), endsOn: addDays(today, 5), linkLabel: "See the menu", linkUrl: "/dining" });
   });
 });
 

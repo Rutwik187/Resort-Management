@@ -20,6 +20,7 @@ const sections: [Section["key"], string, Permission[]][] = [
   ["prices", "Prices", ["prices.view"]],
   ["packages", "Packages", ["prices.view"]],
   ["offers", "Offers", ["prices.view"]],
+  ["website", "Website", ["website.manage"]],
   ["settings", "Settings", ["settings.manage"]],
 ];
 

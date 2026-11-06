@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./leads": "./src/leads.ts"
+    "./leads": "./src/leads.ts",
+    "./notice": "./src/notice.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

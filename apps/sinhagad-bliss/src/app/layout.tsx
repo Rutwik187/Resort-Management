@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Jost, Spectral } from "next/font/google";
 import localFont from "next/font/local";
+import { SiteNotices } from "@repo/website/notice";
 import { BookingDrawer } from "@/components/booking-drawer";
 import { SmoothScroll } from "@/components/smooth-scroll";
 import { SiteHeader } from "@/components/site-header";
@@ -66,6 +67,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <SiteHeader />
         <main id="main">{children}</main>
         <SiteFooter />
+        <SiteNotices code="SB" />
         <BookingDrawer />
       </body>
     </html>

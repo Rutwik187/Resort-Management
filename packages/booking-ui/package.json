@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./booking.css": "./src/booking.css",
-    "./catalogue": "./src/catalogue.ts"
+    "./catalogue": "./src/catalogue.ts",
+    "./notice": "./src/site-notice.tsx"
   },
   "scripts": {
     "lint": "eslint",

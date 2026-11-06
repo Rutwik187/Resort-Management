@@ -6,7 +6,6 @@ import { z } from "zod";
 import { getDb, properties } from "@repo/db";
 import { filled, problem, wholeNumber, type FormState } from "@/lib/forms";
 import { audit, requirePermission } from "@/lib/staff";
-import { refreshWebsite } from "@/lib/website";
 
 const time = (label: string) => z.string({ error: `Set the ${label}.` }).regex(/^\d{2}:\d{2}$/, `Write the ${label} as hh:mm.`);
 const settingsInput = z.object({
@@ -58,21 +57,5 @@ export async function saveSettings(propertyId: string, _state: FormState, form: 
     return { done: "Settings saved." };
   } catch (error) {
     return problem(error, "Only a Super Admin can change a resort's settings.");
-  }
-}
-
-/** Asks the resort's website to load its rooms, rates and packages from the admin again, now. */
-export async function refreshWebsiteNow(propertyId: string): Promise<FormState> {
-  try {
-    z.uuid().parse(propertyId);
-    const staff = await requirePermission("settings.manage", propertyId);
-    const [property] = await getDb().select({ code: properties.code }).from(properties).where(eq(properties.id, propertyId));
-    if (!property) return { error: "That resort no longer exists." };
-    const result = await refreshWebsite(property.code);
-    if (!result.ok) return { error: result.reason };
-    await audit({ userId: staff.userId, propertyId, action: "website.refresh", entity: "properties", entityId: propertyId });
-    return { done: "The website now shows the admin's rooms, rates and packages." };
-  } catch (error) {
-    return problem(error);
   }
 }

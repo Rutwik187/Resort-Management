@@ -27,6 +27,7 @@ export const permissions = {
   "reports.view": "See all reports",
   "users.manage": "Manage users and roles",
   "settings.manage": "Change settings, taxes, payment keys and policies",
+  "website.manage": "Change the website's notices and refresh it",
   "audit.view": "See the audit log",
 } as const;
 
@@ -46,7 +47,7 @@ export const builtInRoles: RoleDefinition[] = [
   {
     key: "property_manager",
     name: "Property Manager",
-    description: "Rooms, inventory, prices, packages, offers and bookings for their resort.",
+    description: "Rooms, inventory, prices, packages, offers, bookings and the website for their resort.",
     permissions: [
       "dashboard.view",
       "bookings.view",
@@ -63,6 +64,7 @@ export const builtInRoles: RoleDefinition[] = [
       "leads.view",
       "leads.manage",
       "reports.view",
+      "website.manage",
     ],
   },
   {

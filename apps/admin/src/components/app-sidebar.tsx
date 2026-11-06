@@ -12,6 +12,7 @@ import {
   ClipboardList,
   Contact,
   ExternalLink,
+  Globe,
   IndianRupee,
   Inbox,
   LayoutDashboard,
@@ -51,7 +52,7 @@ import {
 } from "@/components/ui/sidebar";
 
 /** A resort section. Icons are named, because a server can't hand a component to the browser. */
-export type Section = { key: "today" | "bookings" | "leads" | "guests" | "calendar" | "reports" | "rooms" | "prices" | "packages" | "offers" | "settings"; label: string };
+export type Section = { key: "today" | "bookings" | "leads" | "guests" | "calendar" | "reports" | "rooms" | "prices" | "packages" | "offers" | "website" | "settings"; label: string };
 export type SidebarResort = { code: string; name: string; shortName: string; place: string; website: string; sections: Section[]; canBook: boolean };
 export type SidebarData = {
   resorts: SidebarResort[];
@@ -70,6 +71,7 @@ const sectionIcon: Record<Section["key"], LucideIcon> = {
   prices: IndianRupee,
   packages: Ticket,
   offers: BadgePercent,
+  website: Globe,
   settings: Settings,
 };
 const groupIcon = { staff: Users, audit: ScrollText } as const;
@@ -77,7 +79,7 @@ const groupIcon = { staff: Users, audit: ScrollText } as const;
 /** The day's work first, then what is set up once and changed now and then. */
 const sectionGroups: { label: string; keys: Section["key"][] }[] = [
   { label: "Front office", keys: ["today", "bookings", "leads", "guests", "calendar", "reports"] },
-  { label: "Resort setup", keys: ["rooms", "prices", "packages", "offers", "settings"] },
+  { label: "Resort setup", keys: ["rooms", "prices", "packages", "offers", "website", "settings"] },
 ];
 
 /** The current page stands out: white, raised, with a green icon. */
