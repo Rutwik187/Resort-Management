@@ -10,6 +10,12 @@ if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  experimental: {
+    // Vercel restores .next/cache from the last deployment. With Turbopack's build cache on,
+    // the admin once shipped the stylesheet of an older globals.css next to new pages
+    // (4 Nov 2026). The sites build without that cache, so each build uses its own styles.
+    turbopackFileSystemCacheForBuild: false,
+  },
   images: {
     // AVIF first: about a third smaller than WebP for the same photo.
     formats: ["image/avif", "image/webp"],
