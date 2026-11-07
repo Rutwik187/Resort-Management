@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Link2, RotateCcw, Undo2, X } from "lucide-react";
+import { Check, Copy, ExternalLink, Link2, RotateCcw, Undo2, X } from "lucide-react";
 import { FormNote, useToastAction } from "@/components/form-note";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { methodLabel } from "@/lib/format";
-import { approveRefund, askRefund, sendPaymentLink, tryRefundAgain } from "./money-actions";
+import { approveRefund, askRefund, sendBookingPage, sendPaymentLink, tryRefundAgain } from "./money-actions";
 
 export function CopyButton({ value, label }: { value: string; label: string }) {
   const [copied, setCopied] = useState(false);
@@ -163,6 +163,26 @@ export function RetryRefund({ refundId }: { refundId: string }) {
         Try again
       </Button>
       {state?.error && <span className="text-xs text-destructive">{state.error}</span>}
+    </form>
+  );
+}
+
+/** Emails the guest a fresh link to their booking page on the website. */
+export function BookingPageButton({ bookingId }: { bookingId: string }) {
+  const [state, action, pending] = useToastAction(async () => sendBookingPage(bookingId));
+  return (
+    <form action={action} className="grid gap-2">
+      <Button type="submit" variant="outline" className="w-full" disabled={pending}>
+        {pending ? <Spinner /> : <ExternalLink />}
+        Send the booking page
+      </Button>
+      {state?.done && (
+        <p className="flex items-center gap-1 text-xs break-all text-muted-foreground">
+          {state.done.split(": ").pop()}
+          <CopyButton value={state.done.split(": ").pop() ?? ""} label="Copy the address" />
+        </p>
+      )}
+      <FormNote state={state?.error ? state : undefined} />
     </form>
   );
 }

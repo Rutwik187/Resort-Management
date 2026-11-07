@@ -2,6 +2,7 @@ import { and, eq, lte, sql } from "drizzle-orm";
 import { bookingEvents, bookings, guests, holds, properties, type Database } from "@repo/db";
 import type { Quote } from "./holds";
 import { recordWebsiteLead } from "./leads";
+import { cancelHeldMessages } from "./messages";
 import { headcount } from "./pricing";
 import { freeHoldStock } from "./holds";
 
@@ -33,6 +34,7 @@ export async function expireHolds(db: Database, limit = 200): Promise<number> {
         .returning({ id: bookings.id });
       if (expired.length) {
         await tx.insert(bookingEvents).values({ propertyId: hold.propertyId, bookingId: hold.bookingId, type: "status", fromStatus: "pending_payment", toStatus: "expired", note: "Payment was not completed in time." });
+        await cancelHeldMessages(tx, hold.bookingId);
         abandoned.push(hold.bookingId);
       }
     }

@@ -3,6 +3,7 @@ import { bookingEvents, bookings, onlinePayments, properties, refunds, type Data
 import { allowedMoves, type Tx } from "./bookings";
 import { NotFoundError, RuleError } from "./errors";
 import { alignInvoiceToKept } from "./invoices";
+import { queueRefundEmail } from "./messages";
 import { paymentAccount, razorpayFor } from "./online";
 import type { PaymentMethod } from "./payments";
 
@@ -175,6 +176,7 @@ export async function settleRefund(tx: Tx, refundId: string) {
     data: { refundId: refund.id, amountPaise: refund.amountPaise, method: refund.method ?? "razorpay", reference: refund.providerRefundId ?? refund.reference },
   });
   await alignInvoiceToKept(tx, booking.id, `Refund: ${refund.reason}`);
+  await queueRefundEmail(tx, booking.id, refund.amountPaise);
   if ((booking.status === "cancelled" || booking.status === "no_show") && paid === 0 && allowedMoves[booking.status].includes("refunded")) {
     await tx.update(bookings).set({ status: "refunded" }).where(eq(bookings.id, booking.id));
     await tx.insert(bookingEvents).values({ propertyId: booking.propertyId, bookingId: booking.id, type: "status", fromStatus: booking.status, toStatus: "refunded" });

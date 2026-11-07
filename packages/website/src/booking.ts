@@ -1,6 +1,7 @@
 import "server-only";
 import { headers } from "next/headers";
 import { cacheLife, cacheTag } from "next/cache";
+import { after } from "next/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import type { CheckoutOrder, ConfirmResult, OnlineChoice, OnlineGuest, StartResult } from "@repo/booking-ui";
@@ -13,6 +14,7 @@ import {
   payBalanceOnline,
   recheckOnlinePayments,
   RuleError,
+  sendQueuedEmails,
   SoldOutError,
   takesOnlineBookings,
   TransitionError,
@@ -89,7 +91,10 @@ export async function startOnlineBooking(siteCode: PropertyCode, choice: OnlineC
   if (!parsedGuest.success) return { ok: false, error: "Please check your name, mobile number and email." };
   const c = parsedChoice.data;
   const g = parsedGuest.data;
-  const forwarded = (await headers()).get("x-forwarded-for");
+  const head = await headers();
+  const forwarded = head.get("x-forwarded-for");
+  const host = head.get("x-forwarded-host") ?? head.get("host");
+  const proto = head.get("x-forwarded-proto") ?? (host?.startsWith("localhost") ? "http" : "https");
   try {
     const started = await bookOnline(getDb(), {
       propertyCode: siteCode,
@@ -100,6 +105,7 @@ export async function startOnlineBooking(siteCode: PropertyCode, choice: OnlineC
       marketing: g.marketing,
       acceptedTerms: g.acceptedTerms,
       ip: forwarded?.split(",")[0]?.trim() ?? null,
+      siteOrigin: host ? `${proto}://${host}` : undefined,
     });
     const quote = started.quote;
     return {
@@ -140,7 +146,9 @@ export async function confirmOnlinePayment(siteCode: PropertyCode, answer: unkno
     .where(eq(onlinePayments.orderId, parsed.data.orderId));
   if (row?.code !== siteCode) return { ok: false, error: "The payment couldn't be verified." };
   try {
-    await completeCheckout(db, parsed.data);
+    const { bookingId } = await completeCheckout(db, parsed.data);
+    // The confirmation email goes once the guest has their answer.
+    after(() => sendQueuedEmails(db, { bookingId }).catch((error) => console.error("Sending the confirmation failed; the batch job retries.", error)));
     return { ok: true };
   } catch (error) {
     if (guestError(error)) return { ok: false, error: (error as Error).message };
@@ -166,6 +174,7 @@ export async function recheckGuestBooking(siteCode: PropertyCode, token: string)
   if (!booking || (booking.status !== "pending_payment" && booking.status !== "expired")) return false;
   try {
     const { applied } = await recheckOnlinePayments(getDb(), { bookingId: booking.id });
+    if (applied) after(() => sendQueuedEmails(getDb(), { bookingId: booking.id }).catch(() => undefined));
     return applied > 0;
   } catch (error) {
     console.error(`Rechecking booking ${booking.number} failed.`, error);

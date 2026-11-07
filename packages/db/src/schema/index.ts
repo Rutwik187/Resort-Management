@@ -10,3 +10,4 @@ export * from "./leads";
 export * from "./offers";
 export * from "./guests";
 export * from "./website";
+export * from "./messages";

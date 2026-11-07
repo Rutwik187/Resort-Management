@@ -10,6 +10,7 @@ import {
   holds,
   invoices,
   leads,
+  messages,
   onlinePayments,
   properties,
   rates,
@@ -41,6 +42,7 @@ import {
   recheckOnlinePayments,
   requestRefund,
   savePaymentAccount,
+  sendQueuedEmails,
   setBookingPrice,
   setRazorpayClient,
   suggestRefund,
@@ -293,6 +295,28 @@ describe("Booking on the website", () => {
   });
 });
 
+describe("Emails", () => {
+  it("holds the confirmation until payment, cancels it if none comes, and waits without a Resend key", async () => {
+    const paid = await bookOnline(db, { ...online("2027-07-05", "2027-07-06"), siteOrigin: "https://example.test" });
+    const unpaid = await bookOnline(db, { ...online("2027-07-12", "2027-07-13"), siteOrigin: "https://example.test" });
+    const mail = async (number: string) => {
+      const booking = await bookingOf(number);
+      return db.select().from(messages).where(eq(messages.bookingId, booking.id));
+    };
+    expect((await mail(paid.number)).map((m) => m.status)).toEqual(["held"]);
+    expect((await mail(paid.number))[0].html).toContain(`https://example.test/booking?ref=${paid.token}`);
+
+    await completeCheckout(db, fake.pay(paid.checkout.orderId));
+    expect((await mail(paid.number)).map((m) => m.status)).toEqual(["queued"]);
+
+    await db.update(holds).set({ expiresAt: new Date(Date.now() - 60_000) }).where(eq(holds.status, "active"));
+    await expireHolds(db);
+    expect((await mail(unpaid.number)).map((m) => m.status)).toEqual(["cancelled"]);
+
+    expect(await sendQueuedEmails(db)).toMatchObject({ sent: 0, waiting: true });
+  });
+});
+
 describe("Late payments", () => {
   const expireAll = async () => {
     await db.update(holds).set({ expiresAt: new Date(Date.now() - 60_000) }).where(eq(holds.status, "active"));
@@ -342,6 +366,7 @@ describe("Refunds", () => {
     await expect(requestRefund(db, { bookingId: booking.id, amountPaise: 100, reason: "Again", method: "razorpay" })).rejects.toThrow(/left to refund/);
     await decideRefund(db, { refundId: refund.id, approve: true });
     expect(await bookingOf(started.number)).toMatchObject({ status: "refunded", paidPaise: 0, refundedPaise: 525_000 });
+    expect(await db.$count(messages, and(eq(messages.bookingId, booking.id), eq(messages.kind, "refund")))).toBe(1);
     const docs = await db.select().from(invoices).where(eq(invoices.bookingId, booking.id));
     const net = docs.reduce((sum, d) => sum + (d.kind === "invoice" ? d.totalPaise : -d.totalPaise), 0);
     expect(net).toBe(0);

@@ -17,8 +17,8 @@ import { loadBooking, type LoadedBooking } from "@/lib/bookings";
 import { balance, clock, longDate, methodLabel, partyLabel, plural, price, rupees, shortDate, sourceLabel, statusLabel, when } from "@/lib/format";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
 import { CancelForm, MoveButton, NoShowButton, NoteForm, PaymentForm, PriceForm, PrintButton, RoomForm } from "./forms";
-import { InvoicesCard, loadMoney, OnlinePaymentRows, RefundsCard, WaitingLinks } from "./money";
-import { PaymentLinkForm } from "./money-forms";
+import { InvoicesCard, loadMoney, MessagesCard, OnlinePaymentRows, RefundsCard, WaitingLinks } from "./money";
+import { BookingPageButton, PaymentLinkForm } from "./money-forms";
 
 export async function generateMetadata({ params }: PageProps<"/[property]/bookings/[number]">) {
   return { title: (await params).number.toUpperCase() };
@@ -221,6 +221,7 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
                   </Button>
                 )}
                 {may("prices.manage") && booking.status !== "checked_out" && <PriceForm bookingId={booking.id} current={booking.subtotalPaise === null ? "" : String(booking.subtotalPaise / 100)} />}
+                {may("bookings.modify") && booking.status !== "pending_payment" && <BookingPageButton bookingId={booking.id} />}
                 {may("bookings.cancel") && booking.status !== "checked_in" && <CancelForm bookingId={booking.id} />}
               </CardContent>
             </Card>
@@ -332,6 +333,8 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
           />
 
           <InvoicesCard code={property.code} money={money} booking={booking} />
+
+          <MessagesCard money={money} />
 
           <Timeline loaded={loaded} />
         </div>

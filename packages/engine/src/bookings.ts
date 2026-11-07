@@ -19,6 +19,7 @@ import { nightsOf, todayInIndia } from "./dates";
 import { NotFoundError, RuleError, SoldOutError, TransitionError, isUniqueViolation } from "./errors";
 import { freeHoldStock, subtotalOf, type Quote } from "./holds";
 import { alignInvoiceToKept, ensureInvoice } from "./invoices";
+import { releaseHeldMessages } from "./messages";
 import { loadTaxRules, taxQuote } from "./tax";
 import { recordPaymentInTx, type PaymentInput } from "./payments";
 import { headcount } from "./pricing";
@@ -235,7 +236,10 @@ export async function markPaid(tx: Tx, bookingId: string, to: "confirmed" | "par
   if (!booking) throw new NotFoundError("Booking");
   if (booking.status === to) return;
   if (!allowedMoves[booking.status].includes(to)) throw new TransitionError(booking.status, to);
-  if (booking.status === "pending_payment") await bookHeldStock(tx, booking, userId);
+  if (booking.status === "pending_payment") {
+    await bookHeldStock(tx, booking, userId);
+    await releaseHeldMessages(tx, bookingId);
+  }
   await tx.update(bookings).set({ status: to }).where(eq(bookings.id, bookingId));
   await tx.insert(bookingEvents).values({ propertyId: booking.propertyId, bookingId, type: "status", fromStatus: booking.status, toStatus: to, userId: userId ?? null, note: note ?? null });
   await ensureInvoice(tx, bookingId, userId);

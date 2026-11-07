@@ -5,6 +5,7 @@ import { createBooking, normalisePhone, type GuestInput } from "./bookings";
 import { isDate } from "./dates";
 import { NotFoundError, RuleError } from "./errors";
 import { holdSeats, holdStay, releaseHold, type Quote } from "./holds";
+import { holdConfirmationEmail } from "./messages";
 import { paymentAccount, startCheckout } from "./online";
 import type { Party } from "./pricing";
 import { hashToken, newToken } from "./secrets";
@@ -60,6 +61,8 @@ export type WebsiteBookingInput = {
   marketing: boolean;
   acceptedTerms: boolean;
   ip?: string | null;
+  /** The site's address as the guest reached it, such as https://prathameshresorts.com, for the link in their email. */
+  siteOrigin?: string;
 };
 
 export type WebsiteBookingStarted = {
@@ -135,7 +138,11 @@ export async function bookOnline(db: Database, input: WebsiteBookingInput): Prom
     consent,
   });
   const { token, hash } = newToken();
-  await db.update(bookings).set({ manageTokenHash: hash }).where(eq(bookings.id, bookingId));
+  await db.transaction(async (tx) => {
+    await tx.update(bookings).set({ manageTokenHash: hash }).where(eq(bookings.id, bookingId));
+    // The confirmation email waits for the payment; it is written now, while the private link is known.
+    if (input.siteOrigin) await holdConfirmationEmail(tx, bookingId, `${input.siteOrigin}/booking?ref=${token}`);
+  });
 
   const total = held.quote.totalPaise;
   // The advance, rounded up to the rupee, and never more than the total.

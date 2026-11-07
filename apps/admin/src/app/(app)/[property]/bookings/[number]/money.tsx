@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { asc, desc, eq } from "drizzle-orm";
 import { FileText } from "lucide-react";
-import { getDb, invoices, onlinePayments, refunds, type bookings } from "@repo/db";
+import { getDb, invoices, messages, onlinePayments, refunds, type bookings } from "@repo/db";
 import { loadCancellationRules, paymentAccount, suggestRefund, todayInIndia } from "@repo/engine";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,16 +14,17 @@ type Booking = typeof bookings.$inferSelect;
 /** Online payments, links, refunds, invoices and the refund the rules suggest, for one booking. */
 export async function loadMoney(booking: Booking) {
   const db = getDb();
-  const [online, refundRows, docs, rules, account] = await Promise.all([
+  const [online, refundRows, docs, rules, account, mail] = await Promise.all([
     db.select().from(onlinePayments).where(eq(onlinePayments.bookingId, booking.id)).orderBy(desc(onlinePayments.createdAt)),
     db.select().from(refunds).where(eq(refunds.bookingId, booking.id)).orderBy(desc(refunds.createdAt)),
     db.select({ id: invoices.id, kind: invoices.kind, number: invoices.number, issuedOn: invoices.issuedOn, totalPaise: invoices.totalPaise, reason: invoices.reason }).from(invoices).where(eq(invoices.bookingId, booking.id)).orderBy(asc(invoices.createdAt)),
     loadCancellationRules(db, booking.propertyId),
     paymentAccount(db, booking.propertyId).catch(() => null),
+    db.select({ id: messages.id, kind: messages.kind, to: messages.to, subject: messages.subject, status: messages.status, error: messages.error, createdAt: messages.createdAt, sentAt: messages.sentAt }).from(messages).where(eq(messages.bookingId, booking.id)).orderBy(desc(messages.createdAt)),
   ]);
   const waiting = refundRows.filter((r) => r.status === "requested" || r.status === "processing").reduce((sum, r) => sum + r.amountPaise, 0);
   const suggestion = booking.paidPaise > 0 ? suggestRefund(rules, booking, todayInIndia()) : null;
-  return { online, refunds: refundRows, invoices: docs, suggestion, onlinePayments: Boolean(account), refundable: Math.max(0, booking.paidPaise - waiting) };
+  return { online, refunds: refundRows, invoices: docs, messages: mail.filter((m) => m.status !== "held"), suggestion, onlinePayments: Boolean(account), refundable: Math.max(0, booking.paidPaise - waiting) };
 }
 
 export type Money = Awaited<ReturnType<typeof loadMoney>>;
@@ -177,6 +178,37 @@ export function InvoicesCard({ code, money, booking }: { code: string; money: Mo
               {rupees(doc.totalPaise)}
             </span>
           </Link>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+const mailLook = { queued: "Waiting to send", sent: "Sent", failed: "Not sent yet", cancelled: "Not sent", held: "Held" } as const;
+
+/** Emails to the guest about this booking. */
+export function MessagesCard({ money }: { money: Money }) {
+  if (money.messages.length === 0) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Messages</CardTitle>
+        <CardDescription>Emails to the guest about this booking.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-2">
+        {money.messages.map((m) => (
+          <div key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-3 py-2 text-sm">
+            <span className="font-medium">{m.subject}</span>
+            <span className="text-muted-foreground">to {m.to}</span>
+            <Badge variant={m.status === "sent" ? "default" : m.status === "failed" ? "destructive" : "secondary"} className="ml-auto">
+              {mailLook[m.status]}
+            </Badge>
+            <span className="w-full text-xs text-muted-foreground">
+              {m.sentAt ? `Sent ${when(m.sentAt)}` : `Written ${when(m.createdAt)}`}
+              {m.status === "queued" && !process.env.RESEND_API_KEY ? " · Email goes out once RESEND_API_KEY is set." : ""}
+              {m.error ? ` · ${m.error}` : ""}
+            </span>
+          </div>
         ))}
       </CardContent>
     </Card>
