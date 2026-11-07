@@ -57,6 +57,13 @@
       "when": 1793948914882,
       "tag": "0007_website_permission",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794074035962,
+      "tag": "0008_money",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 import { and, eq, ne, TransactionRollbackError } from "drizzle-orm";
 import { bookingEvents, bookingItems, bookings, holds, inventoryLog, unitNights, type Database } from "@repo/db";
-import type { BookingStatus, Tx } from "./bookings";
+import { priceFor, type BookingStatus, type Tx } from "./bookings";
+import { ensureInvoice } from "./invoices";
 import { isDate, todayInIndia } from "./dates";
 import { NotFoundError, RuleError } from "./errors";
 import { holdStayIn, type Quote, type StayRequest } from "./holds";
@@ -105,8 +106,10 @@ async function changeStayIn(tx: Tx, input: StayChange) {
           : [],
       ),
     );
-    const totalPaise = input.keepPrice ? booking.totalPaise : hold.quote.totalPaise;
-    await tx.update(bookings).set({ checkIn: input.checkIn, checkOut: input.checkOut, quote: hold.quote, totalPaise }).where(eq(bookings.id, booking.id));
+    // A price kept by hand keeps its price before GST; GST is worked out again on the new nights.
+    const price = await priceFor(tx, booking.propertyId, hold.quote, input.keepPrice ? booking.subtotalPaise : undefined);
+    const totalPaise = price.totalPaise;
+    await tx.update(bookings).set({ checkIn: input.checkIn, checkOut: input.checkOut, quote: hold.quote, ...price }).where(eq(bookings.id, booking.id));
     const rooms = (quote: Quote) => quote.lines.flatMap((line) => (line.kind === "stay" ? [`${line.roomTypeName} (${line.unitName})`] : []));
     await tx.insert(bookingEvents).values({
       propertyId: booking.propertyId,
@@ -119,6 +122,7 @@ async function changeStayIn(tx: Tx, input: StayChange) {
         to: { checkIn: input.checkIn, checkOut: input.checkOut, totalPaise, rooms: rooms(hold.quote) },
       },
     });
+    await ensureInvoice(tx, booking.id, input.userId, today);
     return { fromPaise: booking.totalPaise, toPaise: totalPaise, paidPaise: booking.paidPaise, quote: hold.quote };
   }
 }

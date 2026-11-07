@@ -20,6 +20,7 @@ import {
   roomTypes,
   siteNotices,
   stayRules,
+  taxRules,
   unitNights,
   units,
   type Database,
@@ -75,6 +76,8 @@ const couple = { adults: 2, children: {} };
 beforeAll(async () => {
   ({ db, drop } = await createTestDatabase());
   [{ id: propertyId }] = await db.insert(properties).values({ code: "KS", name: "Prathamesh Resorts" }).returning({ id: properties.id });
+  // No GST here, so totals are the rates themselves. test/money.test.ts covers GST.
+  await db.insert(taxRules).values((["room", "offering", "addon"] as const).map((appliesTo) => ({ propertyId, appliesTo, label: "No GST", rateBps: 0, startsOn: "2020-01-01" })));
   const bands = await db
     .insert(ageBands)
     .values([
@@ -317,13 +320,13 @@ describe("payments and the front desk", () => {
   it("books at a price staff set, with the reason, and takes the full payment at the desk", async () => {
     const hold = await holdStay(db, { propertyId, checkIn: "2027-10-18", checkOut: "2027-10-19", rooms: [{ roomTypeId: pairId, party: couple }] });
     await expect(
-      createBooking(db, { holdId: hold.holdId, guest, source: "walk_in", priceOverride: { totalPaise: 400_000, reason: " " } }),
+      createBooking(db, { holdId: hold.holdId, guest, source: "walk_in", priceOverride: { subtotalPaise: 400_000, reason: " " } }),
     ).rejects.toThrow(/Say why/);
     const { bookingId } = await createBooking(db, {
       holdId: hold.holdId,
       guest,
       source: "travel_agent",
-      priceOverride: { totalPaise: 400_000, reason: "Agent rate agreed by the manager" },
+      priceOverride: { subtotalPaise: 400_000, reason: "Agent rate agreed by the manager" },
       payment: { amountPaise: 400_000, method: "bank_transfer", reference: "NEFT 7781" },
     });
     expect(await statusOf(bookingId)).toMatchObject({ status: "confirmed", totalPaise: 400_000, paidPaise: 400_000, source: "travel_agent" });
@@ -331,7 +334,7 @@ describe("payments and the front desk", () => {
     expect(timeline.map((event) => event.type)).toEqual(["created", "price_override", "payment", "status"]);
     expect(timeline[1]).toMatchObject({ note: "Agent rate agreed by the manager", data: { fromPaise: hold.quote.totalPaise, toPaise: 400_000 } });
     // A later price can't fall below what was paid.
-    await expect(setBookingPrice(db, { bookingId, totalPaise: 300_000, reason: "Discount" })).rejects.toThrow(/less than what the guest has paid/);
+    await expect(setBookingPrice(db, { bookingId, subtotalPaise: 300_000, reason: "Discount" })).rejects.toThrow(/less than what the guest has paid/);
   });
 
   it("moves a stay to another free room of the same type, and refuses a taken one", async () => {

@@ -19,6 +19,7 @@ import { loadBands, loadRoomPricing } from "./catalogue";
 import { isDate, nightsOf } from "./dates";
 import { NotFoundError, RuleError, SoldOutError, isCheckViolation, isUniqueViolation } from "./errors";
 import { headcount, payingGuests, priceOffering, priceStay, type NightPrice, type Party } from "./pricing";
+import { loadTaxRules, taxQuote, type TaxPart } from "./tax";
 
 /*
  * Holds keep rooms or seats for a guest while they pay (INV-03). Each hold
@@ -62,9 +63,25 @@ export type Quote = {
   checkOut?: string;
   day?: string;
   lines: (StayQuoteLine | OfferingQuoteLine)[];
-  /** Null when any line has a rate still to be confirmed. */
+  /** The lines' prices before GST. Null when any line has a rate still to be confirmed. */
+  subtotalPaise?: number | null;
+  /** GST on the subtotal. Null when a rate or a GST rule is missing. */
+  taxPaise?: number | null;
+  /** GST by rate. */
+  tax?: TaxPart[];
+  /** What the guest pays, GST included. Null when the subtotal or the GST is unknown. */
   totalPaise: number | null;
 };
+
+/** Adds GST to a quote's lines. Quotes saved before GST came in have no subtotal: their total had no GST. */
+export async function withTax(db: Executor, propertyId: string, base: Omit<Quote, "subtotalPaise" | "taxPaise" | "tax" | "totalPaise">): Promise<Quote> {
+  const subtotalPaise = total(base.lines);
+  const taxed = subtotalPaise === null ? null : taxQuote(base, await loadTaxRules(db, propertyId));
+  return { ...base, subtotalPaise, taxPaise: taxed?.taxPaise ?? null, tax: taxed?.parts ?? [], totalPaise: taxed?.totalPaise ?? null };
+}
+
+/** A quote's price before GST, for quotes saved before GST came in too. */
+export const subtotalOf = (quote: Quote) => (quote.subtotalPaise === undefined ? quote.totalPaise : quote.subtotalPaise);
 
 export type HoldResult = { holdId: string; expiresAt: Date; quote: Quote };
 
@@ -177,7 +194,7 @@ export async function holdStayIn(tx: Tx, input: StayInput): Promise<HoldResult> 
     });
   }
 
-  const quote: Quote = { currency: "INR", checkIn: input.checkIn, checkOut: input.checkOut, lines, totalPaise: total(lines) };
+  const quote = await withTax(tx, input.propertyId, { currency: "INR", checkIn: input.checkIn, checkOut: input.checkOut, lines });
   await tx.update(holds).set({ quote }).where(eq(holds.id, hold.id));
   return { holdId: hold.id, expiresAt: hold.expiresAt, quote };
 }
@@ -283,7 +300,7 @@ async function holdSeatsIn(tx: Tx, input: SeatsInput): Promise<HoldResult> {
     });
   }
 
-  const quote: Quote = { currency: "INR", day: input.day, lines, totalPaise: total(lines) };
+  const quote = await withTax(tx, input.propertyId, { currency: "INR", day: input.day, lines });
   await tx.update(holds).set({ quote }).where(eq(holds.id, hold.id));
   return { holdId: hold.id, expiresAt: hold.expiresAt, quote };
 }

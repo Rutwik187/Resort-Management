@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, integer, pgTable, smallint, text, time, unique, uuid } from "drizzle-orm/pg-core";
+import { bigint, boolean, check, integer, pgTable, smallint, text, time, unique, uuid } from "drizzle-orm/pg-core";
 import { timestamps } from "./common";
 
 /**
@@ -27,6 +27,13 @@ export const properties = pgTable(
     holdMinutes: integer().notNull().default(15),
     /** Alert the manager when a room type is down to this many units for a night (INV-10). */
     lowStockThreshold: integer().notNull().default(1),
+    /** The share of the price a guest pays online to confirm. The rest is paid at the resort. */
+    advancePercent: smallint().notNull().default(100),
+    /** Refunds above this need someone who may approve refunds. Empty: every refund does. */
+    refundApprovalPaise: bigint({ mode: "number" }),
+    /** For GST invoices: the state the resort is in. Maharashtra is 27. */
+    stateCode: text().notNull().default("27"),
+    stateName: text().notNull().default("Maharashtra"),
     active: boolean().notNull().default(true),
     sortOrder: integer().notNull().default(0),
     ...timestamps,
@@ -34,6 +41,7 @@ export const properties = pgTable(
   (t) => [
     check("properties_code_format", sql`${t.code} ~ '^[A-Z]{2,4}$'`),
     check("properties_hold_minutes", sql`${t.holdMinutes} between 1 and 120`),
+    check("properties_advance_percent", sql`${t.advancePercent} between 1 and 100`),
   ],
 );
 

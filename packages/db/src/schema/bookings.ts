@@ -37,6 +37,9 @@ export const bookingItemKind = pgEnum("booking_item_kind", ["stay", "offering"])
 /** Who is coming, by age band code: { adults: 2, children: { child: 1, infant: 1 } }. */
 export type PartyJson = { adults: number; children: Record<string, number> };
 
+/** The terms the guest accepted, by version, and whether they want offers. */
+export type ConsentJson = { termsVersion: string; marketing: boolean; at: string; ip?: string | null };
+
 /** A person who booked. Profiles merge by phone and email later (ADM-09). */
 export const guests = pgTable(
   "guests",
@@ -75,9 +78,19 @@ export const bookings = pgTable(
     checkIn: date({ mode: "string" }),
     checkOut: date({ mode: "string" }),
     visitDate: date({ mode: "string" }),
-    /** Everything the guest pays, before any refund. Null while a rate is still to be confirmed. */
+    /** Everything the guest pays, GST included, before any refund. Null while a rate is still to be confirmed. */
     totalPaise: bigint({ mode: "number" }),
+    /** The price before GST, after any offer or price set by staff. */
+    subtotalPaise: bigint({ mode: "number" }),
+    /** The GST in the total. */
+    taxPaise: bigint({ mode: "number" }),
+    /** Money received, less refunds paid. */
     paidPaise: bigint({ mode: "number" }).notNull().default(0),
+    refundedPaise: bigint({ mode: "number" }).notNull().default(0),
+    /** The SHA-256 of the guest's private manage-booking link. */
+    manageTokenHash: text().unique(),
+    /** What the guest agreed to on the website, and when. */
+    consent: jsonb().$type<ConsentJson>(),
     /** The quote the price came from, kept as it was (PR-08). */
     quote: jsonb(),
     notes: text(),
