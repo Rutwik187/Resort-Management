@@ -215,3 +215,17 @@ export async function ensureInvoice(tx: Tx, bookingId: string, userId?: string, 
     .returning();
   return invoice;
 }
+
+/**
+ * Brings a cancelled or no-show booking's invoice down to the money the
+ * resort keeps: what is still paid. An active booking's invoice follows its
+ * price instead (ensureInvoice), so a refund of money paid over the price
+ * credits nothing.
+ */
+export async function alignInvoiceToKept(tx: Tx, bookingId: string, reason: string, userId?: string) {
+  const [booking] = await tx.select().from(bookings).where(eq(bookings.id, bookingId));
+  if (!booking || !["cancelled", "no_show", "refunded"].includes(booking.status)) return null;
+  const open = await openInvoice(tx, bookingId);
+  if (!open || open.openPaise <= booking.paidPaise) return null;
+  return creditInvoice(tx, { invoiceId: open.id, totalPaise: open.openPaise - booking.paidPaise, reason, userId });
+}

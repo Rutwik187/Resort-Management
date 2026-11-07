@@ -18,7 +18,7 @@ import {
 import { nightsOf, todayInIndia } from "./dates";
 import { NotFoundError, RuleError, SoldOutError, TransitionError, isUniqueViolation } from "./errors";
 import { freeHoldStock, subtotalOf, type Quote } from "./holds";
-import { ensureInvoice } from "./invoices";
+import { alignInvoiceToKept, ensureInvoice } from "./invoices";
 import { loadTaxRules, taxQuote } from "./tax";
 import { recordPaymentInTx, type PaymentInput } from "./payments";
 import { headcount } from "./pricing";
@@ -322,6 +322,7 @@ export async function changeBookingStatus(db: Database, input: { bookingId: stri
 
     await tx.update(bookings).set({ status: input.to }).where(eq(bookings.id, booking.id));
     await tx.insert(bookingEvents).values({ propertyId: booking.propertyId, bookingId: booking.id, type: "status", fromStatus: booking.status, toStatus: input.to, userId: input.userId ?? null, note: input.note ?? null });
+    if (input.to === "cancelled" || input.to === "no_show") await alignInvoiceToKept(tx, booking.id, input.to === "cancelled" ? "Booking cancelled." : "Guest did not come.", input.userId);
   });
 }
 
