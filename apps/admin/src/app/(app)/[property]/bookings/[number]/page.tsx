@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRightLeft, CalendarCheck, CalendarRange, CircleAlert, Clock, IndianRupee, Mail, MessageCircle, MessageSquareText, Phone, PencilLine, Sparkles } from "lucide-react";
+import { ArrowRightLeft, CalendarCheck, CalendarRange, CircleAlert, Clock, IndianRupee, Link2, Mail, MessageCircle, MessageSquareText, Phone, PencilLine, Sparkles, Undo2 } from "lucide-react";
 import { can } from "@repo/auth";
 import { getDb } from "@repo/db";
 import { freeUnits, todayInIndia, type Quote } from "@repo/engine";
@@ -9,7 +9,7 @@ import { PersonAvatar } from "@/components/person-avatar";
 import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,6 +17,8 @@ import { loadBooking, type LoadedBooking } from "@/lib/bookings";
 import { balance, clock, longDate, methodLabel, partyLabel, plural, price, rupees, shortDate, sourceLabel, statusLabel, when } from "@/lib/format";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
 import { CancelForm, MoveButton, NoShowButton, NoteForm, PaymentForm, PriceForm, PrintButton, RoomForm } from "./forms";
+import { InvoicesCard, loadMoney, OnlinePaymentRows, RefundsCard, WaitingLinks } from "./money";
+import { PaymentLinkForm } from "./money-forms";
 
 export async function generateMetadata({ params }: PageProps<"/[property]/bookings/[number]">) {
   return { title: (await params).number.toUpperCase() };
@@ -33,6 +35,7 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
   const loaded = await loadBooking(property.id, number);
   if (!loaded) notFound();
   const { booking, guest, items, payments, hold, bands, people } = loaded;
+  const money = await loadMoney(booking);
 
   const may = (permission: Parameters<typeof can>[1]) => can(staff, permission, property.id);
   const today = todayInIndia();
@@ -109,8 +112,13 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
           <div className="px-5 py-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <dt className="text-xs font-medium text-muted-foreground">Total</dt>
+                <dt className="text-xs font-medium text-muted-foreground">Total with GST</dt>
                 <dd className="mt-1 text-lg font-semibold tracking-tight tabular-nums">{price(booking.totalPaise)}</dd>
+                {booking.subtotalPaise !== null && booking.taxPaise !== null && booking.taxPaise > 0 && (
+                  <dd className="text-xs text-muted-foreground tabular-nums">
+                    {rupees(booking.subtotalPaise)} + {rupees(booking.taxPaise)} GST
+                  </dd>
+                )}
               </div>
               <div className="text-right">
                 <dt className="text-xs font-medium text-muted-foreground">To pay</dt>
@@ -127,7 +135,9 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
             >
               <div className="h-full rounded-full bg-chart" style={{ width: `${paidShare * 100}%` }} />
             </dd>
-            <dd className="mt-1.5 text-xs text-muted-foreground tabular-nums">{rupees(booking.paidPaise)} paid</dd>
+            <dd className="mt-1.5 text-xs text-muted-foreground tabular-nums">
+              {rupees(booking.paidPaise)} paid{booking.refundedPaise > 0 ? `, ${rupees(booking.refundedPaise)} refunded` : ""}
+            </dd>
           </div>
         </dl>
       </Card>
@@ -136,7 +146,7 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
         <Alert className="border-good/30 bg-good/5 text-good print:hidden">
           <IndianRupee />
           <AlertTitle>Changed. Refund {rupees(refund)} to the guest</AlertTitle>
-          <AlertDescription className="text-good/90">They have paid more than the new price. Pay it back the way they paid, and note it on the timeline.</AlertDescription>
+          <AlertDescription className="text-good/90">They have paid more than the new price. Use Refund, under Refunds, to send it back.</AlertDescription>
         </Alert>
       )}
 
@@ -145,7 +155,7 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
           <Clock />
           <AlertTitle>{hold.expiresAt > new Date() ? `Held until ${clock(hold.expiresAt)}` : `The hold ran out at ${clock(hold.expiresAt)}`}</AlertTitle>
           <AlertDescription className="text-warn/90">
-            {hold.expiresAt > new Date() ? "Record a payment to keep the rooms or seats." : "The rooms or seats are back on sale. A payment now takes them again if they are still free."}
+            {hold.expiresAt > new Date() ? (booking.source === "website" ? "The guest is paying on the website. The booking confirms itself when they do." : "Record a payment to keep the rooms or seats.") : "The rooms or seats are back on sale. A payment now takes them again if they are still free."}
           </AlertDescription>
         </Alert>
       )}
@@ -208,7 +218,7 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
                     </Link>
                   </Button>
                 )}
-                {may("prices.manage") && booking.status !== "checked_out" && <PriceForm bookingId={booking.id} current={booking.totalPaise === null ? "" : String(booking.totalPaise / 100)} />}
+                {may("prices.manage") && booking.status !== "checked_out" && <PriceForm bookingId={booking.id} current={booking.subtotalPaise === null ? "" : String(booking.subtotalPaise / 100)} />}
                 {may("bookings.cancel") && booking.status !== "checked_in" && <CancelForm bookingId={booking.id} />}
               </CardContent>
             </Card>
@@ -269,10 +279,16 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
             <CardHeader>
               <CardTitle>Payments</CardTitle>
               {quote?.totalPaise !== undefined && booking.totalPaise !== quote?.totalPaise && <CardDescription>The rates gave {price(quote?.totalPaise)}; staff set this price (see the timeline).</CardDescription>}
+              {takesMoney && may("bookings.modify") && money.onlinePayments && left !== null && left > 0 && (
+                <CardAction className="print:hidden">
+                  <PaymentLinkForm bookingId={booking.id} balance={String(left / 100)} />
+                </CardAction>
+              )}
             </CardHeader>
             <CardContent className="grid gap-4">
-              {payments.length === 0 && <p className="text-sm text-muted-foreground">No payments yet.</p>}
-              {payments.length > 0 && (
+              {payments.length === 0 && !money.online.some((p) => p.status === "paid") && <p className="text-sm text-muted-foreground">No payments yet.</p>}
+              <WaitingLinks money={money} />
+              {(payments.length > 0 || money.online.some((p) => p.status === "paid")) && (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -294,12 +310,26 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
                         <TableCell className="text-right font-medium tabular-nums">{rupees(payment.amountPaise)}</TableCell>
                       </TableRow>
                     ))}
+                    <OnlinePaymentRows money={money} />
                   </TableBody>
                 </Table>
               )}
               {takesMoney && may("bookings.modify") && <PaymentForm bookingId={booking.id} suggested={left ? String(left / 100) : ""} />}
             </CardContent>
           </Card>
+
+          <RefundsCard
+            booking={booking}
+            money={money}
+            may={{
+              ask: may("refunds.request") || may("refunds.initiate") || may("refunds.approve"),
+              approve: may("refunds.approve"),
+              retry: may("refunds.initiate") || may("refunds.approve"),
+            }}
+            needsApproval={!may("refunds.approve")}
+          />
+
+          <InvoicesCard code={property.code} money={money} booking={booking} />
 
           <Timeline loaded={loaded} />
         </div>
@@ -318,7 +348,23 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
   );
 }
 
-const eventIcon = { created: Sparkles, status: CalendarCheck, payment: IndianRupee, price_override: PencilLine, unit_assigned: ArrowRightLeft, note: MessageSquareText, changed: CalendarRange } as const;
+const eventIcon = {
+  created: Sparkles,
+  status: CalendarCheck,
+  payment: IndianRupee,
+  price_override: PencilLine,
+  unit_assigned: ArrowRightLeft,
+  note: MessageSquareText,
+  changed: CalendarRange,
+  payment_link: Link2,
+  refund_requested: Undo2,
+  refund_approved: Undo2,
+  refund_rejected: Undo2,
+  refund: Undo2,
+} as const;
+
+/** "razorpay_upi" is a Razorpay payment by UPI. */
+const paidBy = (method: string) => (method.startsWith("razorpay") ? `Razorpay${method.length > 9 ? ` (${method.slice(9)})` : ""}` : (methodLabel[method as keyof typeof methodLabel] ?? "other"));
 
 /** Everything that happened to the booking, newest first. */
 function Timeline({ loaded }: { loaded: LoadedBooking }) {
@@ -332,9 +378,21 @@ function Timeline({ loaded }: { loaded: LoadedBooking }) {
       case "status":
         return `${event.fromStatus ? statusLabel[event.fromStatus] : "New"} to ${event.toStatus ? statusLabel[event.toStatus] : ""}`;
       case "payment":
-        return `Payment of ${rupees(Number(data.amountPaise))} by ${methodLabel[data.method as keyof typeof methodLabel] ?? "other"}${data.reference ? ` (${data.reference})` : ""}`;
+        return `Payment of ${rupees(Number(data.amountPaise))} by ${paidBy(String(data.method ?? "other"))}${data.reference ? ` (${data.reference})` : ""}`;
       case "price_override":
-        return `Price set to ${rupees(Number(data.toPaise))}, from ${price(data.fromPaise as number | null)}`;
+        return data.toSubtotalPaise !== undefined
+          ? `Price set to ${price(data.toSubtotalPaise as number | null)} before GST, ${price(data.toPaise as number | null)} with it`
+          : `Price set to ${rupees(Number(data.toPaise))}, from ${price(data.fromPaise as number | null)}`;
+      case "payment_link":
+        return `Payment link for ${rupees(Number(data.amountPaise))} sent`;
+      case "refund_requested":
+        return `Refund of ${rupees(Number(data.amountPaise))} asked for${data.approved ? " and started" : ""}`;
+      case "refund_approved":
+        return `Refund of ${rupees(Number(data.amountPaise))} approved`;
+      case "refund_rejected":
+        return `Refund of ${rupees(Number(data.amountPaise))} rejected`;
+      case "refund":
+        return `${rupees(Number(data.amountPaise))} refunded${data.reference ? ` (${data.reference})` : ""}`;
       case "unit_assigned":
         return data.from ? `Moved from ${data.from} to ${data.to}` : `Given ${data.to}`;
       case "note":

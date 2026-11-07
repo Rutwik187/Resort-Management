@@ -20,6 +20,10 @@ type Settings = {
   checkOutTime: string;
   holdMinutes: number;
   lowStockThreshold: number;
+  advancePercent: number;
+  refundApprovalPaise: number | null;
+  stateCode: string;
+  stateName: string;
 };
 
 export function SettingsForm({ propertyId, settings }: { propertyId: string; settings: Settings }) {
@@ -51,6 +55,16 @@ export function SettingsForm({ propertyId, settings }: { propertyId: string; set
                 <FieldLabel htmlFor="address">Address</FieldLabel>
                 <Textarea id="address" name="address" rows={3} defaultValue={settings.address ?? ""} />
               </Field>
+              <div className="grid gap-4 sm:grid-cols-[8rem_1fr]">
+                <Field>
+                  <FieldLabel htmlFor="stateCode">State code</FieldLabel>
+                  <Input id="stateCode" name="stateCode" inputMode="numeric" maxLength={2} required defaultValue={settings.stateCode} />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="stateName">State</FieldLabel>
+                  <Input id="stateName" name="stateName" required defaultValue={settings.stateName} />
+                </Field>
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field>
                   <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -96,6 +110,18 @@ export function SettingsForm({ propertyId, settings }: { propertyId: string; set
                 <Input id="lowStockThreshold" name="lowStockThreshold" type="number" min={0} max={50} required defaultValue={settings.lowStockThreshold} />
                 <FieldDescription>The Today page lists a room type when this many rooms or fewer are left for a night (INV-10).</FieldDescription>
               </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="advancePercent">Paid online to book, in %</FieldLabel>
+                  <Input id="advancePercent" name="advancePercent" type="number" min={1} max={100} required defaultValue={settings.advancePercent} />
+                  <FieldDescription>100 takes the whole price on the website. Less leaves a balance for a payment link or the desk.</FieldDescription>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="refundApproval">Refunds without approval, up to ₹</FieldLabel>
+                  <Input id="refundApproval" name="refundApproval" inputMode="decimal" placeholder="Every refund needs approval" defaultValue={settings.refundApprovalPaise === null ? "" : settings.refundApprovalPaise / 100} />
+                  <FieldDescription>Accounts start refunds up to this amount at once. Larger ones wait for a Super Admin.</FieldDescription>
+                </Field>
+              </div>
             </FieldGroup>
           </CardContent>
         </Card>

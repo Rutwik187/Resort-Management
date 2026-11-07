@@ -91,8 +91,9 @@ export function NewBookingForm({
   const [payAmount, setPayAmount] = useState("");
   const [offerId, setOfferId] = useState("none");
   const chosenOffer = offers.find((o) => o.id === offerId);
-  const discount = discountOf(chosenOffer, quote?.totalPaise);
-  const payable = quote?.totalPaise == null ? null : quote.totalPaise - discount;
+  // Offers come off the price before GST; GST is then worked out on what is left.
+  const discount = discountOf(chosenOffer, quote?.subtotalPaise);
+  const payable = quote?.subtotalPaise == null ? null : quote.subtotalPaise - discount;
   const [state, action, pending] = useActionState(createOffline.bind(null, propertyId), undefined);
 
   const noun = kind === "stay" ? "room" : "ticket";
@@ -238,9 +239,23 @@ export function NewBookingForm({
                       ))}
                     </TableBody>
                     <TableFooter>
+                      {quote.subtotalPaise != null && (
+                        <>
+                          <TableRow className="font-normal">
+                            <TableCell>Before GST</TableCell>
+                            <TableCell className="text-right tabular-nums">{price(quote.subtotalPaise)}</TableCell>
+                          </TableRow>
+                          {(quote.tax ?? []).map((part) => (
+                            <TableRow key={part.rateBps} className="font-normal text-muted-foreground">
+                              <TableCell>GST at {part.rateBps / 100}%</TableCell>
+                              <TableCell className="text-right tabular-nums">{rupees(part.taxPaise)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </>
+                      )}
                       <TableRow>
-                        <TableCell className="font-semibold">Total</TableCell>
-                        <TableCell className="text-right font-semibold tabular-nums">{price(quote.totalPaise)}</TableCell>
+                        <TableCell className="font-semibold">Total with GST</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">{quote.subtotalPaise != null && quote.totalPaise == null ? "GST rule missing" : price(quote.totalPaise)}</TableCell>
                       </TableRow>
                     </TableFooter>
                   </Table>
@@ -341,9 +356,9 @@ export function NewBookingForm({
                       <FieldDescription className={discount ? "font-medium text-good" : undefined}>
                         {chosenOffer.discountKind === "none"
                           ? "It takes nothing off by itself: the team applies it, and it is noted on the booking."
-                          : quote?.totalPaise == null
+                          : quote?.subtotalPaise == null
                             ? "Check the price to see what it saves."
-                            : `Saves ${rupees(discount)}: ${rupees(payable!)} instead of ${rupees(quote.totalPaise)}.`}
+                            : `Saves ${rupees(discount)} before GST: ${rupees(payable!)} instead of ${rupees(quote.subtotalPaise)}, plus GST.`}
                       </FieldDescription>
                     )}
                   </Field>
@@ -356,7 +371,7 @@ export function NewBookingForm({
                     </div>
                     {override && (
                       <div className="grid gap-3">
-                        <Input name="overridePrice" required inputMode="decimal" aria-label="Price for the whole booking, in rupees" placeholder="Price for the whole booking (₹)" />
+                        <Input name="overridePrice" required inputMode="decimal" aria-label="Price for the whole booking before GST, in rupees" placeholder="Price for the whole booking before GST (₹)" />
                         <Input name="overrideReason" required minLength={3} aria-label="Why the price is different" placeholder="Why, such as an agent rate" />
                       </div>
                     )}

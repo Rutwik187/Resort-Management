@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb, leadActivities, leads, offers, properties } from "@repo/db";
-import { createBooking, holdSeats, holdStay, nightsOf, offerDiscount, offerProblem, quoteSeats, quoteStay, releaseHold, type Quote } from "@repo/engine";
+import { createBooking, holdSeats, holdStay, nightsOf, offerDiscount, offerProblem, quoteSeats, quoteStay, releaseHold, subtotalOf, type Quote } from "@repo/engine";
 import { offlineSources } from "@/lib/format";
 import { checkbox, date, filled, problem, rupeesField, type FormState } from "@/lib/forms";
 import { audit, requirePermission } from "@/lib/staff";
@@ -30,6 +30,11 @@ export type BookingRequest = z.input<typeof request>;
 export type QuoteView = {
   error?: string;
   lines?: { name: string; totalPaise: number | null; nights: { night: string; paise: number | null; source: string }[] }[];
+  /** Before GST. */
+  subtotalPaise?: number | null;
+  taxPaise?: number | null;
+  tax?: { label: string; rateBps: number; taxPaise: number }[];
+  /** With GST. */
   totalPaise?: number | null;
 };
 
@@ -39,6 +44,9 @@ const asView = (quote: Quote): QuoteView => ({
       ? { name: line.roomTypeName, totalPaise: line.totalPaise, nights: line.nights }
       : { name: `${line.offeringName}, ${line.slotLabel}`, totalPaise: line.totalPaise, nights: [] },
   ),
+  subtotalPaise: subtotalOf(quote),
+  taxPaise: quote.taxPaise ?? null,
+  tax: (quote.tax ?? []).map((part) => ({ label: part.label, rateBps: part.rateBps, taxPaise: part.taxPaise })),
   totalPaise: quote.totalPaise,
 });
 
@@ -124,14 +132,15 @@ export async function createOffline(propertyId: string, _state: FormState, form:
         : await holdSeats(db, { propertyId, day: input.day, seats: input.lines.map(({ id, adults, children }) => ({ slotId: id, party: { adults, children } })) });
 
     const offerName = offer ? `Offer: ${offer.title}${offer.code ? ` (${offer.code})` : ""}` : null;
-    if (offer && offer.discountKind !== "none" && hold.quote.totalPaise === null) {
+    const subtotal = subtotalOf(hold.quote);
+    if (offer && offer.discountKind !== "none" && subtotal === null) {
       await releaseHold(db, hold.holdId);
       return { error: "This booking has no price yet, so the offer has nothing to take off. Book without it and set the price on the booking." };
     }
     const priceOverride = guest.override
-      ? { totalPaise: guest.overridePrice!, reason: guest.overrideReason! }
+      ? { subtotalPaise: guest.overridePrice!, reason: guest.overrideReason! }
       : offer && offer.discountKind !== "none"
-        ? { totalPaise: hold.quote.totalPaise! - offerDiscount(offer, hold.quote.totalPaise!), reason: offerName! }
+        ? { subtotalPaise: subtotal! - offerDiscount(offer, subtotal!), reason: offerName! }
         : undefined;
     const payment = guest.payMethod ? { method: guest.payMethod, amountPaise: guest.payAmount!, reference: guest.payReference } : undefined;
     let made: { bookingId: string; number: string };

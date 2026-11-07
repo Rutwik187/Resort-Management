@@ -88,10 +88,10 @@ export async function changePrice(bookingId: string, _state: FormState, form: Fo
     const booking = await bookingOf(bookingId);
     const staff = await requirePermission("prices.manage", booking.propertyId);
     const { amount, reason } = priceInput.parse(filled(form));
-    await setBookingPrice(getDb(), { bookingId, totalPaise: amount, reason, userId: staff.userId });
-    await audit({ userId: staff.userId, propertyId: booking.propertyId, action: "booking.price", entity: "bookings", entityId: bookingId, before: { totalPaise: booking.totalPaise }, after: { totalPaise: amount, reason } });
+    await setBookingPrice(getDb(), { bookingId, subtotalPaise: amount, reason, userId: staff.userId });
+    await audit({ userId: staff.userId, propertyId: booking.propertyId, action: "booking.price", entity: "bookings", entityId: bookingId, before: { totalPaise: booking.totalPaise }, after: { subtotalPaise: amount, reason } });
     refresh();
-    return { done: `The price is now ${rupees(amount)}.` };
+    return { done: `The price before GST is now ${rupees(amount)}.` };
   } catch (error) {
     return problem(error, "Only roles that manage prices can set a price.");
   }

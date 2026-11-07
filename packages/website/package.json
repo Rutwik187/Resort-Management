@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./leads": "./src/leads.ts",
-    "./notice": "./src/notice.tsx"
+    "./notice": "./src/notice.tsx",
+    "./invoice": "./src/invoice.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

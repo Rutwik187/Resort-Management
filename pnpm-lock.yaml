@@ -190,6 +190,9 @@ importers:
       '@repo/sites':
         specifier: workspace:*
         version: link:../../packages/sites
+      '@repo/website':
+        specifier: workspace:*
+        version: link:../../packages/website
       '@sanity/webhook':
         specifier: ^4.0.4
         version: 4.0.4
