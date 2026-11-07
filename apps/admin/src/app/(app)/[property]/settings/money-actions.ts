@@ -7,6 +7,7 @@ import { cancellationRules, getDb, taxRules } from "@repo/db";
 import { savePaymentAccount } from "@repo/engine";
 import { checkbox, date, filled, problem, rupeesField, wholeNumber, type FormState } from "@/lib/forms";
 import { audit, requirePermission } from "@/lib/staff";
+import { websiteChanged } from "@/lib/website";
 
 const forbidden = "Only a Super Admin can change payments, GST and cancellation rules.";
 
@@ -21,6 +22,8 @@ export async function savePayments(propertyId: string, _state: FormState, form: 
     await savePaymentAccount(getDb(), { propertyId, ...input, userId: staff.userId });
     // Never the secrets themselves.
     await audit({ userId: staff.userId, propertyId, action: "payments.keys", entity: "payment_accounts", entityId: propertyId, after: { keyId: input.keyId, active: input.active, secretChanged: Boolean(input.keySecret), webhookChanged: Boolean(input.webhookSecret) } });
+    // The website shows Book and pay once the resort has keys, so it refreshes now.
+    websiteChanged(propertyId);
     refresh();
     return { done: "Payment keys saved." };
   } catch (error) {
