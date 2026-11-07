@@ -44,7 +44,9 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
   const refund = Math.max(0, Number(Array.isArray(refundParam) ? refundParam[0] : refundParam) || 0);
   const due = booking.checkIn ?? booking.visitDate;
   const arrived = due !== null && today >= due;
-  const left = balance(booking);
+  // A closed booking owes nothing, whatever its price was.
+  const closed = ["cancelled", "refunded", "expired", "no_show"].includes(booking.status);
+  const left = closed ? 0 : balance(booking);
   const quote = booking.quote as Quote | null;
   const roomsBooked = booking.status === "confirmed" || booking.status === "part_paid";
   const takesMoney = ["pending_payment", "part_paid", "confirmed", "checked_in", "checked_out"].includes(booking.status) && left !== 0;
@@ -122,7 +124,7 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
               </div>
               <div className="text-right">
                 <dt className="text-xs font-medium text-muted-foreground">To pay</dt>
-                <dd className={`mt-1 text-lg font-semibold tracking-tight tabular-nums ${left ? "text-warn" : ""}`}>{left === null ? "Price to set" : left === 0 ? "Paid" : rupees(left)}</dd>
+                <dd className={`mt-1 text-lg font-semibold tracking-tight tabular-nums ${left ? "text-warn" : ""}`}>{closed ? "Nothing" : left === null ? "Price to set" : left === 0 ? "Paid" : rupees(left)}</dd>
               </div>
             </div>
             <dd

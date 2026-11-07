@@ -95,7 +95,9 @@ export function RefundsCard({ booking, money, may, needsApproval }: { booking: B
             ? `Cancellation rules: ${money.suggestion.rule.toLowerCase()} (${money.suggestion.daysBefore >= 0 ? `${money.suggestion.daysBefore} days before arrival today` : "after arrival"}), ${rupees(money.suggestion.amountPaise)} of ${rupees(booking.paidPaise)} paid.`
             : booking.paidPaise > 0
               ? "This resort has no cancellation rules, so staff decide the refund."
-              : "Nothing is paid, so nothing can go back."}
+              : booking.refundedPaise > 0
+                ? `Everything paid, ${rupees(booking.refundedPaise)}, has gone back to the guest.`
+                : "Nothing is paid, so nothing can go back."}
         </CardDescription>
         {may.ask && money.refundable > 0 && (
           <CardAction>
