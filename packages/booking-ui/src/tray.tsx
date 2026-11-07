@@ -4,17 +4,21 @@ import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } fr
 import { plural } from "./dates";
 import { FieldError, contactErrors, type ContactErrors } from "./form-fields";
 import { formatRupees } from "./pricing";
+import type { OnlineBooking, OnlineChoice, OnlineGuest, OnlineStarted } from "./online";
+import { OnlineDetails, OnlineReview, emptyOnlineGuest } from "./online-steps";
 import { openWhatsApp, type GuestDetails, type RequestLine } from "./request";
 import { Sheet } from "./sheet";
 import type { Desk } from "./types";
 
-type Step = "pick" | "details" | "sent";
+type Step = "pick" | "details" | "review" | "sent";
 
 /** The tray's step and the guest's details, shared by the side tray and the phone sheet. */
 export function useCheckout() {
   const [step, setStep] = useState<Step>("pick");
   const [guest, setGuest] = useState<GuestDetails>({ name: "", phone: "", note: "" });
-  return { step, setStep, guest, setGuest };
+  const [onlineGuest, setOnlineGuest] = useState<OnlineGuest>(emptyOnlineGuest);
+  const [started, setStarted] = useState<OnlineStarted | null>(null);
+  return { step, setStep, guest, setGuest, onlineGuest, setOnlineGuest, started, setStarted };
 }
 
 export type Checkout = ReturnType<typeof useCheckout>;
@@ -46,6 +50,10 @@ type TrayProps = {
   /** Called once the request goes to WhatsApp, so the site can keep it too. */
   onSend?: (guest: GuestDetails) => void;
   checkout: Checkout;
+  /** The site's actions for booking and paying online. Without them, the request goes on WhatsApp. */
+  online?: OnlineBooking;
+  /** The guest's choice by listing codes, for booking online. */
+  choice?: () => OnlineChoice | null;
 };
 
 const field =
@@ -56,7 +64,7 @@ const field =
  * places still to fill, the estimate, and the way to send it. Then the
  * guest's details, and the request goes to the resort on WhatsApp.
  */
-export function Tray({ heading, when, lines, emptySlots, emptyNote, onRemove, onEdit, fresh, coverage, total, pending = false, notes = [], blocker, desk, message, onSend, checkout }: TrayProps) {
+export function Tray({ heading, when, lines, emptySlots, emptyNote, onRemove, onEdit, fresh, coverage, total, pending = false, notes = [], blocker, desk, message, onSend, checkout, online, choice }: TrayProps) {
   const id = useId();
   const { step, setStep, guest, setGuest } = checkout;
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -85,6 +93,34 @@ export function Tray({ heading, when, lines, emptySlots, emptyNote, onRemove, on
     openWhatsApp(desk.whatsapp.number, message(guest));
     go("sent");
     onSend?.(guest);
+  }
+
+  if (online && choice && step === "review" && checkout.started) {
+    return <OnlineReview headingRef={headingRef} started={checkout.started} guest={checkout.onlineGuest} online={online} onBack={() => go("details")} />;
+  }
+
+  if (online && choice && (step === "details" || step === "review")) {
+    return (
+      <OnlineDetails
+        headingRef={headingRef}
+        guest={checkout.onlineGuest}
+        setGuest={checkout.setOnlineGuest}
+        online={online}
+        choice={choice}
+        onBack={() => go("pick")}
+        onStarted={(started) => {
+          checkout.setStarted(started);
+          go("review");
+        }}
+        onWhatsApp={() => {
+          const details = { name: checkout.onlineGuest.name, phone: checkout.onlineGuest.phone, note: checkout.onlineGuest.note };
+          setGuest(details);
+          openWhatsApp(desk.whatsapp.number, message(details));
+          go("sent");
+          onSend?.(details);
+        }}
+      />
+    );
   }
 
   if (step === "sent") {
@@ -254,7 +290,7 @@ export function Tray({ heading, when, lines, emptySlots, emptyNote, onRemove, on
           <span className="text-[0.92rem] text-bk-muted">Estimate</span>
           <span className="text-right">
             <span className="bk-display block text-[1.75rem] leading-none tabular-nums">{total === null ? "To confirm" : formatRupees(total)}</span>
-            <span className="mt-1 block text-[0.78rem] text-bk-muted">{total === null ? "Some rates are quoted by our team" : "Plus GST"}</span>
+            <span className="mt-1 block text-[0.78rem] text-bk-muted">{total === null ? "Some rates are quoted by our team" : online ? "Plus GST, shown before you pay" : "Plus GST"}</span>
           </span>
         </div>
       )}

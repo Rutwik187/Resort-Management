@@ -258,11 +258,18 @@ export async function handleRazorpayWebhook(db: Database, input: { propertyCode:
  * back is applied; orders left unpaid for two days are closed. Refunds in
  * progress are checked too. Safe to run twice.
  */
-export async function recheckOnlinePayments(db: Database, limit = 50) {
+export async function recheckOnlinePayments(db: Database, options: { bookingId?: string; limit?: number } = {}) {
+  const limit = options.limit ?? 50;
   const waiting = await db
     .select()
     .from(onlinePayments)
-    .where(and(eq(onlinePayments.status, "created"), gte(onlinePayments.createdAt, sql`now() - interval '8 days'`)))
+    .where(
+      and(
+        eq(onlinePayments.status, "created"),
+        gte(onlinePayments.createdAt, sql`now() - interval '8 days'`),
+        options.bookingId ? eq(onlinePayments.bookingId, options.bookingId) : undefined,
+      ),
+    )
     .orderBy(desc(onlinePayments.createdAt))
     .limit(limit);
   let applied = 0;
@@ -298,7 +305,11 @@ export async function recheckOnlinePayments(db: Database, limit = 50) {
   }
 
   // Refunds sent to Razorpay and not yet processed, and ones that never reached it.
-  const pending = await db.select().from(refunds).where(and(eq(refunds.status, "processing"))).limit(limit);
+  const pending = await db
+    .select()
+    .from(refunds)
+    .where(and(eq(refunds.status, "processing"), options.bookingId ? eq(refunds.bookingId, options.bookingId) : undefined))
+    .limit(limit);
   for (const refund of pending) {
     try {
       if (!refund.providerRefundId) {

@@ -16,6 +16,7 @@ import { newKey } from "./saved";
 import { Sheet } from "./sheet";
 import { Steps } from "./steps";
 import { useSessionValue } from "./store";
+import type { OnlineBooking } from "./online";
 import { Tray, TrayDock, useCheckout } from "./tray";
 import type { Desk, Party, Pass } from "./types";
 
@@ -29,6 +30,8 @@ type DayPlannerProps = {
   noun?: string;
   /** Keeps each sent request, such as a server action that saves it as a lead. Its failure never stops the guest. */
   onRequest?: (request: WebsiteRequest) => Promise<unknown> | void;
+  /** The site's actions for booking and paying online. Without them, requests go on WhatsApp. */
+  online?: OnlineBooking;
 };
 
 type PickedPass = { key: string; passId: string; party: Party };
@@ -53,7 +56,7 @@ const dateFromAddress = () => {
  * Day visits, the same way as rooms: choose the date, add a pass and say
  * who is coming, then add other passes. The tray keeps the total.
  */
-export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day pass", onRequest }: DayPlannerProps) {
+export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day pass", onRequest, online }: DayPlannerProps) {
   const byId = new Map(passes.map((pass) => [pass.id, pass]));
   const today = useToday();
   const [announcement, setAnnouncement] = useState("");
@@ -178,6 +181,8 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
       blocker={blocker}
       desk={desk}
       checkout={checkout}
+      online={online && total !== null ? online : undefined}
+      choice={() => (!date || picked.length === 0 ? null : { kind: "day", date, passes: picked.map((item) => ({ code: item.passId, party: item.party })) })}
       onSend={(guest) => keep(onRequest, { kind: "day", from: date, guests: people, lines: lines.map(({ title, detail, amount }) => ({ title, detail, amount })), total, guest })}
       message={(guest) =>
         requestMessage({ desk, opening: `I would like to book ${pluralOf(noun)} for a day visit.`, when: [`Date: ${formatDay(date)}`], lines, total, guest })
@@ -193,7 +198,7 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
         steps={[
           { label: "Choose the date", done: Boolean(date) },
           { label: `Add ${pluralOf(noun)} and guests`, done: picked.length > 0 },
-          { label: "Send the request on WhatsApp", done: checkout.step === "sent" },
+          online && total !== null ? { label: "Pay and book", done: false } : { label: "Send the request on WhatsApp", done: checkout.step === "sent" },
         ]}
       />
 

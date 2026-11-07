@@ -180,6 +180,8 @@ export async function bookingForGuest(db: Database, token: string) {
     .where(eq(invoices.bookingId, booking.id))
     .orderBy(asc(invoices.createdAt));
   return {
+    /** For server code only; the page shows the number. */
+    id: booking.id,
     number: booking.number,
     status: booking.status,
     checkIn: booking.checkIn,

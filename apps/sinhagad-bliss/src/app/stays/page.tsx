@@ -2,6 +2,7 @@ import Link from "next/link";
 import { StayPlanner } from "@repo/booking-ui";
 import { liveNotes, liveStayGroups } from "@repo/website";
 import { sendBookingRequest } from "@/app/actions";
+import { onlineBooking } from "@/app/online";
 import { desk, stayGroups, stayNotes } from "@/content/booking";
 import { amenities, contact, coupleGuests } from "@/content/resort";
 import type { PhotoKey } from "@/content/photos";
@@ -33,6 +34,7 @@ export default async function StaysPage() {
   // Rooms, rates and text from the admin; the site's own content if the database is out of reach.
   const groups = await liveStayGroups("SB", stayGroups);
   const notes = await liveNotes("SB", "stay", stayNotes);
+  const online = await onlineBooking();
   return (
     <PageTransition>
       <div className="bg-mist">
@@ -50,7 +52,7 @@ export default async function StaysPage() {
         </header>
 
         <div className="mx-auto max-w-[1560px] px-5 pb-24 pt-10 md:px-10 md:pb-32">
-          <StayPlanner groups={groups} onRequest={sendBookingRequest} desk={desk} storageKey="sb" path="/stays" notes={notes} />
+          <StayPlanner groups={groups} onRequest={sendBookingRequest} desk={desk} storageKey="sb" path="/stays" notes={notes} online={online} />
           <p className="mt-16 max-w-2xl text-[0.95rem] text-slate">
             Planning a wedding or an event?{" "}
             <Link href="/celebrations" className="text-ink underline underline-offset-4">

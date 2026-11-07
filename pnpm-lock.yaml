@@ -754,6 +754,9 @@ importers:
       '@repo/sites':
         specifier: workspace:*
         version: link:../sites
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(@types/pg@8.23.1)(kysely@0.29.8)(pg@8.23.1)
       server-only:
         specifier: ^0.0.1
         version: 0.0.1

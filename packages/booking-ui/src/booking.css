@@ -29,6 +29,8 @@
 
 /* Tailwind must see the widget's classes, which live outside the site's folder. */
 @source "./";
+/* The guest's booking page lives in packages/website and uses the same tokens. */
+@source "../../website/src/";
 
 @theme inline {
   --color-bk-page: var(--bk-page);

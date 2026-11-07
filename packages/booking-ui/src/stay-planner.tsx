@@ -14,6 +14,7 @@ import { SearchBar, defaultSearch } from "./search-bar";
 import { Sheet } from "./sheet";
 import { Steps } from "./steps";
 import { useSessionValue } from "./store";
+import type { OnlineBooking } from "./online";
 import { Tray, TrayDock, useCheckout } from "./tray";
 import type { Desk, Listing, ListingGroup, Party, Picked, StaySearch } from "./types";
 
@@ -36,6 +37,8 @@ type StayPlannerProps = {
   imageSizes?: string;
   /** Keeps each sent request, such as a server action that saves it as a lead. Its failure never stops the guest. */
   onRequest?: (request: WebsiteRequest) => Promise<unknown> | void;
+  /** The site's actions for booking and paying online. Without them, requests go on WhatsApp. */
+  online?: OnlineBooking;
 };
 
 /**
@@ -44,7 +47,7 @@ type StayPlannerProps = {
  * rooms of any type. The tray keeps the rooms, the guests still to place
  * and the estimate, and sends the request.
  */
-export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageSizes, onRequest }: StayPlannerProps) {
+export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageSizes, onRequest, online }: StayPlannerProps) {
   const listings = groups.flatMap((group) => group.listings);
   const byId = new Map(listings.map((listing) => [listing.id, listing]));
   const navItems = useMemo(() => groups.flatMap((group) => group.listings.map((listing) => ({ id: listing.id, label: listing.name }))), [groups]);
@@ -176,6 +179,8 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
       blocker={blocker}
       desk={desk}
       checkout={checkout}
+      online={online && total !== null ? online : undefined}
+      choice={() => (pending || picked.length === 0 ? null : { kind: "stay", checkIn: search.checkIn, checkOut: search.checkOut, rooms: picked.map((item) => ({ code: item.listingId, party: item.party })) })}
       onSend={(guest) =>
         keep(onRequest, {
           kind: "stay",
@@ -221,7 +226,7 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
           steps={[
             { label: "Choose dates", done: !pending },
             { label: "Add rooms and guests", done: picked.length > 0 && placed >= wanted },
-            { label: "Send the request on WhatsApp", done: checkout.step === "sent" },
+            online && total !== null ? { label: "Pay and book", done: false } : { label: "Send the request on WhatsApp", done: checkout.step === "sent" },
           ]}
         />
         <SearchBar action={path} value={search} onSearch={applySearch} className="mt-4" />
