@@ -15,6 +15,7 @@
     "@repo/engine": "workspace:*",
     "@repo/sanity": "workspace:*",
     "@repo/sites": "workspace:*",
+    "@repo/website": "workspace:*",
     "@sanity/webhook": "^4.0.4",
     "better-auth": "1.7.15",
     "class-variance-authority": "^0.7.1",

@@ -15,7 +15,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { offerings, offeringSlots, roomTypes, units } from "./catalogue";
+import { addons, offerings, offeringSlots, roomTypes, units } from "./catalogue";
 import { createdBy, timestamps } from "./common";
 import { properties } from "./properties";
 
@@ -32,10 +32,13 @@ export const bookingStatus = pgEnum("booking_status", [
   "expired",
 ]);
 export const bookingSource = pgEnum("booking_source", ["website", "admin", "phone", "walk_in", "whatsapp", "email", "travel_agent", "corporate", "other"]);
-export const bookingItemKind = pgEnum("booking_item_kind", ["stay", "offering"]);
+export const bookingItemKind = pgEnum("booking_item_kind", ["stay", "offering", "addon"]);
 
 /** Who is coming, by age band code: { adults: 2, children: { child: 1, infant: 1 } }. */
 export type PartyJson = { adults: number; children: Record<string, number> };
+
+/** The terms the guest accepted, by version, and whether they want offers. */
+export type ConsentJson = { termsVersion: string; marketing: boolean; at: string; ip?: string | null };
 
 /** A person who booked. Profiles merge by phone and email later (ADM-09). */
 export const guests = pgTable(
@@ -75,9 +78,19 @@ export const bookings = pgTable(
     checkIn: date({ mode: "string" }),
     checkOut: date({ mode: "string" }),
     visitDate: date({ mode: "string" }),
-    /** Everything the guest pays, before any refund. Null while a rate is still to be confirmed. */
+    /** Everything the guest pays, GST included, before any refund. Null while a rate is still to be confirmed. */
     totalPaise: bigint({ mode: "number" }),
+    /** The price before GST, after any offer or price set by staff. */
+    subtotalPaise: bigint({ mode: "number" }),
+    /** The GST in the total. */
+    taxPaise: bigint({ mode: "number" }),
+    /** Money received, less refunds paid. */
     paidPaise: bigint({ mode: "number" }).notNull().default(0),
+    refundedPaise: bigint({ mode: "number" }).notNull().default(0),
+    /** The SHA-256 of the guest's private manage-booking link. */
+    manageTokenHash: text().unique(),
+    /** What the guest agreed to on the website, and when. */
+    consent: jsonb().$type<ConsentJson>(),
     /** The quote the price came from, kept as it was (PR-08). */
     quote: jsonb(),
     notes: text(),
@@ -111,6 +124,10 @@ export const bookingItems = pgTable(
     unitId: uuid().references(() => units.id),
     offeringId: uuid().references(() => offerings.id),
     slotId: uuid().references(() => offeringSlots.id),
+    addonId: uuid().references(() => addons.id),
+    /** Units, people or rooms for an add-on. One for rooms and tickets. */
+    quantity: smallint().notNull().default(1),
+    /** Who is coming. An add-on's is empty. */
     party: jsonb().$type<PartyJson>().notNull(),
     extraBeds: smallint().notNull().default(0),
     /** Null while the rate is to be confirmed by the team. */
@@ -122,8 +139,10 @@ export const bookingItems = pgTable(
     index().on(t.bookingId),
     check(
       "booking_items_kind",
-      sql`(${t.kind} = 'stay' and ${t.roomTypeId} is not null and ${t.offeringId} is null)
-        or (${t.kind} = 'offering' and ${t.offeringId} is not null and ${t.slotId} is not null and ${t.roomTypeId} is null)`,
+      // Compared as text: Postgres can't use an enum value in the transaction that adds it.
+      sql`(${t.kind}::text = 'stay' and ${t.roomTypeId} is not null and ${t.offeringId} is null and ${t.addonId} is null)
+        or (${t.kind}::text = 'offering' and ${t.offeringId} is not null and ${t.slotId} is not null and ${t.roomTypeId} is null and ${t.addonId} is null)
+        or (${t.kind}::text = 'addon' and ${t.addonId} is not null and ${t.roomTypeId} is null and ${t.offeringId} is null and ${t.quantity} >= 1)`,
     ),
   ],
 );

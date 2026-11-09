@@ -41,6 +41,13 @@
 | 6 November 2026 | Guests (ADM-09, ADM-10). A guest is every booking with the same phone, or the same email when there is no phone. Each guest has their bookings at the resorts a person works at, what they spent, the nights they stayed, their leads, tags, a note, and whether they agreed to hear about offers (`guest_profiles`). On a guest's request, under India's data protection law (the DPDP Act), a Super Admin downloads their data or removes their personal details. The bookings stay, without them |
 | 6 November 2026 | Changing a stay (BK-06). Staff change a booking's dates, rooms and guests. The engine frees the old nights and takes the new ones in one transaction, so a change can never double-book. The new price shows before saving, with the amount to collect or to refund. A checked-in stay keeps its check-in. Each change goes on the timeline with its reason |
 | 6 November 2026 | The admin's Website page (section 9: Website), for each resort. It shows the website's connection with a Refresh now button (moved from Settings), the website's notices, and what its Stays and Day packages pages and its offers show from the admin. A notice, such as "The pool is closed for cleaning on 12 November", shows in a small card at the foot of every page, from its first day to its last, one at a time. Guests can close it, and their browser remembers. Notices (`site_notices`) take the place of the pop-ups and the announcement bar. A new permission, `website.manage`, opens the page; the Super Admin and Property Manager roles have it |
+| 7 November 2026 | GST and invoices (PR-07). GST rules are rows per resort (`tax_rules`), from a start date, by kind and by price band; rooms are taxed per room per night, so one stay can mix 5% and 18%. Migration 0008 seeds the rates in force since 22 September 2025, for the chartered accountant to confirm. Quotes carry the price before GST, the GST and the total; offers and prices set by staff are before GST. A booking gets a numbered GST invoice per company and financial year (KS/2627/000001) when it is first paid or confirmed; a price change credits it and issues a new one; a refund credits what goes back (KS/CN/2627/00001). Cancellation rules per resort (`cancellation_rules`) suggest each refund |
+| 7 November 2026 | Payments through Razorpay (section 6). Each resort's keys are saved in the admin's Settings, encrypted with `PAYMENT_KEYS_SECRET`; until then a resort uses the shared test account in `RAZORPAY_KEY_ID`. Website checkout, signature checks, capture, payment links, signed webhooks at `/api/webhooks/razorpay/<CODE>` (each event once), a recheck of payments whose answer was lost, refunds with approval above the resort's limit, and late payments (rooms kept when still free, refunded when not). Checked end to end with Razorpay test mode: a booking paid by test netbanking, then cancelled and refunded |
+| 7 November 2026 | Booking on the websites (section 10, steps 4 to 8). When a resort takes payments, the tray asks for the guest's details, an optional company GSTIN, and consent to the terms (versioned) and to offers; the engine holds and prices the choice; the guest reviews the price with GST, the advance due now and the time left, and pays in Razorpay's checkout. The guest's private page at `/booking?ref=<token>` shows the booking, payments, invoices and a button to pay any balance. Unpaid website bookings become leads when their hold runs out. A rate to confirm, or a resort without keys, still sends the request on WhatsApp |
+| 7 November 2026 | Email through an outbox (section 8, `messages`). Confirmations are written with the booking and released by its payment; refunds and booking links queue their own email. Sent through Resend once `RESEND_API_KEY` and `EMAIL_FROM_ADDRESS` are set; until then they wait. The admin's `/api/cron` ends holds, rechecks payments and sends email, once a day on Vercel's Hobby plan |
+| 9 November 2026 | Add-ons (PR-06). An add-on (`addons`) is priced before GST per unit, per person or per night, sold with stays, day visits or both, with a most-per-booking and a choice of showing it on the website. Staff manage them under Packages, and add them to bookings made at the desk. Guests add them in the website tray before paying (booking step 3). Each becomes its own quote line and booking item, taxed by the resort's add-on GST rule, and shows on the review step, the guest's page, the invoice and the email. A stay change keeps its add-ons at the agreed price. Migration 0010. Checked end to end with a Razorpay test payment |
+| 9 November 2026 | Sold-out rooms and full passes show in the website lists (booking step 2). Each site reads live free rooms or places left when the guest picks dates, never cached. A sold-out room stays in the list, marked, and can't be added; one running low says how many are left; the tray stops a saved choice that has since sold out. Room types with no rooms entered and passes with no seats set report nothing, so they never look sold out |
+| 9 November 2026 | Migrations 0008, 0009 and 0010 reached the Neon production database. A migration run meant for the local database read the Neon address from `.env.local`. All three only add tables, columns and rows; Neon had no bookings, and the live admin and sites kept working |
 
 ## Architecture
 
@@ -317,6 +324,10 @@ The result is saved with the hold as a quote. The amount sent to Razorpay comes 
   - `payment_link.paid`
 - Each event is saved once, keyed by account and event ID, so a repeated event changes nothing.
 
+### Built on 7 November 2026
+
+The engine's `online.ts` and `refunds.ts`, with the admin's Settings and booking pages. Not built yet: settlements (needs the client's live accounts) and the per-resort live keys themselves. With Vercel on Hobby, the recheck runs once a day from cron, and also whenever a guest waits on their booking page; the plan's 15-minute batches need Pro.
+
 ### Other payment work
 
 - **Pending orders.** A job rechecks them every 15 minutes in the day and every hour at night.
@@ -372,6 +383,7 @@ At launch, only staff sign in, and only in the admin app.
 - **Delivery status.** Resend's signed webhooks report each message as delivered, bounced, complained or failed. We record each report in `message_log`.
 - **Invoices.** The invoice PDF is attached to the confirmation email.
 - **WhatsApp and SMS** use the same outbox, through adapters. We submit their message templates in week 1.
+- **Built on 7 November 2026:** the outbox table (`messages`), email through Resend's API with the message id as the idempotency key, and confirmation, refund and booking-link emails in a plain branded layout. Waiting for: a Resend account with the four sending domains verified, staff-editable templates, delivery webhooks, invoice PDFs as attachments (the email links to the invoice page instead), and WhatsApp and SMS once providers are chosen.
 
 ## 9. Admin dashboard
 
@@ -414,7 +426,7 @@ The dashboard works on tablets and phones. One search box finds booking numbers,
 7. Confirmation.
 8. Manage the booking later through the private link.
 
-Today `packages/booking-ui` runs steps 1 to 3 on all four sites, without add-ons or sold-out states, and asks only for the guest's name, phone and a note. It ends in a WhatsApp request. Availability, consent, the GSTIN and steps 5 to 8 arrive with the engine and Razorpay, through server actions that each site passes to the widget.
+Since 7 November 2026 all eight steps run on each site whose resort takes payments, through server actions each site passes to the widget (`packages/website/src/booking.ts`). Since 9 November, add-ons (step 3) and live sold-out states in the lists (step 2) too.
 
 ### Forms, search and tracking
 

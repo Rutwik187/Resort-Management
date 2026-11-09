@@ -14,11 +14,13 @@ import {
   type Database,
   type Executor,
 } from "@repo/db";
+import { addonQuantityWords, priceAddons, type AddonQuoteLine, type AddonRequest } from "./addons";
 import { freeUnits, stayRuleProblem } from "./availability";
 import { loadBands, loadRoomPricing } from "./catalogue";
 import { isDate, nightsOf } from "./dates";
 import { NotFoundError, RuleError, SoldOutError, isCheckViolation, isUniqueViolation } from "./errors";
 import { headcount, payingGuests, priceOffering, priceStay, type NightPrice, type Party } from "./pricing";
+import { loadTaxRules, taxQuote, type TaxPart } from "./tax";
 
 /*
  * Holds keep rooms or seats for a guest while they pay (INV-03). Each hold
@@ -30,7 +32,9 @@ import { headcount, payingGuests, priceOffering, priceStay, type NightPrice, typ
  */
 
 export type StayRequest = { roomTypeId: string; party: Party; extraBeds?: number };
-export type StayInput = { propertyId: string; checkIn: string; checkOut: string; rooms: StayRequest[]; minutes?: number };
+/** Add-ons chosen with a hold. "website" lets only add-ons shown on the website through. */
+type WithAddons = { addons?: AddonRequest[]; website?: boolean };
+export type StayInput = { propertyId: string; checkIn: string; checkOut: string; rooms: StayRequest[]; minutes?: number } & WithAddons;
 
 export type StayQuoteLine = {
   kind: "stay";
@@ -55,16 +59,41 @@ export type OfferingQuoteLine = {
   totalPaise: number | null;
 };
 
+export type QuoteLine = StayQuoteLine | OfferingQuoteLine | AddonQuoteLine;
+
+/** A quote line in words, such as "Deluxe Room", "Day picnic, Morning" or "BBQ dinner (4 people)". */
+export function lineTitle(line: QuoteLine) {
+  if (line.kind === "stay") return line.roomTypeName;
+  if (line.kind === "offering") return `${line.offeringName}, ${line.slotLabel}`;
+  return `${line.addonName} (${addonQuantityWords(line)})`;
+}
+
 /** The priced hold, saved with it. The amount charged comes only from this (PR-08). */
 export type Quote = {
   currency: "INR";
   checkIn?: string;
   checkOut?: string;
   day?: string;
-  lines: (StayQuoteLine | OfferingQuoteLine)[];
-  /** Null when any line has a rate still to be confirmed. */
+  lines: QuoteLine[];
+  /** The lines' prices before GST. Null when any line has a rate still to be confirmed. */
+  subtotalPaise?: number | null;
+  /** GST on the subtotal. Null when a rate or a GST rule is missing. */
+  taxPaise?: number | null;
+  /** GST by rate. */
+  tax?: TaxPart[];
+  /** What the guest pays, GST included. Null when the subtotal or the GST is unknown. */
   totalPaise: number | null;
 };
+
+/** Adds GST to a quote's lines. Quotes saved before GST came in have no subtotal: their total had no GST. */
+export async function withTax(db: Executor, propertyId: string, base: Omit<Quote, "subtotalPaise" | "taxPaise" | "tax" | "totalPaise">): Promise<Quote> {
+  const subtotalPaise = total(base.lines);
+  const taxed = subtotalPaise === null ? null : taxQuote(base, await loadTaxRules(db, propertyId));
+  return { ...base, subtotalPaise, taxPaise: taxed?.taxPaise ?? null, tax: taxed?.parts ?? [], totalPaise: taxed?.totalPaise ?? null };
+}
+
+/** A quote's price before GST, for quotes saved before GST came in too. */
+export const subtotalOf = (quote: Quote) => (quote.subtotalPaise === undefined ? quote.totalPaise : quote.subtotalPaise);
 
 export type HoldResult = { holdId: string; expiresAt: Date; quote: Quote };
 
@@ -177,13 +206,14 @@ export async function holdStayIn(tx: Tx, input: StayInput): Promise<HoldResult> 
     });
   }
 
-  const quote: Quote = { currency: "INR", checkIn: input.checkIn, checkOut: input.checkOut, lines, totalPaise: total(lines) };
+  const extras = await priceAddons(tx, input.propertyId, input.addons ?? [], { kind: "stay", date: input.checkIn, nights: nights.length }, input);
+  const quote = await withTax(tx, input.propertyId, { currency: "INR", checkIn: input.checkIn, checkOut: input.checkOut, lines: [...lines, ...extras] });
   await tx.update(holds).set({ quote }).where(eq(holds.id, hold.id));
   return { holdId: hold.id, expiresAt: hold.expiresAt, quote };
 }
 
 export type SeatRequest = { slotId: string; party: Party };
-export type SeatsInput = { propertyId: string; day: string; seats: SeatRequest[]; minutes?: number };
+export type SeatsInput = { propertyId: string; day: string; seats: SeatRequest[]; minutes?: number } & WithAddons;
 
 /**
  * Holds seats for one day: day packages, activities or restaurant sittings
@@ -283,7 +313,8 @@ async function holdSeatsIn(tx: Tx, input: SeatsInput): Promise<HoldResult> {
     });
   }
 
-  const quote: Quote = { currency: "INR", day: input.day, lines, totalPaise: total(lines) };
+  const extras = await priceAddons(tx, input.propertyId, input.addons ?? [], { kind: "day", date: input.day, nights: 1 }, input);
+  const quote = await withTax(tx, input.propertyId, { currency: "INR", day: input.day, lines: [...lines, ...extras] });
   await tx.update(holds).set({ quote }).where(eq(holds.id, hold.id));
   return { holdId: hold.id, expiresAt: hold.expiresAt, quote };
 }

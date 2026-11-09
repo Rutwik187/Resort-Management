@@ -62,12 +62,13 @@ export default async function ChangeBookingPage({ params }: PageProps<"/[propert
     db.select({ code: ageBands.code, label: ageBands.label }).from(ageBands).where(eq(ageBands.propertyId, property.id)).orderBy(asc(ageBands.sortOrder)),
   ]);
   const stays = items.filter(({ item }) => item.kind === "stay" && item.roomTypeId);
+  const hasAddons = items.some(({ item }) => item.kind === "addon");
 
   return (
     <>
       <PageHeader
         title={`Change ${booking.number}`}
-        description={`${guest.name}, ${longDate(booking.checkIn)} to ${longDate(booking.checkOut)}. The new nights must be free; the old ones go back on sale when you save.`}
+        description={`${guest.name}, ${longDate(booking.checkIn)} to ${longDate(booking.checkOut)}. The new nights must be free; the old ones go back on sale when you save.${hasAddons ? " Add-ons stay at the price agreed; per-night ones follow the new nights." : ""}`}
         actions={
           <Button variant="outline" asChild>
             <Link href={back}>

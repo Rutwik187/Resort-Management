@@ -26,6 +26,10 @@ export type OfferOption = { id: string; title: string; code: string | null; labe
 const discountOf = (offer: OfferOption | undefined, total: number | null | undefined) =>
   !offer || total == null ? 0 : offer.discountKind === "percent" ? Math.min(total, Math.round((total * (offer.discountValue ?? 0)) / 100)) : offer.discountKind === "amount" ? Math.min(total, offer.discountValue ?? 0) : 0;
 
+/** An add-on staff can add, priced before GST. */
+export type AddonOption = { id: string; name: string; summary: string | null; basis: "unit" | "person" | "night"; pricePaise: number; maxQuantity: number };
+const per = { unit: "each", person: "a person", night: "a night" } as const;
+
 export type Option = { id: string; name: string; available: number; closedReason: string | null; maxAdults: number | null; maxGuests: number | null; extraBedAllowed: boolean };
 
 /** Steppers need a top. Where the resort publishes no limit, this one is high enough for any party. */
@@ -69,6 +73,7 @@ export function NewBookingForm({
   canTakePayment,
   prefill,
   offers = [],
+  addons = [],
 }: {
   propertyId: string;
   kind: "stay" | "day";
@@ -81,8 +86,11 @@ export function NewBookingForm({
   prefill?: { leadId: string; name: string; phone: string; email: string };
   /** The resort's offers for this kind of booking, each with why it doesn't cover these dates, if it doesn't. */
   offers?: OfferOption[];
+  /** The resort's add-ons for this kind of booking. */
+  addons?: AddonOption[];
 }) {
   const [lines, setLines] = useState<Line[]>([]);
+  const [extras, setExtras] = useState<Record<string, number>>({});
   const [nextKey, setNextKey] = useState(1);
   const [quote, setQuote] = useState<QuoteView | null>(null);
   const [quoting, startQuote] = useTransition();
@@ -91,8 +99,9 @@ export function NewBookingForm({
   const [payAmount, setPayAmount] = useState("");
   const [offerId, setOfferId] = useState("none");
   const chosenOffer = offers.find((o) => o.id === offerId);
-  const discount = discountOf(chosenOffer, quote?.totalPaise);
-  const payable = quote?.totalPaise == null ? null : quote.totalPaise - discount;
+  // Offers come off the price before GST; GST is then worked out on what is left.
+  const discount = discountOf(chosenOffer, quote?.subtotalPaise);
+  const payable = quote?.subtotalPaise == null ? null : quote.subtotalPaise - discount;
   const [state, action, pending] = useActionState(createOffline.bind(null, propertyId), undefined);
 
   const noun = kind === "stay" ? "room" : "ticket";
@@ -109,10 +118,13 @@ export function NewBookingForm({
     setNextKey(nextKey + 1);
   };
 
+  const chosenExtras = Object.entries(extras)
+    .filter(([, quantity]) => quantity > 0)
+    .map(([id, quantity]) => ({ id, quantity }));
   const request: BookingRequest =
     "day" in dates
-      ? { kind: "day", day: dates.day, lines: lines.map(({ id, adults, children }) => ({ id, adults, children })) }
-      : { kind: "stay", checkIn: dates.checkIn, checkOut: dates.checkOut, lines: lines.map(({ id, adults, children, extraBeds }) => ({ id, adults, children, extraBeds })) };
+      ? { kind: "day", day: dates.day, lines: lines.map(({ id, adults, children }) => ({ id, adults, children })), addons: chosenExtras }
+      : { kind: "stay", checkIn: dates.checkIn, checkOut: dates.checkOut, lines: lines.map(({ id, adults, children, extraBeds }) => ({ id, adults, children, extraBeds })), addons: chosenExtras };
 
   return (
     <form action={action} className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
@@ -208,6 +220,29 @@ export function NewBookingForm({
                   </div>
                 );
               })}
+              {addons.length > 0 && (
+                <div className="grid gap-3 rounded-lg border p-4">
+                  <div>
+                    <p className="font-medium">Add-ons</p>
+                    <p className="text-sm text-muted-foreground">Extras for this booking. Prices are before GST.</p>
+                  </div>
+                  <div className="grid gap-2 sm:max-w-md">
+                    {addons.map((addon) => (
+                      <Stepper
+                        key={addon.id}
+                        label={`${addon.name} · ${rupees(addon.pricePaise)} ${per[addon.basis]}`}
+                        value={extras[addon.id] ?? 0}
+                        min={0}
+                        max={addon.maxQuantity}
+                        onChange={(n) => {
+                          setExtras({ ...extras, [addon.id]: n });
+                          setQuote(null);
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex flex-wrap items-center gap-3">
                 <Button type="button" variant="outline" disabled={quoting} onClick={() => startQuote(async () => setQuote(await quoteOffline(propertyId, request)))}>
                   {quoting ? <Spinner /> : <Calculator />}
@@ -238,9 +273,23 @@ export function NewBookingForm({
                       ))}
                     </TableBody>
                     <TableFooter>
+                      {quote.subtotalPaise != null && (
+                        <>
+                          <TableRow className="font-normal">
+                            <TableCell>Before GST</TableCell>
+                            <TableCell className="text-right tabular-nums">{price(quote.subtotalPaise)}</TableCell>
+                          </TableRow>
+                          {(quote.tax ?? []).map((part) => (
+                            <TableRow key={part.rateBps} className="font-normal text-muted-foreground">
+                              <TableCell>GST at {part.rateBps / 100}%</TableCell>
+                              <TableCell className="text-right tabular-nums">{rupees(part.taxPaise)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </>
+                      )}
                       <TableRow>
-                        <TableCell className="font-semibold">Total</TableCell>
-                        <TableCell className="text-right font-semibold tabular-nums">{price(quote.totalPaise)}</TableCell>
+                        <TableCell className="font-semibold">Total with GST</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">{quote.subtotalPaise != null && quote.totalPaise == null ? "GST rule missing" : price(quote.totalPaise)}</TableCell>
                       </TableRow>
                     </TableFooter>
                   </Table>
@@ -341,9 +390,9 @@ export function NewBookingForm({
                       <FieldDescription className={discount ? "font-medium text-good" : undefined}>
                         {chosenOffer.discountKind === "none"
                           ? "It takes nothing off by itself: the team applies it, and it is noted on the booking."
-                          : quote?.totalPaise == null
+                          : quote?.subtotalPaise == null
                             ? "Check the price to see what it saves."
-                            : `Saves ${rupees(discount)}: ${rupees(payable!)} instead of ${rupees(quote.totalPaise)}.`}
+                            : `Saves ${rupees(discount)} before GST: ${rupees(payable!)} instead of ${rupees(quote.subtotalPaise)}, plus GST.`}
                       </FieldDescription>
                     )}
                   </Field>
@@ -356,7 +405,7 @@ export function NewBookingForm({
                     </div>
                     {override && (
                       <div className="grid gap-3">
-                        <Input name="overridePrice" required inputMode="decimal" aria-label="Price for the whole booking, in rupees" placeholder="Price for the whole booking (₹)" />
+                        <Input name="overridePrice" required inputMode="decimal" aria-label="Price for the whole booking before GST, in rupees" placeholder="Price for the whole booking before GST (₹)" />
                         <Input name="overrideReason" required minLength={3} aria-label="Why the price is different" placeholder="Why, such as an agent rate" />
                       </div>
                     )}

@@ -5,6 +5,7 @@ import {
   bookingItems,
   bookings,
   capacityDays,
+  type ConsentJson,
   capacityHolds,
   guests,
   holds,
@@ -16,7 +17,10 @@ import {
 } from "@repo/db";
 import { nightsOf, todayInIndia } from "./dates";
 import { NotFoundError, RuleError, SoldOutError, TransitionError, isUniqueViolation } from "./errors";
-import { freeHoldStock, type Quote } from "./holds";
+import { freeHoldStock, subtotalOf, type Quote } from "./holds";
+import { alignInvoiceToKept, ensureInvoice } from "./invoices";
+import { releaseHeldMessages } from "./messages";
+import { loadTaxRules, taxQuote } from "./tax";
 import { recordPaymentInTx, type PaymentInput } from "./payments";
 import { headcount } from "./pricing";
 
@@ -66,8 +70,27 @@ export function normalisePhone(phone: string | undefined) {
   return digits.length === 10 ? `91${digits}` : digits;
 }
 
-/** A price staff set instead of the engine's, with the reason (ADM-07). */
-export type PriceOverride = { totalPaise: number; reason: string };
+/** A price before GST that staff set instead of the engine's, with the reason (ADM-07). GST is added to it. */
+export type PriceOverride = { subtotalPaise: number; reason: string };
+
+/** A booking's three amounts. Unknown while a rate, or a GST rule, is missing. */
+export type BookingPrice = { subtotalPaise: number | null; taxPaise: number | null; totalPaise: number | null };
+
+/**
+ * The price of a quote: its own, or a price before GST set by staff or by an
+ * offer, with GST worked out on it. A set price with no GST rule to cover
+ * it is refused, so staff add the rule instead of booking without GST.
+ */
+export async function priceFor(tx: Tx, propertyId: string, quote: Quote, subtotalPaise?: number | null): Promise<BookingPrice> {
+  if (subtotalPaise === undefined || subtotalPaise === null) {
+    // Quotes saved before GST came in have no subtotal; their total had no GST.
+    if (quote.subtotalPaise === undefined) return { subtotalPaise: quote.totalPaise, taxPaise: quote.totalPaise === null ? null : 0, totalPaise: quote.totalPaise };
+    return { subtotalPaise: quote.subtotalPaise, taxPaise: quote.taxPaise ?? null, totalPaise: quote.totalPaise };
+  }
+  const taxed = taxQuote(quote, await loadTaxRules(tx, propertyId), subtotalPaise);
+  if (!taxed) throw new RuleError("No GST rule covers this booking. Add one in Settings, under GST.");
+  return { subtotalPaise: taxed.subtotalPaise, taxPaise: taxed.taxPaise, totalPaise: taxed.totalPaise };
+}
 
 /**
  * Turns a hold into a booking for a guest, priced from the hold's saved
@@ -86,6 +109,7 @@ export async function createBooking(
     confirm?: boolean;
     payment?: Omit<PaymentInput, "bookingId" | "userId">;
     priceOverride?: PriceOverride;
+    consent?: ConsentJson;
     today?: string;
   },
 ): Promise<{ bookingId: string; number: string }> {
@@ -99,6 +123,7 @@ export async function createBooking(
     if (!quote || quote.lines.length === 0) throw new RuleError("The hold has nothing in it.");
     if (!input.guest.name.trim()) throw new RuleError("Add the guest's name.");
 
+    const price = await priceFor(tx, hold.propertyId, quote, input.priceOverride?.subtotalPaise);
     const [property] = await tx.select({ code: properties.code }).from(properties).where(eq(properties.id, hold.propertyId));
     const number = await nextBookingNumber(tx, hold.propertyId, property.code, input.today);
     const [guest] = await tx
@@ -123,8 +148,9 @@ export async function createBooking(
         checkIn: quote.checkIn ?? null,
         checkOut: quote.checkOut ?? null,
         visitDate: quote.day ?? null,
-        totalPaise: input.priceOverride?.totalPaise ?? quote.totalPaise,
+        ...price,
         quote,
+        consent: input.consent ?? null,
         notes: input.notes ?? null,
         createdBy: input.userId ?? null,
       })
@@ -134,7 +160,9 @@ export async function createBooking(
       quote.lines.map((line, i) =>
         line.kind === "stay"
           ? { propertyId: hold.propertyId, bookingId: booking.id, kind: "stay" as const, roomTypeId: line.roomTypeId, unitId: line.unitId, party: line.party, extraBeds: line.extraBeds, amountPaise: line.totalPaise, sortOrder: i }
-          : { propertyId: hold.propertyId, bookingId: booking.id, kind: "offering" as const, offeringId: line.offeringId, slotId: line.slotId, party: line.party, amountPaise: line.totalPaise, sortOrder: i },
+          : line.kind === "offering"
+            ? { propertyId: hold.propertyId, bookingId: booking.id, kind: "offering" as const, offeringId: line.offeringId, slotId: line.slotId, party: line.party, amountPaise: line.totalPaise, sortOrder: i }
+            : { propertyId: hold.propertyId, bookingId: booking.id, kind: "addon" as const, addonId: line.addonId, quantity: line.quantity, party: { adults: 0, children: {} }, amountPaise: line.totalPaise, sortOrder: i },
       ),
     );
     await tx.update(holds).set({ bookingId: booking.id }).where(eq(holds.id, hold.id));
@@ -146,7 +174,7 @@ export async function createBooking(
         type: "price_override",
         userId: input.userId ?? null,
         note: input.priceOverride.reason.trim(),
-        data: { fromPaise: quote.totalPaise, toPaise: input.priceOverride.totalPaise },
+        data: { fromPaise: quote.totalPaise, toPaise: price.totalPaise, fromSubtotalPaise: subtotalOf(quote), toSubtotalPaise: price.subtotalPaise },
       });
     }
 
@@ -157,7 +185,7 @@ export async function createBooking(
 }
 
 function checkOverride(override: PriceOverride) {
-  if (!Number.isInteger(override.totalPaise) || override.totalPaise < 0) throw new RuleError("Enter a price of zero or more.");
+  if (!Number.isInteger(override.subtotalPaise) || override.subtotalPaise < 0) throw new RuleError("Enter a price of zero or more.");
   if (!override.reason.trim()) throw new RuleError("Say why the price is different.");
 }
 
@@ -172,17 +200,19 @@ export async function setBookingPrice(db: Database, input: PriceOverride & { boo
     const [booking] = await tx.select().from(bookings).where(eq(bookings.id, input.bookingId)).for("update");
     if (!booking) throw new NotFoundError("Booking");
     if (!["pending_payment", "part_paid", "confirmed", "checked_in"].includes(booking.status)) throw new RuleError(`A booking that is ${words(booking.status)} keeps its price.`);
-    if (input.totalPaise < booking.paidPaise) throw new RuleError("The price can't be less than what the guest has paid. Refund the difference first.");
-    await tx.update(bookings).set({ totalPaise: input.totalPaise }).where(eq(bookings.id, booking.id));
+    const price = await priceFor(tx, booking.propertyId, booking.quote as Quote, input.subtotalPaise);
+    if (price.totalPaise! < booking.paidPaise) throw new RuleError("The price with GST can't be less than what the guest has paid. Refund the difference first.");
+    await tx.update(bookings).set(price).where(eq(bookings.id, booking.id));
     await tx.insert(bookingEvents).values({
       propertyId: booking.propertyId,
       bookingId: booking.id,
       type: "price_override",
       userId: input.userId ?? null,
       note: input.reason.trim(),
-      data: { fromPaise: booking.totalPaise, toPaise: input.totalPaise },
+      data: { fromPaise: booking.totalPaise, toPaise: price.totalPaise, fromSubtotalPaise: booking.subtotalPaise, toSubtotalPaise: price.subtotalPaise },
     });
-    if (booking.status === "part_paid" && booking.paidPaise >= input.totalPaise) await markPaid(tx, booking.id, "confirmed", input.userId);
+    if (booking.status === "part_paid" && booking.paidPaise >= price.totalPaise!) await markPaid(tx, booking.id, "confirmed", input.userId);
+    await ensureInvoice(tx, booking.id, input.userId);
   });
 }
 
@@ -208,9 +238,13 @@ export async function markPaid(tx: Tx, bookingId: string, to: "confirmed" | "par
   if (!booking) throw new NotFoundError("Booking");
   if (booking.status === to) return;
   if (!allowedMoves[booking.status].includes(to)) throw new TransitionError(booking.status, to);
-  if (booking.status === "pending_payment") await bookHeldStock(tx, booking, userId);
+  if (booking.status === "pending_payment") {
+    await bookHeldStock(tx, booking, userId);
+    await releaseHeldMessages(tx, bookingId);
+  }
   await tx.update(bookings).set({ status: to }).where(eq(bookings.id, bookingId));
   await tx.insert(bookingEvents).values({ propertyId: booking.propertyId, bookingId, type: "status", fromStatus: booking.status, toStatus: to, userId: userId ?? null, note: note ?? null });
+  await ensureInvoice(tx, bookingId, userId);
 }
 
 /** Turns a booking's held rooms and seats into booked ones, taking again any that were let go. */
@@ -294,6 +328,7 @@ export async function changeBookingStatus(db: Database, input: { bookingId: stri
 
     await tx.update(bookings).set({ status: input.to }).where(eq(bookings.id, booking.id));
     await tx.insert(bookingEvents).values({ propertyId: booking.propertyId, bookingId: booking.id, type: "status", fromStatus: booking.status, toStatus: input.to, userId: input.userId ?? null, note: input.note ?? null });
+    if (input.to === "cancelled" || input.to === "no_show") await alignInvoiceToKept(tx, booking.id, input.to === "cancelled" ? "Booking cancelled." : "Guest did not come.", input.userId);
   });
 }
 

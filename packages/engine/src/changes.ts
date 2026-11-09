@@ -1,9 +1,12 @@
-import { and, eq, ne, TransactionRollbackError } from "drizzle-orm";
+import { and, eq, inArray, ne, TransactionRollbackError } from "drizzle-orm";
 import { bookingEvents, bookingItems, bookings, holds, inventoryLog, unitNights, type Database } from "@repo/db";
-import type { BookingStatus, Tx } from "./bookings";
-import { isDate, todayInIndia } from "./dates";
+import { priceFor, type BookingStatus, type Tx } from "./bookings";
+import { ensureInvoice } from "./invoices";
+import { isDate, nightsOf, todayInIndia } from "./dates";
 import { NotFoundError, RuleError } from "./errors";
-import { holdStayIn, type Quote, type StayRequest } from "./holds";
+import { carryAddons } from "./addons";
+import { holdStayIn, withTax, type Quote, type StayRequest } from "./holds";
+
 
 /** Bookings whose stay can still change. A checked-in guest can change their check-out and rooms. */
 const changeable: BookingStatus[] = ["pending_payment", "part_paid", "confirmed", "checked_in"];
@@ -84,7 +87,13 @@ async function changeStayIn(tx: Tx, input: StayChange) {
       : await tx.delete(unitNights).where(eq(unitNights.bookingId, booking.id)).returning(returned);
 
     // Take the new nights. A sold-out night throws, and the whole change rolls back.
-    const hold = await holdStayIn(tx, { propertyId: booking.propertyId, checkIn: input.checkIn, checkOut: input.checkOut, rooms: input.rooms });
+    const held = await holdStayIn(tx, { propertyId: booking.propertyId, checkIn: input.checkIn, checkOut: input.checkOut, rooms: input.rooms });
+    // The booking's add-ons come along at the price the guest agreed; per-night ones cover the new nights.
+    const extras = carryAddons((booking.quote as Quote).lines, input.checkIn, nightsOf(input.checkIn, input.checkOut).length);
+    const hold = extras.length
+      ? { ...held, quote: await withTax(tx, booking.propertyId, { currency: "INR", checkIn: input.checkIn, checkOut: input.checkOut, lines: [...held.quote.lines.filter((l) => l.kind === "stay"), ...extras] }) }
+      : held;
+    if (extras.length) await tx.update(holds).set({ quote: hold.quote }).where(eq(holds.id, hold.holdId));
     if (oldHold) await tx.update(holds).set({ status: "released", bookingId: null }).where(eq(holds.id, oldHold.id));
     if (pending) {
       // Still waiting for payment: the new hold, with a fresh time limit, is the booking's.
@@ -97,16 +106,20 @@ async function changeStayIn(tx: Tx, input: StayChange) {
     await logNights(tx, booking.propertyId, booking.id, "release", freed, input.userId, input.reason.trim());
 
     // The stay's rooms and price, and the timeline.
-    await tx.delete(bookingItems).where(and(eq(bookingItems.bookingId, booking.id), eq(bookingItems.kind, "stay")));
+    await tx.delete(bookingItems).where(and(eq(bookingItems.bookingId, booking.id), inArray(bookingItems.kind, ["stay", "addon"])));
     await tx.insert(bookingItems).values(
-      hold.quote.lines.flatMap((line, i) =>
+      hold.quote.lines.flatMap((line, i): (typeof bookingItems.$inferInsert)[] =>
         line.kind === "stay"
           ? [{ propertyId: booking.propertyId, bookingId: booking.id, kind: "stay" as const, roomTypeId: line.roomTypeId, unitId: line.unitId, party: line.party, extraBeds: line.extraBeds, amountPaise: line.totalPaise, sortOrder: i }]
-          : [],
+          : line.kind === "addon"
+            ? [{ propertyId: booking.propertyId, bookingId: booking.id, kind: "addon" as const, addonId: line.addonId, quantity: line.quantity, party: { adults: 0, children: {} }, amountPaise: line.totalPaise, sortOrder: i }]
+            : [],
       ),
     );
-    const totalPaise = input.keepPrice ? booking.totalPaise : hold.quote.totalPaise;
-    await tx.update(bookings).set({ checkIn: input.checkIn, checkOut: input.checkOut, quote: hold.quote, totalPaise }).where(eq(bookings.id, booking.id));
+    // A price kept by hand keeps its price before GST; GST is worked out again on the new nights.
+    const price = await priceFor(tx, booking.propertyId, hold.quote, input.keepPrice ? booking.subtotalPaise : undefined);
+    const totalPaise = price.totalPaise;
+    await tx.update(bookings).set({ checkIn: input.checkIn, checkOut: input.checkOut, quote: hold.quote, ...price }).where(eq(bookings.id, booking.id));
     const rooms = (quote: Quote) => quote.lines.flatMap((line) => (line.kind === "stay" ? [`${line.roomTypeName} (${line.unitName})`] : []));
     await tx.insert(bookingEvents).values({
       propertyId: booking.propertyId,
@@ -119,6 +132,7 @@ async function changeStayIn(tx: Tx, input: StayChange) {
         to: { checkIn: input.checkIn, checkOut: input.checkOut, totalPaise, rooms: rooms(hold.quote) },
       },
     });
+    await ensureInvoice(tx, booking.id, input.userId, today);
     return { fromPaise: booking.totalPaise, toPaise: totalPaise, paidPaise: booking.paidPaise, quote: hold.quote };
   }
 }

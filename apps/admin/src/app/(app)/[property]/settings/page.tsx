@@ -3,6 +3,7 @@ import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/page-header";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
 import { SettingsForm } from "./form";
+import { MoneySettings } from "./money";
 
 export const metadata = { title: "Settings" };
 
@@ -13,7 +14,7 @@ export default async function SettingsPage({ params }: PageProps<"/[property]/se
   if (!can(staff, "settings.manage", property.id)) return <NoAccess what="the settings" />;
   return (
     <>
-      <PageHeader title="Settings" description={`${property.name}'s company details and booking settings. Taxes, payment keys, cancellation rules and message templates come with payments and messages.`} />
+      <PageHeader title="Settings" description={`${property.name}'s company details, booking settings, online payments, GST and cancellation rules.`} />
       <SettingsForm
         propertyId={property.id}
         settings={{
@@ -26,8 +27,13 @@ export default async function SettingsPage({ params }: PageProps<"/[property]/se
           checkOutTime: property.checkOutTime,
           holdMinutes: property.holdMinutes,
           lowStockThreshold: property.lowStockThreshold,
+          advancePercent: property.advancePercent,
+          refundApprovalPaise: property.refundApprovalPaise,
+          stateCode: property.stateCode,
+          stateName: property.stateName,
         }}
       />
+      <MoneySettings property={property} />
     </>
   );
 }

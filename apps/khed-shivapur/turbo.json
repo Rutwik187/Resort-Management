@@ -6,10 +6,10 @@
       // next.config.ts also reads .env.local at the repo root.
       "inputs": ["$TURBO_DEFAULT$", ".env*", "$TURBO_ROOT$/.env*"],
       // The Stays and Day packages pages read the admin's catalogue while they prerender.
-      "env": ["DATABASE_URL"]
+      "env": ["DATABASE_URL", "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "PAYMENT_KEYS_SECRET", "RESEND_API_KEY", "EMAIL_FROM_ADDRESS"]
     },
     "dev": {
-      "passThroughEnv": ["DATABASE_URL", "REVALIDATE_SECRET"]
+      "passThroughEnv": ["DATABASE_URL", "REVALIDATE_SECRET", "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "PAYMENT_KEYS_SECRET", "RESEND_API_KEY", "EMAIL_FROM_ADDRESS"]
     }
   }
 }

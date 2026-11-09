@@ -4,12 +4,16 @@ import { properties as siteProperties } from "@repo/sites";
 import { databaseUrl } from "./env";
 import {
   ageBands,
+  cancellationRules,
+  defaultCancellationRules,
+  defaultTaxRules,
   builtInRoles,
   createDb,
   offeringChildPrices,
   offerings,
   offeringSlots,
   properties,
+  taxRules,
   rateChildPrices,
   rates,
   rolePermissions,
@@ -66,6 +70,17 @@ await db.transaction(async (tx) => {
         .insert(ageBands)
         .values({ propertyId: resort.id, ...band })
         .onConflictDoNothing({ target: [ageBands.propertyId, ageBands.code] });
+    }
+  }
+
+  // GST and cancellation rules, only for a resort that has none yet.
+  for (const resort of resorts) {
+    if ((await tx.$count(taxRules, eq(taxRules.propertyId, resort.id))) === 0) {
+      await tx.insert(taxRules).values(defaultTaxRules.map((rule) => ({ propertyId: resort.id, ...rule })));
+    }
+    const cancellation = defaultCancellationRules[resort.code] ?? [];
+    if (cancellation.length && (await tx.$count(cancellationRules, eq(cancellationRules.propertyId, resort.id))) === 0) {
+      await tx.insert(cancellationRules).values(cancellation.map((rule) => ({ propertyId: resort.id, appliesTo: "any" as const, ...rule })));
     }
   }
 

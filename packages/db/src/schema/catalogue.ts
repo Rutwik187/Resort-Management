@@ -282,3 +282,49 @@ export const offeringSlots = pgTable(
   },
   (t) => [unique().on(t.offeringId, t.label), check("offering_slots_capacity", sql`${t.defaultCapacity} >= 0`)],
 );
+
+/**
+ * How an add-on is priced (PR-06): once for each unit, such as a
+ * decoration; for each person, such as a barbecue dinner; or for each unit
+ * and each night of the stay, such as an extra mattress.
+ */
+export const addonBasis = pgEnum("addon_basis", ["unit", "person", "night"]);
+/** What an add-on is sold with. A per-night add-on is only for stays. */
+export const addonSoldWith = pgEnum("addon_sold_with", ["stay", "day", "both"]);
+
+/**
+ * Something extra a guest adds to a booking (PR-06): meals, a barbecue,
+ * decoration, activity tickets and the like. It has no stock of its own.
+ * Its GST comes from the resort's add-on rule.
+ */
+export const addons = pgTable(
+  "addons",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    propertyId: uuid()
+      .notNull()
+      .references(() => properties.id),
+    code: text().notNull(),
+    name: text().notNull(),
+    /** What it includes, for the guest. */
+    summary: text(),
+    basis: addonBasis().notNull(),
+    /** The price before GST for one unit, person or night. */
+    pricePaise: bigint({ mode: "number" }).notNull(),
+    soldWith: addonSoldWith().notNull().default("both"),
+    /** The most a guest can add to one booking. */
+    maxQuantity: smallint().notNull().default(10),
+    /** Shown on the websites. Off for add-ons the team sells only at the desk. */
+    onWebsite: boolean().notNull().default(true),
+    active: boolean().notNull().default(true),
+    sortOrder: integer().notNull().default(0),
+    createdBy: createdBy(),
+    ...timestamps,
+  },
+  (t) => [
+    unique().on(t.propertyId, t.code),
+    check("addons_money", sql`${t.pricePaise} >= 0`),
+    check("addons_quantity", sql`${t.maxQuantity} between 1 and 100`),
+    check("addons_night_is_stay", sql`${t.basis} <> 'night' or ${t.soldWith} = 'stay'`),
+  ],
+);

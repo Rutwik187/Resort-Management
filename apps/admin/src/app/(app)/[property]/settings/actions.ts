@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { z } from "zod";
 import { getDb, properties } from "@repo/db";
-import { filled, problem, wholeNumber, type FormState } from "@/lib/forms";
+import { filled, problem, rupeesField, wholeNumber, type FormState } from "@/lib/forms";
 import { audit, requirePermission } from "@/lib/staff";
 
 const time = (label: string) => z.string({ error: `Set the ${label}.` }).regex(/^\d{2}:\d{2}$/, `Write the ${label} as hh:mm.`);
@@ -27,6 +27,10 @@ const settingsInput = z.object({
   checkOutTime: time("check-out time"),
   holdMinutes: wholeNumber("The hold time", 1, 120),
   lowStockThreshold: wholeNumber("The low-rooms limit", 0, 50),
+  advancePercent: wholeNumber("The advance", 1, 100),
+  refundApproval: rupeesField("The refund limit").optional(),
+  stateCode: z.string().trim().regex(/^\d{2}$/, "The state code has two digits, such as 27 for Maharashtra."),
+  stateName: z.string().trim().min(2, "Write the state's name.").max(60),
 });
 
 /** The resort's company details, times and booking settings (plan section 9, Settings). */
@@ -49,6 +53,10 @@ export async function saveSettings(propertyId: string, _state: FormState, form: 
         checkOutTime: input.checkOutTime,
         holdMinutes: input.holdMinutes,
         lowStockThreshold: input.lowStockThreshold,
+        advancePercent: input.advancePercent,
+        refundApprovalPaise: input.refundApproval ?? null,
+        stateCode: input.stateCode,
+        stateName: input.stateName,
       })
       .where(eq(properties.id, propertyId))
       .returning();

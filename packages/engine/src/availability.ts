@@ -106,6 +106,8 @@ export type SeatOption = {
   sold: number;
   held: number;
   left: number;
+  /** True when staff set this day's seats; false when it uses the slot's usual seats. */
+  setForDay: boolean;
   /** Why it isn't sold that day: the day of the week, or outside its dates. */
   closedReason: string | null;
 };
@@ -167,6 +169,7 @@ export async function seatsLeft(db: Executor, propertyId: string, day: string): 
       sold,
       held,
       left: Math.max(0, capacity - sold - held),
+      setForDay: row.capacity !== null,
       closedReason,
     };
   });

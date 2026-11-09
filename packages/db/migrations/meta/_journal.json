@@ -57,6 +57,27 @@
       "when": 1793948914882,
       "tag": "0007_website_permission",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794074035962,
+      "tag": "0008_money",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794075856181,
+      "tag": "0009_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794247676115,
+      "tag": "0010_addons",
+      "breakpoints": true
     }
   ]
 }

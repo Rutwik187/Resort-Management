@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, gte, inArray, isNull, or } from "drizzle-orm";
-import { ageBands, offeringChildPrices, offerings, offeringSlots, offers, properties, rateChildPrices, rates, roomTypes, siteNotices, units, type Executor } from "@repo/db";
+import { addons, ageBands, offeringChildPrices, offerings, offeringSlots, offers, properties, rateChildPrices, rates, roomTypes, siteNotices, units, type Executor } from "@repo/db";
 import { addDays, todayInIndia } from "./dates";
 import { offerLabel } from "./offers";
 
@@ -62,7 +62,10 @@ export type WebsiteOffer = { title: string; details: string | null; appliesTo: "
  */
 export type WebsiteNotice = { id: string; message: string; linkLabel: string | null; linkUrl: string | null; startsOn: string | null; endsOn: string | null };
 
-export type WebsiteCatalogue = { roomTypes: WebsiteRoomType[]; passes: WebsitePass[]; offers: WebsiteOffer[]; notices: WebsiteNotice[] };
+/** An add-on the guest can choose before paying (PR-06). Its price is before GST. */
+export type WebsiteAddon = { code: string; name: string; summary: string | null; basis: "unit" | "person" | "night"; pricePaise: number; soldWith: "stay" | "day" | "both"; maxQuantity: number };
+
+export type WebsiteCatalogue = { roomTypes: WebsiteRoomType[]; passes: WebsitePass[]; addons: WebsiteAddon[]; offers: WebsiteOffer[]; notices: WebsiteNotice[] };
 
 /** A resort's website catalogue, or null when there is no such resort. A few queries, run one after another. */
 export async function websiteCatalogue(db: Executor, propertyCode: string): Promise<WebsiteCatalogue | null> {
@@ -112,6 +115,12 @@ export async function websiteCatalogue(db: Executor, propertyCode: string): Prom
         .where(inArray(offeringChildPrices.offeringId, passIds))
     : [];
 
+  const addonRows = await db
+    .select()
+    .from(addons)
+    .where(and(eq(addons.propertyId, property.id), eq(addons.active, true), eq(addons.onWebsite, true)))
+    .orderBy(asc(addons.sortOrder), asc(addons.name));
+
   // Offers on the website that haven't ended. A coupon's code isn't shown: the team gives it out.
   const offerRows = await db
     .select()
@@ -152,6 +161,7 @@ export async function websiteCatalogue(db: Executor, propertyCode: string): Prom
           childPaise: Object.fromEntries(rateChildren.filter((c) => c.rateId === rate.id).map((c) => [c.band, c.paise])),
         })),
     })),
+    addons: addonRows.map((a) => ({ code: a.code, name: a.name, summary: a.summary, basis: a.basis, pricePaise: a.pricePaise, soldWith: a.soldWith, maxQuantity: a.maxQuantity })),
     passes: passRows.map((pass) => ({
       code: pass.code,
       name: pass.name,

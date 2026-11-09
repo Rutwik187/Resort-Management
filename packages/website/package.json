@@ -6,7 +6,10 @@
   "exports": {
     ".": "./src/index.ts",
     "./leads": "./src/leads.ts",
-    "./notice": "./src/notice.tsx"
+    "./notice": "./src/notice.tsx",
+    "./invoice": "./src/invoice.tsx",
+    "./booking": "./src/booking.ts",
+    "./booking-page": "./src/booking-page.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -17,6 +20,7 @@
     "@repo/engine": "workspace:*",
     "@repo/sanity": "workspace:*",
     "@repo/sites": "workspace:*",
+    "drizzle-orm": "^0.45.4",
     "server-only": "^0.0.1",
     "zod": "^4.6.7"
   },

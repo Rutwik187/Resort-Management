@@ -16,6 +16,8 @@ import { newKey } from "./saved";
 import { Sheet } from "./sheet";
 import { Steps } from "./steps";
 import { useSessionValue } from "./store";
+import { useLiveStock, type LiveCheck } from "./live";
+import { addonsRupees, type OnlineBooking } from "./online";
 import { Tray, TrayDock, useCheckout } from "./tray";
 import type { Desk, Party, Pass } from "./types";
 
@@ -29,6 +31,10 @@ type DayPlannerProps = {
   noun?: string;
   /** Keeps each sent request, such as a server action that saves it as a lead. Its failure never stops the guest. */
   onRequest?: (request: WebsiteRequest) => Promise<unknown> | void;
+  /** The site's actions for booking and paying online. Without them, requests go on WhatsApp. */
+  online?: OnlineBooking;
+  /** Reads live places left for the day, so full passes show as full. */
+  live?: LiveCheck;
 };
 
 type PickedPass = { key: string; passId: string; party: Party };
@@ -53,7 +59,7 @@ const dateFromAddress = () => {
  * Day visits, the same way as rooms: choose the date, add a pass and say
  * who is coming, then add other passes. The tray keeps the total.
  */
-export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day pass", onRequest }: DayPlannerProps) {
+export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day pass", onRequest, online, live }: DayPlannerProps) {
   const byId = new Map(passes.map((pass) => [pass.id, pass]));
   const today = useToday();
   const [announcement, setAnnouncement] = useState("");
@@ -144,7 +150,27 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
   // A line the team quotes leaves the total to them too, as for stays.
   const total = lines.some((line) => line.amount === null) ? null : lines.reduce((sum, line) => sum + (line.amount ?? 0), 0);
   const people = picked.reduce((sum, item) => sum + headcount(item.party), 0);
-  const blocker = picked.length === 0 ? `Add a ${noun} to continue.` : !date ? "Choose your date to continue." : null;
+  // Live places left on the day. A pass in the tray for more guests than it has places stops the guest early.
+  const stock = useLiveStock(live, date ? { day: date } : null);
+  const stockOf = (code: string) => stock?.passes.find((pass) => pass.code === code);
+  const coming = (passId: string) => picked.filter((item) => item.passId === passId).reduce((sum, item) => sum + headcount(item.party), 0);
+  const short = passes.find((pass) => {
+    const own = stockOf(pass.id);
+    return own !== undefined && coming(pass.id) > 0 && (own.note !== null || coming(pass.id) > own.left);
+  });
+  const shortStock = short ? stockOf(short.id)! : undefined;
+  const blocker =
+    picked.length === 0
+      ? `Add a ${noun} to continue.`
+      : !date
+        ? "Choose your date to continue."
+        : short && shortStock
+          ? shortStock.note
+            ? `${short.name}: ${shortStock.note} Remove it or choose another date.`
+            : shortStock.left === 0
+              ? `${short.name} is full on this date. Remove it or choose another date.`
+              : `${short.name} has ${plural(shortStock.left, "place")} left on this date. Change who is coming or choose another date.`
+          : null;
 
   const when = date ? (
     <>
@@ -178,6 +204,8 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
       blocker={blocker}
       desk={desk}
       checkout={checkout}
+      online={online && total !== null ? online : undefined}
+      choice={() => (!date || picked.length === 0 ? null : { kind: "day", date, passes: picked.map((item) => ({ code: item.passId, party: item.party })) })}
       onSend={(guest) => keep(onRequest, { kind: "day", from: date, guests: people, lines: lines.map(({ title, detail, amount }) => ({ title, detail, amount })), total, guest })}
       message={(guest) =>
         requestMessage({ desk, opening: `I would like to book ${pluralOf(noun)} for a day visit.`, when: [`Date: ${formatDay(date)}`], lines, total, guest })
@@ -193,7 +221,7 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
         steps={[
           { label: "Choose the date", done: Boolean(date) },
           { label: `Add ${pluralOf(noun)} and guests`, done: picked.length > 0 },
-          { label: "Send the request on WhatsApp", done: checkout.step === "sent" },
+          online && total !== null ? { label: "Pay and book", done: false } : { label: "Send the request on WhatsApp", done: checkout.step === "sent" },
         ]}
       />
 
@@ -210,6 +238,7 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
                 noun={noun}
                 count={picked.filter((item) => item.passId === pass.id).length}
                 onPick={() => openPick({ passId: pass.id, party: startParty })}
+                stock={stockOf(pass.id)}
               />
             ))}
           </div>
@@ -224,7 +253,7 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
 
       <TrayDock
         summary={`${plural(picked.length, noun)} · ${plural(people, "guest")}`}
-        total={total === null ? "Price to confirm" : `${formatRupees(total)} + GST`}
+        total={total === null ? "Price to confirm" : `${formatRupees(total + (online ? addonsRupees(online.addons ?? [], checkout.extras, 1) : 0))} + GST`}
         visible={picked.length > 0}
         open={trayOpen}
         onOpenChange={setTrayOpen}
@@ -309,7 +338,10 @@ function DayDate({ date, onChange }: { date: string; onChange: (date: string) =>
   );
 }
 
-function PassCard({ pass, noun, count, onPick }: { pass: Pass; noun: string; count: number; onPick: () => void }) {
+function PassCard({ pass, noun, count, onPick, stock }: { pass: Pass; noun: string; count: number; onPick: () => void; stock?: { left: number; note: string | null } }) {
+  // Full, or not sold that day: it stays in the list, marked, so the guest knows to choose another date.
+  const closed = stock !== undefined && (stock.note !== null || stock.left === 0);
+  const few = stock !== undefined && !closed && stock.left <= 10;
   return (
     <article id={`pass-${pass.id}`} aria-labelledby={`pass-${pass.id}-name`} className="flex flex-col rounded-bk border border-bk-line bg-bk-card p-3 text-bk-ink sm:p-4">
       {pass.photo && (
@@ -342,10 +374,13 @@ function PassCard({ pass, noun, count, onPick }: { pass: Pass; noun: string; cou
           <button
             type="button"
             onClick={onPick}
-            className="min-h-12 w-full rounded-bk-control bg-bk-accent px-5 bk-button text-bk-accent-ink transition-opacity hover:opacity-90"
+            disabled={closed}
+            className="min-h-12 w-full rounded-bk-control bg-bk-accent px-5 bk-button text-bk-accent-ink transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {count > 0 ? `Add another ${noun}` : `Add ${noun}`}
+            {closed ? (stock.note ? "Not available" : "Full") : count > 0 ? `Add another ${noun}` : `Add ${noun}`}
           </button>
+          {closed && <p className="mt-2 text-center text-[0.84rem] text-bk-alert">{stock.note ?? "Full on this date. Try another date."}</p>}
+          {few && <p className="mt-2 text-center text-[0.84rem] text-bk-alert">Only {plural(stock.left, "place")} left on this date</p>}
           {count > 0 && (
             <p className="mt-2 text-center text-[0.84rem] text-bk-good">
               <span aria-hidden>✓ </span>

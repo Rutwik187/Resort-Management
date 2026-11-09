@@ -185,11 +185,11 @@ export function PriceForm({ bookingId, current }: { bookingId: string; current: 
         <form action={action} className="grid gap-4">
           <DialogHeader>
             <DialogTitle>Set the price</DialogTitle>
-            <DialogDescription>The price for the whole booking. The audit log keeps the old price and your reason.</DialogDescription>
+            <DialogDescription>The price for the whole booking before GST. GST is added to it. The audit log keeps the old price and your reason.</DialogDescription>
           </DialogHeader>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="price-amount">Price (₹)</FieldLabel>
+              <FieldLabel htmlFor="price-amount">Price before GST (₹)</FieldLabel>
               <Input id="price-amount" name="amount" required inputMode="decimal" defaultValue={current} />
             </Field>
             <Field>

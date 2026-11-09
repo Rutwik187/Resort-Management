@@ -1,7 +1,7 @@
 import { asc, eq, inArray } from "drizzle-orm";
 import { Ticket } from "lucide-react";
 import { can } from "@repo/auth";
-import { ageBands, getDb, offeringChildPrices, offerings, offeringSlots } from "@repo/db";
+import { addons, ageBands, getDb, offeringChildPrices, offerings, offeringSlots } from "@repo/db";
 import { dayOfWeek, todayInIndia } from "@repo/engine";
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/page-header";
@@ -12,10 +12,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { longDate, rupees, shortDate } from "@/lib/format";
 import { seatsAhead } from "@/lib/seats";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
+import { AddonDialog, AddonSaleButton } from "./addon-forms";
 import { OfferingButtons, OfferingDialog, SeatsDialog, SlotsDialog } from "./forms";
 
 export const metadata = { title: "Packages" };
 
+const basisLabel = { unit: "a unit", person: "a person", night: "a night" } as const;
+const soldWithLabel = { stay: "Stays", day: "Day visits", both: "Stays and day visits" } as const;
 const kindLabel = { day_package: "Day packages", activity: "Activities", dining: "Meal sittings", other: "Other tickets" } as const;
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const hhmm = (time: string | null) => {
@@ -48,6 +51,7 @@ export default async function PackagesPage({ params }: PageProps<"/[property]/pa
   const paidBands = bands.map(({ id, label }) => ({ id, label }));
 
   const onSale = list.filter((o) => o.active).length;
+  const extras = await db.select().from(addons).where(eq(addons.propertyId, property.id)).orderBy(asc(addons.sortOrder), asc(addons.name));
 
   return (
     <>
@@ -233,6 +237,68 @@ export default async function PackagesPage({ params }: PageProps<"/[property]/pa
             })}
         </section>
       ))}
+      <section className="grid gap-4" aria-labelledby="addons-heading">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="addons-heading" className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+              Add-ons
+              <span className="rounded-full bg-foreground/[0.06] px-2 text-xs font-medium text-muted-foreground tabular-nums">{extras.length}</span>
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Extras a guest adds to a stay or a day visit: meals, a barbecue, decoration, activity tickets. They have no seats or rooms of their own. Prices are before GST.</p>
+          </div>
+          {manage && <AddonDialog propertyId={property.id} />}
+        </div>
+        {extras.length === 0 ? (
+          <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">No add-ons yet.</p>
+        ) : (
+          <Card className="gap-0 overflow-hidden py-0 shadow-xs">
+            <Table>
+              <TableHeader className="bg-muted/30">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="pl-6">Add-on</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Sold with</TableHead>
+                  <TableHead>Most</TableHead>
+                  <TableHead>Website</TableHead>
+                  {manage && <TableHead className="pr-6 text-right">Change</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {extras.map((addon) => (
+                  <TableRow key={addon.id} className={addon.active ? "" : "bg-muted/30 text-muted-foreground"}>
+                    <TableCell className="pl-6 whitespace-normal">
+                      <span className="font-medium text-foreground">{addon.name}</span>
+                      {!addon.active && (
+                        <Badge variant="outline" className="ml-2 text-muted-foreground">
+                          Off sale
+                        </Badge>
+                      )}
+                      {addon.summary && <span className="block text-xs text-muted-foreground">{addon.summary}</span>}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {rupees(addon.pricePaise)} <span className="text-muted-foreground">{basisLabel[addon.basis]}</span>
+                    </TableCell>
+                    <TableCell>{soldWithLabel[addon.soldWith]}</TableCell>
+                    <TableCell className="tabular-nums">{addon.maxQuantity}</TableCell>
+                    <TableCell>{addon.onWebsite ? "Shown" : <span className="text-muted-foreground">Desk only</span>}</TableCell>
+                    {manage && (
+                      <TableCell className="pr-6">
+                        <div className="flex justify-end gap-1.5">
+                          <AddonDialog
+                            propertyId={property.id}
+                            addon={{ id: addon.id, code: addon.code, name: addon.name, summary: addon.summary, basis: addon.basis, soldWith: addon.soldWith, pricePaise: addon.pricePaise, maxQuantity: addon.maxQuantity, onWebsite: addon.onWebsite }}
+                          />
+                          <AddonSaleButton addonId={addon.id} active={addon.active} />
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        )}
+      </section>
     </>
   );
 }
