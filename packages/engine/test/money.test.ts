@@ -51,6 +51,7 @@ import {
   setRazorpayClient,
   suggestRefund,
   todayInIndia,
+  websiteAvailability,
   type Razorpay,
 } from "../src";
 
@@ -467,5 +468,18 @@ describe("Add-ons", () => {
     expect(booking).toMatchObject({ subtotalPaise: 1_500_000 + 180_000 + 160_000, taxPaise: 75_000 + 61_200 });
     const items = await db.select().from(bookingItems).where(eq(bookingItems.bookingId, bookingId));
     expect(items.filter((i) => i.kind === "addon").map((i) => i.amountPaise).sort()).toEqual([160_000, 180_000]);
+  });
+});
+
+describe("Live availability for the websites", () => {
+  it("counts free rooms, and leaves out room types with no rooms entered", async () => {
+    await db.insert(roomTypes).values({ propertyId, code: "dorm", name: "Dormitory" });
+    const before = await websiteAvailability(db, { propertyCode: "SB", checkIn: "2027-06-01", checkOut: "2027-06-03" });
+    expect(before.rooms.find((r) => r.code === "villa")).toMatchObject({ free: 1, note: null });
+    expect(before.rooms.find((r) => r.code === "dorm")).toBeUndefined();
+    await holdStay(db, { propertyId, checkIn: "2027-06-02", checkOut: "2027-06-03", rooms: [{ roomTypeId: villaId, party: couple }] });
+    const after = await websiteAvailability(db, { propertyCode: "SB", checkIn: "2027-06-01", checkOut: "2027-06-03" });
+    expect(after.rooms.find((r) => r.code === "villa")).toMatchObject({ free: 0 });
+    expect(after.rooms.find((r) => r.code === "room")).toMatchObject({ free: 2 });
   });
 });

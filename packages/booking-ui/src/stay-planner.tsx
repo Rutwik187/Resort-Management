@@ -14,6 +14,7 @@ import { SearchBar, defaultSearch } from "./search-bar";
 import { Sheet } from "./sheet";
 import { Steps } from "./steps";
 import { useSessionValue } from "./store";
+import { useLiveStock, type LiveCheck } from "./live";
 import { addonsRupees, type OnlineBooking } from "./online";
 import { Tray, TrayDock, useCheckout } from "./tray";
 import type { Desk, Listing, ListingGroup, Party, Picked, StaySearch } from "./types";
@@ -39,6 +40,8 @@ type StayPlannerProps = {
   onRequest?: (request: WebsiteRequest) => Promise<unknown> | void;
   /** The site's actions for booking and paying online. Without them, requests go on WhatsApp. */
   online?: OnlineBooking;
+  /** Reads live free rooms for the dates, so sold-out rooms show as sold out. */
+  live?: LiveCheck;
 };
 
 /**
@@ -47,7 +50,7 @@ type StayPlannerProps = {
  * rooms of any type. The tray keeps the rooms, the guests still to place
  * and the estimate, and sends the request.
  */
-export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageSizes, onRequest, online }: StayPlannerProps) {
+export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageSizes, onRequest, online, live }: StayPlannerProps) {
   const listings = groups.flatMap((group) => group.listings);
   const byId = new Map(listings.map((listing) => [listing.id, listing]));
   const navItems = useMemo(() => groups.flatMap((group) => group.listings.map((listing) => ({ id: listing.id, label: listing.name }))), [groups]);
@@ -158,7 +161,27 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
     </>
   );
 
-  const blocker = picked.length === 0 ? "Add a room to continue." : pending ? "Choose your dates to continue." : null;
+  // Live free rooms for these dates. A room in the tray that is sold out, or added more often than it is free, stops the guest early.
+  const stock = useLiveStock(live, pending ? null : { checkIn: search.checkIn, checkOut: search.checkOut });
+  const stockOf = (code: string) => stock?.rooms.find((room) => room.code === code);
+  const short = listings.find((listing) => {
+    const own = stockOf(listing.id);
+    const count = picked.filter((item) => item.listingId === listing.id).length;
+    return own !== undefined && count > 0 && (own.note !== null || count > own.free);
+  });
+  const shortStock = short ? stockOf(short.id)! : undefined;
+  const blocker =
+    picked.length === 0
+      ? "Add a room to continue."
+      : pending
+        ? "Choose your dates to continue."
+        : short && shortStock
+          ? shortStock.note
+            ? `${short.name}: ${shortStock.note} Remove it or change the dates.`
+            : shortStock.free === 0
+              ? `${short.name} is sold out for these dates. Remove it or change the dates.`
+              : `Only ${plural(shortStock.free, short.noun)} of ${short.name} ${shortStock.free === 1 ? "is" : "are"} free for these dates. Remove one or change the dates.`
+          : null;
 
   const tray = (
     <Tray
@@ -255,6 +278,7 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
                       suggested={suggest(listing)}
                       onPick={() => openPick({ listingId: listing.id, party: suggest(listing) })}
                       imageSizes={imageSizes}
+                      stock={stockOf(listing.id)}
                     />
                   ))}
                 </div>

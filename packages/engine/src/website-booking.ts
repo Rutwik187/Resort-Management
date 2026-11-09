@@ -28,14 +28,28 @@ export async function takesOnlineBookings(db: Database, propertyCode: string) {
   return (await paymentAccount(db, property.id)) !== null;
 }
 
-/** Live free rooms and seats for the widget: per room type code and per package code. */
+/**
+ * Live free rooms and seats for the widget (booking step 2): per room type
+ * code and per package code, read from the database each time. A room type
+ * with no rooms entered, or a package with no seats set, is left out: the
+ * website can't tell, so it doesn't call them sold out.
+ */
 export async function websiteAvailability(db: Database, input: { propertyCode: string; checkIn?: string; checkOut?: string; day?: string }) {
   const [property] = await db.select({ id: properties.id }).from(properties).where(eq(properties.code, input.propertyCode));
   if (!property) throw new NotFoundError("Resort");
-  const rooms =
-    input.checkIn && input.checkOut && isDate(input.checkIn) && isDate(input.checkOut) && input.checkOut > input.checkIn
-      ? (await searchStays(db, property.id, input.checkIn, input.checkOut)).map((o) => ({ code: o.code, free: o.closedReason ? 0 : o.freeUnits, note: o.closedReason }))
-      : [];
+  const stayAsked = input.checkIn && input.checkOut && isDate(input.checkIn) && isDate(input.checkOut) && input.checkOut > input.checkIn;
+  const counted = stayAsked
+    ? await db
+        .select({ roomTypeId: units.roomTypeId })
+        .from(units)
+        .innerJoin(roomTypes, eq(roomTypes.id, units.roomTypeId))
+        .where(and(eq(roomTypes.propertyId, property.id), eq(units.status, "active")))
+    : [];
+  const rooms = stayAsked
+    ? (await searchStays(db, property.id, input.checkIn!, input.checkOut!))
+        .filter((o) => counted.some((c) => c.roomTypeId === o.roomTypeId))
+        .map((o) => ({ code: o.code, free: o.closedReason ? 0 : o.freeUnits, note: o.closedReason }))
+    : [];
   const passes = input.day && isDate(input.day)
     ? await (async () => {
         const seats = await seatsLeft(db, property.id, input.day!);
@@ -43,6 +57,7 @@ export async function websiteAvailability(db: Database, input: { propertyCode: s
         // A package's seats are its first open slot's.
         const byCode = new Map<string, { code: string; left: number; note: string | null }>();
         for (const seat of seats) {
+          if (seat.capacity === 0 && !seat.setForDay) continue;
           const code = codes.find((c) => c.id === seat.offeringId)!.code;
           if (!byCode.has(code)) byCode.set(code, { code, left: seat.closedReason ? 0 : seat.left, note: seat.closedReason });
         }

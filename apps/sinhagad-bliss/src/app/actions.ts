@@ -1,7 +1,7 @@
 "use server";
 
-import type { OnlineChoice, OnlineGuest, PaymentAnswer } from "@repo/booking-ui";
-import { confirmOnlinePayment, payGuestBalance, recheckGuestBooking, startOnlineBooking } from "@repo/website/booking";
+import type { LiveQuery, OnlineChoice, OnlineGuest, PaymentAnswer } from "@repo/booking-ui";
+import { confirmOnlinePayment, liveStock, payGuestBalance, recheckGuestBooking, startOnlineBooking } from "@repo/website/booking";
 import { saveBookingRequest, saveEnquiry } from "@repo/website/leads";
 
 /*
@@ -37,4 +37,9 @@ export async function payBalance(token: string) {
 /** Asks Razorpay about a payment the booking page is waiting for. */
 export async function checkBooking(token: string) {
   return recheckGuestBooking("SB", token);
+}
+
+/** Live free rooms or places left, so the lists show what is sold out. */
+export async function checkStock(query: LiveQuery) {
+  return liveStock("SB", query);
 }

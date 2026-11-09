@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { StayPlanner } from "@repo/booking-ui";
 import { liveNotes, liveStayGroups } from "@repo/website";
-import { sendBookingRequest } from "@/app/actions";
+import { checkStock, sendBookingRequest } from "@/app/actions";
 import { onlineBooking } from "@/app/online";
 import { desk, stayGroups, stayNotes } from "@/content/booking";
 import { contact } from "@/content/resort";
@@ -35,7 +35,7 @@ export default async function StaysPage() {
         </header>
 
         <div className="mx-auto max-w-[1600px] px-4 pb-20 pt-10 md:px-8 md:pb-28">
-          <StayPlanner groups={groups} onRequest={sendBookingRequest} desk={desk} storageKey="gc" path="/stays" notes={notes} online={online} />
+          <StayPlanner groups={groups} onRequest={sendBookingRequest} desk={desk} storageKey="gc" path="/stays" notes={notes} online={online} live={checkStock} />
           <p className="mt-16 max-w-2xl text-[0.95rem] text-stone">
             Here for the day instead?{" "}
             <Link href="/day-packages" className="text-ink underline underline-offset-4">

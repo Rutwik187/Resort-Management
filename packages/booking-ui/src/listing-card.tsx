@@ -15,6 +15,8 @@ type ListingCardProps = {
   suggested: Party;
   onPick: () => void;
   imageSizes?: string;
+  /** Live free rooms for the guest's dates, and why it can't be booked, if a stay rule says no. Missing until known. */
+  stock?: { free: number; note: string | null };
 };
 
 /**
@@ -22,9 +24,25 @@ type ListingCardProps = {
  * its rates and, once the guest has dates, the price of their stay. The
  * button opens the panel that asks who stays in it.
  */
-export function ListingCard({ listing, nights, count, suggested, onPick, imageSizes = "(min-width: 1024px) 30vw, (min-width: 768px) 45vw, 100vw" }: ListingCardProps) {
-  const full = listing.units !== undefined && count >= listing.units;
-  const label = full ? `All ${plural(listing.units!, listing.noun)} added` : count > 0 ? `Add another ${listing.noun}` : `Add ${listing.noun}`;
+export function ListingCard({ listing, nights, count, suggested, onPick, imageSizes = "(min-width: 1024px) 30vw, (min-width: 768px) 45vw, 100vw", stock }: ListingCardProps) {
+  // Sold out, or closed by a stay rule, for these dates: it stays in the list, marked, so the guest knows to try other dates.
+  const soldOut = stock !== undefined && (stock.note !== null || stock.free === 0);
+  const allFreeAdded = stock !== undefined && !soldOut && count >= stock.free;
+  const allAdded = listing.units !== undefined && count >= listing.units;
+  const full = soldOut || allFreeAdded || allAdded;
+  const label = soldOut
+    ? stock.note
+      ? "Not available"
+      : "Sold out"
+    : allFreeAdded
+      ? `All ${plural(stock.free, `free ${listing.noun}`)} added`
+      : allAdded
+        ? `All ${plural(listing.units!, listing.noun)} added`
+        : count > 0
+          ? `Add another ${listing.noun}`
+          : `Add ${listing.noun}`;
+  // "Only 2 left" only when some are taken: a resort's one villa, free, is not running out.
+  const few = stock !== undefined && !soldOut && stock.free - count > 0 && stock.free <= 3 && (listing.units === undefined || stock.free < listing.units);
 
   return (
     <article
@@ -83,6 +101,8 @@ export function ListingCard({ listing, nights, count, suggested, onPick, imageSi
             >
               {label}
             </button>
+            {soldOut && <p className="mt-2 text-center text-[0.84rem] text-bk-alert">{stock.note ?? "Sold out for these dates. Try other dates."}</p>}
+            {few && <p className="mt-2 text-center text-[0.84rem] text-bk-alert">Only {stock.free} left for these dates</p>}
             {count > 0 && (
               <p className="mt-2 text-center text-[0.84rem] text-bk-good">
                 <span aria-hidden>✓ </span>

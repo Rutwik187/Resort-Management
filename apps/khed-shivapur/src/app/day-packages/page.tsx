@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { DayPlanner } from "@repo/booking-ui";
 import { liveDayPasses, liveNotes } from "@repo/website";
-import { sendBookingRequest } from "@/app/actions";
+import { checkStock, sendBookingRequest } from "@/app/actions";
 import { onlineBooking } from "@/app/online";
 import { dayNotes, dayPasses, desk } from "@/content/booking";
 import { pageMetadata } from "@/content/site";
@@ -37,7 +37,7 @@ export default async function DayPackagesPage() {
         </header>
 
         <div className="mx-auto max-w-[1680px] px-5 pb-24 pt-10 md:px-10">
-          <DayPlanner passes={live} onRequest={sendBookingRequest} desk={desk} storageKey="ks" noun="day package" notes={notes} online={online} />
+          <DayPlanner passes={live} onRequest={sendBookingRequest} desk={desk} storageKey="ks" noun="day package" notes={notes} online={online} live={checkStock} />
         </div>
       </div>
 

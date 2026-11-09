@@ -4,7 +4,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { after } from "next/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import type { CheckoutOrder, ConfirmResult, OnlineChoice, OnlineGuest, StartResult } from "@repo/booking-ui";
+import type { CheckoutOrder, ConfirmResult, LiveStock, OnlineChoice, OnlineGuest, StartResult } from "@repo/booking-ui";
 import { getDb, onlinePayments, properties } from "@repo/db";
 import {
   bookingForGuest,
@@ -19,6 +19,7 @@ import {
   SoldOutError,
   takesOnlineBookings,
   TransitionError,
+  websiteAvailability,
   type Party,
 } from "@repo/engine";
 import type { PropertyCode } from "@repo/sites";
@@ -184,6 +185,31 @@ export async function recheckGuestBooking(siteCode: PropertyCode, token: string)
     return false;
   }
 }
+
+const liveQuery = z.union([z.object({ checkIn: day, checkOut: day }), z.object({ day })]);
+
+/**
+ * Live free rooms for a stay, or places left on a day, for the lists
+ * (booking step 2). Read from the database each time, never cached. Null
+ * without a database, for a bad query, or when the read fails: the lists
+ * then show as before, and the hold still refuses what is sold out.
+ */
+export async function liveStock(siteCode: PropertyCode, query: unknown): Promise<LiveStock | null> {
+  if (!process.env.DATABASE_URL) return null;
+  const parsed = liveQuery.safeParse(query);
+  if (!parsed.success) return null;
+  const q = parsed.data;
+  if ("checkIn" in q && (q.checkOut <= q.checkIn || q.checkOut > addDaysIso(q.checkIn, 30))) return null;
+  try {
+    const found = await websiteAvailability(getDb(), "day" in q ? { propertyCode: siteCode, day: q.day } : { propertyCode: siteCode, checkIn: q.checkIn, checkOut: q.checkOut });
+    return { rooms: found.rooms, passes: found.passes };
+  } catch (error) {
+    console.error(`Live availability at ${siteCode} failed.`, error);
+    return null;
+  }
+}
+
+const addDaysIso = (date: string, days: number) => new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 
 /** Opens a payment for what the guest still owes, from their page. */
 export async function payGuestBalance(siteCode: PropertyCode, token: string): Promise<{ ok: true; order: CheckoutOrder } | { ok: false; error: string }> {

@@ -10,3 +10,4 @@ export { DayBar } from "./day-bar";
 export { CountInput, DateInput, FieldError, contactErrors, type ContactErrors } from "./form-fields";
 export { addonPer, addonsRupees, chosenAddons, loadRazorpay, payWithRazorpay, type CheckoutOrder, type OnlineAddon, type ConfirmResult, type OnlineBooking, type OnlineChoice, type OnlineGuest, type OnlineStarted, type PaymentAnswer, type StartResult } from "./online";
 export { PayBalanceButton, RefreshWhileWaiting } from "./guest-booking";
+export type { LiveCheck, LiveQuery, LiveStock } from "./live";

@@ -97,6 +97,9 @@ export function Tray({ heading, when, lines, emptySlots, emptyNote, onRemove, on
     return base && extras.length ? { ...base, addons: extras } : base;
   };
 
+  // A site's notes about confirming on WhatsApp are for requests; a resort that books online confirms at once.
+  const shownNotes = online ? notes.filter((note) => !/on WhatsApp/i.test(note)) : notes;
+
   // Shown under the name and phone once the guest tries to send without them.
   const [errors, setErrors] = useState<ContactErrors>({});
 
@@ -345,9 +348,9 @@ export function Tray({ heading, when, lines, emptySlots, emptyNote, onRemove, on
       </button>
       {blocker && <p className="mt-2 text-center text-[0.85rem] text-bk-muted">{blocker}</p>}
 
-      {notes.length > 0 && (
+      {shownNotes.length > 0 && (
         <ul className="mt-5 grid gap-1.5 border-t border-bk-line pt-4 text-[0.8rem] leading-snug text-bk-muted">
-          {notes.map((note) => (
+          {shownNotes.map((note) => (
             <li key={note}>{note}</li>
           ))}
         </ul>
