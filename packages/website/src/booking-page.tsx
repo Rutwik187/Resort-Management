@@ -95,8 +95,8 @@ export async function GuestBookingPage({ code, token, actions, contact }: { code
           {booking.items.map((item) => (
             <li key={item.id} className="flex flex-wrap justify-between gap-x-4">
               <span>
-                {item.kind === "stay" ? item.roomType : `${item.offering}, ${item.slot}`}
-                <span className="text-bk-muted"> · {partyWords(item.party)}</span>
+                {item.title}
+                {item.kind !== "addon" && <span className="text-bk-muted"> · {partyWords(item.party)}</span>}
               </span>
               {item.amountPaise !== null && <span className="tabular-nums text-bk-muted">{rupees(item.amountPaise)}</span>}
             </li>

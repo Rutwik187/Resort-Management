@@ -19,7 +19,7 @@ export default async function StaysPage() {
   // Rooms, rates and text from the admin; the site's own content if the database is out of reach.
   const groups = await liveStayGroups("KS", stayGroups);
   const notes = await liveNotes("KS", "stay", stayNotes);
-  const online = await onlineBooking();
+  const online = await onlineBooking("stay");
   return (
     <PageTransition>
       <div className="bg-paper">

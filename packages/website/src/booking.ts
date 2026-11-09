@@ -58,9 +58,10 @@ const widgetParty = z.object({
   under3: z.number().int().min(0).max(60),
 });
 const code = z.string().trim().min(1).max(80);
+const extras = z.array(z.object({ code, quantity: z.number().int().min(1).max(100) })).max(20).optional();
 const choiceInput = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("stay"), checkIn: day, checkOut: day, rooms: z.array(z.object({ code, party: widgetParty })).min(1).max(20) }),
-  z.object({ kind: z.literal("day"), date: day, passes: z.array(z.object({ code, party: widgetParty })).min(1).max(20) }),
+  z.object({ kind: z.literal("stay"), checkIn: day, checkOut: day, rooms: z.array(z.object({ code, party: widgetParty })).min(1).max(20), addons: extras }),
+  z.object({ kind: z.literal("day"), date: day, passes: z.array(z.object({ code, party: widgetParty })).min(1).max(20), addons: extras }),
 ]);
 const guestInput = z.object({
   name: z.string().trim().min(2).max(80),
@@ -101,6 +102,7 @@ export async function startOnlineBooking(siteCode: PropertyCode, choice: OnlineC
       propertyCode: siteCode,
       stay: c.kind === "stay" ? { checkIn: c.checkIn, checkOut: c.checkOut, rooms: c.rooms.map((r) => ({ code: r.code, party: toParty(r.party) })) } : undefined,
       day: c.kind === "day" ? { date: c.date, passes: c.passes.map((p) => ({ code: p.code, party: toParty(p.party) })) } : undefined,
+      addons: c.addons,
       guest: { name: g.name, phone: g.phone, email: g.email, companyName: g.companyName || undefined, companyGstin: g.companyGstin || undefined },
       notes: g.note,
       marketing: g.marketing,

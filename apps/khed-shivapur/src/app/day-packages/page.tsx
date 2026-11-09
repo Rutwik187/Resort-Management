@@ -19,7 +19,7 @@ export const metadata = pageMetadata({
 export default async function DayPackagesPage() {
   // Day packages and prices from the admin; the site's own content if the database is out of reach.
   const notes = await liveNotes("KS", "day", dayNotes);
-  const online = await onlineBooking();
+  const online = await onlineBooking("day");
   const live = await liveDayPasses("KS", dayPasses);
   return (
     <PageTransition>

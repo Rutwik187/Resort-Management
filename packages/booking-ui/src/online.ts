@@ -8,10 +8,28 @@ import type { Party } from "./types";
  * request.
  */
 
-/** What the guest chose, by the codes the listings and passes carry. */
-export type OnlineChoice =
+/** What the guest chose, by the codes the listings, passes and add-ons carry. */
+export type OnlineChoice = (
   | { kind: "stay"; checkIn: string; checkOut: string; rooms: { code: string; party: Party }[] }
-  | { kind: "day"; date: string; passes: { code: string; party: Party }[] };
+  | { kind: "day"; date: string; passes: { code: string; party: Party }[] }
+) & { addons?: { code: string; quantity: number }[] };
+
+/** Something extra the guest can add before paying (PR-06), priced before GST. */
+export type OnlineAddon = { code: string; name: string; summary: string | null; basis: "unit" | "person" | "night"; pricePaise: number; maxQuantity: number };
+
+export const addonPer = { unit: "each", person: "a person", night: "a night" } as const;
+
+/** The add-ons the guest chose, with how many, in the resort's order. */
+export const chosenAddons = (addons: readonly OnlineAddon[], counts: Record<string, number>) =>
+  addons.filter((a) => (counts[a.code] ?? 0) > 0).map((a) => ({ code: a.code, quantity: Math.min(a.maxQuantity, counts[a.code]) }));
+
+/** What the chosen add-ons cost before GST, in rupees. A per-night one counts every night. */
+export function addonsRupees(addons: readonly OnlineAddon[], counts: Record<string, number>, nights: number) {
+  return chosenAddons(addons, counts).reduce((sum, { code, quantity }) => {
+    const addon = addons.find((a) => a.code === code)!;
+    return sum + (addon.pricePaise / 100) * quantity * (addon.basis === "night" ? nights : 1);
+  }, 0);
+}
 
 export type OnlineGuest = {
   name: string;
@@ -52,6 +70,8 @@ export type OnlineBooking = {
   confirm: (answer: PaymentAnswer) => Promise<ConfirmResult>;
   /** The page with the booking terms and cancellation rules. */
   termsHref: string;
+  /** The resort's add-ons for this kind of booking, shown in the tray. */
+  addons?: OnlineAddon[];
 };
 
 type RazorpayOptions = {

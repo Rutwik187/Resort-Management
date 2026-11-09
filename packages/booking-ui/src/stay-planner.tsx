@@ -14,7 +14,7 @@ import { SearchBar, defaultSearch } from "./search-bar";
 import { Sheet } from "./sheet";
 import { Steps } from "./steps";
 import { useSessionValue } from "./store";
-import type { OnlineBooking } from "./online";
+import { addonsRupees, type OnlineBooking } from "./online";
 import { Tray, TrayDock, useCheckout } from "./tray";
 import type { Desk, Listing, ListingGroup, Party, Picked, StaySearch } from "./types";
 
@@ -217,7 +217,8 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
   const guests = search.adults + search.children;
   const summary = pending ? "" : `${formatRange(search.checkIn, search.checkOut)} · ${plural(guests, "guest")}`;
   const dockSummary = `${plural(picked.length, "room")} · ${placed < wanted ? `${placed} of ${plural(wanted, "guest")} placed` : plural(placed, "guest")}`;
-  const dockTotal = pending ? "Add dates for the price" : total === null ? "Price to confirm" : `${formatRupees(total)} + GST`;
+  const extrasTotal = online && total !== null ? addonsRupees(online.addons ?? [], checkout.extras, nights.length) : 0;
+  const dockTotal = pending ? "Add dates for the price" : total === null ? "Price to confirm" : `${formatRupees(total + extrasTotal)} + GST`;
 
   return (
     <div className="pb-28 lg:pb-0">

@@ -16,7 +16,7 @@ import { newKey } from "./saved";
 import { Sheet } from "./sheet";
 import { Steps } from "./steps";
 import { useSessionValue } from "./store";
-import type { OnlineBooking } from "./online";
+import { addonsRupees, type OnlineBooking } from "./online";
 import { Tray, TrayDock, useCheckout } from "./tray";
 import type { Desk, Party, Pass } from "./types";
 
@@ -229,7 +229,7 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
 
       <TrayDock
         summary={`${plural(picked.length, noun)} · ${plural(people, "guest")}`}
-        total={total === null ? "Price to confirm" : `${formatRupees(total)} + GST`}
+        total={total === null ? "Price to confirm" : `${formatRupees(total + (online ? addonsRupees(online.addons ?? [], checkout.extras, 1) : 0))} + GST`}
         visible={picked.length > 0}
         open={trayOpen}
         onOpenChange={setTrayOpen}

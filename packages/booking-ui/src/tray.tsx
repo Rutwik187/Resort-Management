@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { plural } from "./dates";
+import { nightsOf, plural } from "./dates";
 import { FieldError, contactErrors, type ContactErrors } from "./form-fields";
 import { formatRupees } from "./pricing";
-import type { OnlineBooking, OnlineChoice, OnlineGuest, OnlineStarted } from "./online";
+import { addonPer, addonsRupees, chosenAddons, type OnlineBooking, type OnlineChoice, type OnlineGuest, type OnlineStarted } from "./online";
 import { OnlineDetails, OnlineReview, emptyOnlineGuest } from "./online-steps";
 import { openWhatsApp, type GuestDetails, type RequestLine } from "./request";
 import { Sheet } from "./sheet";
+import { Stepper } from "./stepper";
 import type { Desk } from "./types";
 
 type Step = "pick" | "details" | "review" | "sent";
@@ -18,7 +19,9 @@ export function useCheckout() {
   const [guest, setGuest] = useState<GuestDetails>({ name: "", phone: "", note: "" });
   const [onlineGuest, setOnlineGuest] = useState<OnlineGuest>(emptyOnlineGuest);
   const [started, setStarted] = useState<OnlineStarted | null>(null);
-  return { step, setStep, guest, setGuest, onlineGuest, setOnlineGuest, started, setStarted };
+  /** How many of each add-on, by code. */
+  const [extras, setExtras] = useState<Record<string, number>>({});
+  return { step, setStep, guest, setGuest, onlineGuest, setOnlineGuest, started, setStarted, extras, setExtras };
 }
 
 export type Checkout = ReturnType<typeof useCheckout>;
@@ -79,6 +82,21 @@ export function Tray({ heading, when, lines, emptySlots, emptyNote, onRemove, on
     setStep(next);
   };
 
+  // Add-ons, when the resort sells them online. Per-night ones count every night of the stay.
+  const addons = online?.addons ?? [];
+  const picked = choice?.() ?? null;
+  const nights = picked?.kind === "stay" ? Math.max(1, nightsOf(picked.checkIn, picked.checkOut).length) : 1;
+  const extras = chosenAddons(addons, checkout.extras);
+  const extrasTotal = addonsRupees(addons, checkout.extras, nights);
+  const shownTotal = total === null ? null : total + extrasTotal;
+  const withExtras = (text: string) =>
+    extras.length ? `${text}\n\nAdd-ons: ${extras.map(({ code, quantity }) => `${addons.find((a) => a.code === code)!.name} × ${quantity}`).join(", ")}` : text;
+  const fullMessage = (details: GuestDetails) => withExtras(message(details));
+  const choiceWithExtras = () => {
+    const base = choice?.() ?? null;
+    return base && extras.length ? { ...base, addons: extras } : base;
+  };
+
   // Shown under the name and phone once the guest tries to send without them.
   const [errors, setErrors] = useState<ContactErrors>({});
 
@@ -90,7 +108,7 @@ export function Tray({ heading, when, lines, emptySlots, emptyNote, onRemove, on
       (event.currentTarget.elements.namedItem(found.name ? "name" : "phone") as HTMLInputElement | null)?.focus();
       return;
     }
-    openWhatsApp(desk.whatsapp.number, message(guest));
+    openWhatsApp(desk.whatsapp.number, fullMessage(guest));
     go("sent");
     onSend?.(guest);
   }
@@ -106,7 +124,7 @@ export function Tray({ heading, when, lines, emptySlots, emptyNote, onRemove, on
         guest={checkout.onlineGuest}
         setGuest={checkout.setOnlineGuest}
         online={online}
-        choice={choice}
+        choice={choiceWithExtras}
         onBack={() => go("pick")}
         onStarted={(started) => {
           checkout.setStarted(started);
@@ -115,7 +133,7 @@ export function Tray({ heading, when, lines, emptySlots, emptyNote, onRemove, on
         onWhatsApp={() => {
           const details = { name: checkout.onlineGuest.name, phone: checkout.onlineGuest.phone, note: checkout.onlineGuest.note };
           setGuest(details);
-          openWhatsApp(desk.whatsapp.number, message(details));
+          openWhatsApp(desk.whatsapp.number, fullMessage(details));
           go("sent");
           onSend?.(details);
         }}
@@ -133,7 +151,7 @@ export function Tray({ heading, when, lines, emptySlots, emptyNote, onRemove, on
           Your request is ready in WhatsApp. Press send there, and our team replies with availability and the final price.
         </p>
         <div className="mt-6 grid gap-2">
-          <button type="button" onClick={() => openWhatsApp(desk.whatsapp.number, message(guest))} className="min-h-12 rounded-bk-control bg-bk-accent px-5 bk-button text-bk-accent-ink">
+          <button type="button" onClick={() => openWhatsApp(desk.whatsapp.number, fullMessage(guest))} className="min-h-12 rounded-bk-control bg-bk-accent px-5 bk-button text-bk-accent-ink">
             Open WhatsApp again
           </button>
           <button type="button" onClick={() => go("pick")} className="min-h-12 rounded-bk-control border border-bk-line px-5 bk-button hover:border-bk-ink">
@@ -285,11 +303,33 @@ export function Tray({ heading, when, lines, emptySlots, emptyNote, onRemove, on
         </div>
       )}
 
+      {addons.length > 0 && lines.length > 0 && !pending && (
+        <section aria-labelledby={`${id}-addons`} className="mt-5 border-t border-bk-line pt-4">
+          <h3 id={`${id}-addons`} className="text-[0.95rem] font-medium">
+            Add to your {picked?.kind === "day" ? "day" : "stay"}
+          </h3>
+          <p className="mt-0.5 text-[0.82rem] text-bk-muted">Optional. Prices before GST.</p>
+          <div className="mt-1 divide-y divide-bk-line">
+            {addons.map((addon) => (
+              <Stepper
+                key={addon.code}
+                label={addon.name}
+                hint={`${formatRupees(addon.pricePaise / 100)} ${addonPer[addon.basis]}${addon.basis === "night" && nights > 1 ? `, ${plural(nights, "night")}` : ""}${addon.summary ? ` · ${addon.summary}` : ""}`}
+                value={checkout.extras[addon.code] ?? 0}
+                min={0}
+                max={addon.maxQuantity}
+                onChange={(n) => checkout.setExtras({ ...checkout.extras, [addon.code]: n })}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
       {lines.length > 0 && !pending && (
         <div className="mt-5 flex items-baseline justify-between gap-4 border-t border-bk-line pt-4">
           <span className="text-[0.92rem] text-bk-muted">Estimate</span>
           <span className="text-right">
-            <span className="bk-display block text-[1.75rem] leading-none tabular-nums">{total === null ? "To confirm" : formatRupees(total)}</span>
+            <span className="bk-display block text-[1.75rem] leading-none tabular-nums">{shownTotal === null ? "To confirm" : formatRupees(shownTotal)}</span>
             <span className="mt-1 block text-[0.78rem] text-bk-muted">{total === null ? "Some rates are quoted by our team" : online ? "Plus GST, shown before you pay" : "Plus GST"}</span>
           </span>
         </div>

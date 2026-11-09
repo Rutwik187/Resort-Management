@@ -1,6 +1,7 @@
 import "server-only";
 import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 import { offerNotes, offersFor, passesFromCatalogue, stayGroupsFromCatalogue, type ListingGroup, type Pass } from "@repo/booking-ui/catalogue";
+import type { OnlineAddon } from "@repo/booking-ui";
 import { getDb } from "@repo/db";
 import { websiteCatalogue, type WebsiteNotice } from "@repo/engine";
 import { contentTag, revalidateContent } from "@repo/sanity";
@@ -71,6 +72,14 @@ export async function liveOffer<T extends { title: string; note?: string }>(code
   if (!data) return fallback ?? null;
   const offer = offersFor(data, kind)[0];
   return offer ? { title: offer.title, note: offer.details ?? undefined } : null;
+}
+
+/** The add-ons guests can choose online with a stay or a day visit (PR-06). None without a database. */
+export async function liveAddons(code: PropertyCode, kind: "stay" | "day"): Promise<OnlineAddon[]> {
+  const data = await catalogue(code);
+  return (data?.addons ?? [])
+    .filter((a) => a.soldWith === "both" || a.soldWith === kind)
+    .map((a) => ({ code: a.code, name: a.name, summary: a.summary, basis: a.basis, pricePaise: a.pricePaise, maxQuantity: a.maxQuantity }));
 }
 
 /** The resort's notices from the admin, newest first. None without a database. */
