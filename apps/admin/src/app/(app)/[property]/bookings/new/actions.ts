@@ -11,20 +11,24 @@ import { audit, requirePermission } from "@/lib/staff";
 
 const count = z.number().int().min(0).max(50);
 const party = { adults: count.min(1, "Each room or ticket needs at least one adult."), children: z.record(z.string().max(40), count) };
+const addonLines = z.array(z.object({ id: z.uuid(), quantity: z.number().int().min(1).max(100) })).max(30).default([]);
 const request = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("stay"),
     checkIn: date("check-in date"),
     checkOut: date("check-out date"),
     lines: z.array(z.object({ id: z.uuid(), ...party, extraBeds: count.max(5) })).min(1, "Add at least one room.").max(30),
+    addons: addonLines,
   }),
   z.object({
     kind: z.literal("day"),
     day: date("date"),
     lines: z.array(z.object({ id: z.uuid(), ...party })).min(1, "Add at least one ticket.").max(30),
+    addons: addonLines,
   }),
 ]);
 export type BookingRequest = z.input<typeof request>;
+const extrasOf = (input: z.infer<typeof request>) => input.addons.map((a) => ({ addonId: a.id, quantity: a.quantity }));
 
 /** What the price check shows: each room or ticket, and the total. */
 export type QuoteView = {
@@ -59,8 +63,8 @@ export async function quoteOffline(propertyId: string, payload: BookingRequest):
     const db = getDb();
     const quote =
       input.kind === "stay"
-        ? await quoteStay(db, { propertyId, checkIn: input.checkIn, checkOut: input.checkOut, rooms: input.lines.map(({ id, adults, children, extraBeds }) => ({ roomTypeId: id, party: { adults, children }, extraBeds })) })
-        : await quoteSeats(db, { propertyId, day: input.day, seats: input.lines.map(({ id, adults, children }) => ({ slotId: id, party: { adults, children } })) });
+        ? await quoteStay(db, { propertyId, checkIn: input.checkIn, checkOut: input.checkOut, rooms: input.lines.map(({ id, adults, children, extraBeds }) => ({ roomTypeId: id, party: { adults, children }, extraBeds })) , addons: extrasOf(input) })
+        : await quoteSeats(db, { propertyId, day: input.day, seats: input.lines.map(({ id, adults, children }) => ({ slotId: id, party: { adults, children } })) , addons: extrasOf(input) });
     return asView(quote);
   } catch (error) {
     return { error: problem(error, "Your role can't make bookings at this resort.")?.error };
@@ -128,8 +132,8 @@ export async function createOffline(propertyId: string, _state: FormState, form:
     }
     const hold =
       input.kind === "stay"
-        ? await holdStay(db, { propertyId, checkIn: input.checkIn, checkOut: input.checkOut, rooms: input.lines.map(({ id, adults, children, extraBeds }) => ({ roomTypeId: id, party: { adults, children }, extraBeds })) })
-        : await holdSeats(db, { propertyId, day: input.day, seats: input.lines.map(({ id, adults, children }) => ({ slotId: id, party: { adults, children } })) });
+        ? await holdStay(db, { propertyId, checkIn: input.checkIn, checkOut: input.checkOut, rooms: input.lines.map(({ id, adults, children, extraBeds }) => ({ roomTypeId: id, party: { adults, children }, extraBeds })) , addons: extrasOf(input) })
+        : await holdSeats(db, { propertyId, day: input.day, seats: input.lines.map(({ id, adults, children }) => ({ slotId: id, party: { adults, children } })) , addons: extrasOf(input) });
 
     const offerName = offer ? `Offer: ${offer.title}${offer.code ? ` (${offer.code})` : ""}` : null;
     const subtotal = subtotalOf(hold.quote);

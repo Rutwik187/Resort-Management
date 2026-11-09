@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowRightLeft, CalendarCheck, CalendarRange, CircleAlert, Clock, IndianRupee, Link2, Mail, MessageCircle, MessageSquareText, Phone, PencilLine, Sparkles, Undo2 } from "lucide-react";
 import { can } from "@repo/auth";
 import { getDb } from "@repo/db";
-import { freeUnits, todayInIndia, type Quote } from "@repo/engine";
+import { addonQuantityWords, freeUnits, todayInIndia, type Quote } from "@repo/engine";
 import { NoAccess } from "@/components/no-access";
 import { PersonAvatar } from "@/components/person-avatar";
 import { StatusBadge } from "@/components/status-badge";
@@ -239,6 +239,22 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
             <CardContent className="grid gap-3">
               {items.map(({ item, roomTypeName, unitName, offeringName, slotLabel }, index) => {
                 const line = quote?.lines[index];
+                if (item.kind === "addon") {
+                  return (
+                    <div key={item.id} className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg border border-dashed px-4 py-3">
+                      <p className="font-medium">
+                        {line?.kind === "addon" ? line.addonName : "Add-on"}
+                        {line?.kind === "addon" && (
+                          <span className="font-normal text-muted-foreground">
+                            {" "}
+                            · {addonQuantityWords(line)} at {rupees(line.unitPaise)}
+                          </span>
+                        )}
+                      </p>
+                      <p className="font-semibold tabular-nums">{price(item.amountPaise)}</p>
+                    </div>
+                  );
+                }
                 return (
                   <div key={item.id} className="grid gap-2 rounded-lg border p-4">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">

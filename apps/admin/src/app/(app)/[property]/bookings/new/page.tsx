@@ -3,7 +3,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { BedDouble, CalendarSearch, CircleAlert, Inbox, Search, Ticket } from "lucide-react";
 import { can } from "@repo/auth";
 import { ageBands, getDb, leads, offers, roomTypes } from "@repo/db";
-import { addDays, isDate, offerLabel, offerProblem, searchStays, seatsLeft, todayInIndia } from "@repo/engine";
+import { addDays, addonsFor, isDate, offerLabel, offerProblem, searchStays, seatsLeft, todayInIndia } from "@repo/engine";
 import { DateField, DateRangeField } from "@/components/date-field";
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/page-header";
@@ -185,6 +185,7 @@ export default async function NewBookingPage({ params, searchParams }: PageProps
           prefill={lead ? { leadId: lead.id, name: lead.name, phone: lead.phone ? (lead.phone.startsWith("91") && lead.phone.length === 12 ? lead.phone.slice(2) : lead.phone) : "", email: lead.email ?? "" } : undefined}
           canTakePayment={can(staff, "bookings.modify", property.id)}
           offers={offerOptions}
+          addons={asked && !problem ? await addonsFor(db, property.id, kind) : []}
         />
       )}
     </>

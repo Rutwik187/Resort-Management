@@ -26,6 +26,10 @@ export type OfferOption = { id: string; title: string; code: string | null; labe
 const discountOf = (offer: OfferOption | undefined, total: number | null | undefined) =>
   !offer || total == null ? 0 : offer.discountKind === "percent" ? Math.min(total, Math.round((total * (offer.discountValue ?? 0)) / 100)) : offer.discountKind === "amount" ? Math.min(total, offer.discountValue ?? 0) : 0;
 
+/** An add-on staff can add, priced before GST. */
+export type AddonOption = { id: string; name: string; summary: string | null; basis: "unit" | "person" | "night"; pricePaise: number; maxQuantity: number };
+const per = { unit: "each", person: "a person", night: "a night" } as const;
+
 export type Option = { id: string; name: string; available: number; closedReason: string | null; maxAdults: number | null; maxGuests: number | null; extraBedAllowed: boolean };
 
 /** Steppers need a top. Where the resort publishes no limit, this one is high enough for any party. */
@@ -69,6 +73,7 @@ export function NewBookingForm({
   canTakePayment,
   prefill,
   offers = [],
+  addons = [],
 }: {
   propertyId: string;
   kind: "stay" | "day";
@@ -81,8 +86,11 @@ export function NewBookingForm({
   prefill?: { leadId: string; name: string; phone: string; email: string };
   /** The resort's offers for this kind of booking, each with why it doesn't cover these dates, if it doesn't. */
   offers?: OfferOption[];
+  /** The resort's add-ons for this kind of booking. */
+  addons?: AddonOption[];
 }) {
   const [lines, setLines] = useState<Line[]>([]);
+  const [extras, setExtras] = useState<Record<string, number>>({});
   const [nextKey, setNextKey] = useState(1);
   const [quote, setQuote] = useState<QuoteView | null>(null);
   const [quoting, startQuote] = useTransition();
@@ -110,10 +118,13 @@ export function NewBookingForm({
     setNextKey(nextKey + 1);
   };
 
+  const chosenExtras = Object.entries(extras)
+    .filter(([, quantity]) => quantity > 0)
+    .map(([id, quantity]) => ({ id, quantity }));
   const request: BookingRequest =
     "day" in dates
-      ? { kind: "day", day: dates.day, lines: lines.map(({ id, adults, children }) => ({ id, adults, children })) }
-      : { kind: "stay", checkIn: dates.checkIn, checkOut: dates.checkOut, lines: lines.map(({ id, adults, children, extraBeds }) => ({ id, adults, children, extraBeds })) };
+      ? { kind: "day", day: dates.day, lines: lines.map(({ id, adults, children }) => ({ id, adults, children })), addons: chosenExtras }
+      : { kind: "stay", checkIn: dates.checkIn, checkOut: dates.checkOut, lines: lines.map(({ id, adults, children, extraBeds }) => ({ id, adults, children, extraBeds })), addons: chosenExtras };
 
   return (
     <form action={action} className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
@@ -209,6 +220,29 @@ export function NewBookingForm({
                   </div>
                 );
               })}
+              {addons.length > 0 && (
+                <div className="grid gap-3 rounded-lg border p-4">
+                  <div>
+                    <p className="font-medium">Add-ons</p>
+                    <p className="text-sm text-muted-foreground">Extras for this booking. Prices are before GST.</p>
+                  </div>
+                  <div className="grid gap-2 sm:max-w-md">
+                    {addons.map((addon) => (
+                      <Stepper
+                        key={addon.id}
+                        label={`${addon.name} · ${rupees(addon.pricePaise)} ${per[addon.basis]}`}
+                        value={extras[addon.id] ?? 0}
+                        min={0}
+                        max={addon.maxQuantity}
+                        onChange={(n) => {
+                          setExtras({ ...extras, [addon.id]: n });
+                          setQuote(null);
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex flex-wrap items-center gap-3">
                 <Button type="button" variant="outline" disabled={quoting} onClick={() => startQuote(async () => setQuote(await quoteOffline(propertyId, request)))}>
                   {quoting ? <Spinner /> : <Calculator />}
