@@ -10,6 +10,7 @@ import {
   bookingForGuest,
   bookOnline,
   completeCheckout,
+  lineTitle,
   NotFoundError,
   payBalanceOnline,
   recheckOnlinePayments,
@@ -115,7 +116,7 @@ export async function startOnlineBooking(siteCode: PropertyCode, choice: OnlineC
         url: `/booking?ref=${started.token}`,
         holdExpiresAt: started.holdExpiresAt,
         lines: quote.lines.map((line) => ({
-          title: line.kind === "stay" ? `${line.roomTypeName}, ${line.nights.length} ${line.nights.length === 1 ? "night" : "nights"}` : `${line.offeringName}, ${line.slotLabel}`,
+          title: line.kind === "stay" ? `${line.roomTypeName}, ${line.nights.length} ${line.nights.length === 1 ? "night" : "nights"}` : lineTitle(line),
           amountPaise: line.totalPaise,
         })),
         subtotalPaise: quote.subtotalPaise ?? 0,

@@ -68,11 +68,14 @@ async function invoiceLines(tx: Tx, booking: typeof bookings.$inferSelect): Prom
       else if (line.kind === "offering") {
         description = `${line.offeringName}, ${line.slotLabel}, ${shortDay(line.day)}`;
         unit = "guest";
+      } else {
+        description = line.addonName;
+        unit = line.basis === "person" ? "person" : line.basis === "night" ? "night" : "unit";
       }
       group = { description, sac: item.sac, quantity: 0, unit, taxablePaise: 0, rateBps: item.rateBps, taxPaise: 0 };
       groups.set(key, group);
     }
-    group.quantity += line.kind === "stay" ? 1 : item.units;
+    group.quantity += line.kind === "stay" ? 1 : line.kind === "addon" ? line.quantity * line.nights : item.units;
     group.taxablePaise += item.amountPaise;
   }
   const lines = [...groups.values()];

@@ -1,6 +1,6 @@
 import { and, eq, lte, sql } from "drizzle-orm";
 import { bookingEvents, bookings, guests, holds, properties, type Database } from "@repo/db";
-import type { Quote } from "./holds";
+import { lineTitle, type Quote } from "./holds";
 import { recordWebsiteLead } from "./leads";
 import { cancelHeldMessages } from "./messages";
 import { headcount } from "./pricing";
@@ -69,8 +69,8 @@ async function abandonedBookingLead(db: Database, bookingId: string) {
     email: row.guest.email ?? undefined,
     dateFrom: row.booking.checkIn ?? row.booking.visitDate ?? undefined,
     dateTo: row.booking.checkOut ?? undefined,
-    guests: quote.lines.reduce((sum, line) => sum + headcount(line.party), 0),
+    guests: quote.lines.reduce((sum, line) => sum + (line.kind === "addon" ? 0 : headcount(line.party)), 0),
     message: `Started booking ${row.booking.number} on the website but didn't finish paying.`,
-    request: { booking: row.booking.number, totalPaise: row.booking.totalPaise, lines: quote.lines.map((l) => (l.kind === "stay" ? l.roomTypeName : `${l.offeringName}, ${l.slotLabel}`)) },
+    request: { booking: row.booking.number, totalPaise: row.booking.totalPaise, lines: quote.lines.map(lineTitle) },
   });
 }

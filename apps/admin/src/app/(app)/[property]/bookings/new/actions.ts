@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb, leadActivities, leads, offers, properties } from "@repo/db";
-import { createBooking, holdSeats, holdStay, nightsOf, offerDiscount, offerProblem, quoteSeats, quoteStay, releaseHold, subtotalOf, type Quote } from "@repo/engine";
+import { createBooking, holdSeats, holdStay, lineTitle, nightsOf, offerDiscount, offerProblem, quoteSeats, quoteStay, releaseHold, subtotalOf, type Quote } from "@repo/engine";
 import { offlineSources } from "@/lib/format";
 import { checkbox, date, filled, problem, rupeesField, type FormState } from "@/lib/forms";
 import { audit, requirePermission } from "@/lib/staff";
@@ -42,7 +42,7 @@ const asView = (quote: Quote): QuoteView => ({
   lines: quote.lines.map((line) =>
     line.kind === "stay"
       ? { name: line.roomTypeName, totalPaise: line.totalPaise, nights: line.nights }
-      : { name: `${line.offeringName}, ${line.slotLabel}`, totalPaise: line.totalPaise, nights: [] },
+      : { name: lineTitle(line), totalPaise: line.totalPaise, nights: [] },
   ),
   subtotalPaise: subtotalOf(quote),
   taxPaise: quote.taxPaise ?? null,

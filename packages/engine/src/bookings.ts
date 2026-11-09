@@ -160,7 +160,9 @@ export async function createBooking(
       quote.lines.map((line, i) =>
         line.kind === "stay"
           ? { propertyId: hold.propertyId, bookingId: booking.id, kind: "stay" as const, roomTypeId: line.roomTypeId, unitId: line.unitId, party: line.party, extraBeds: line.extraBeds, amountPaise: line.totalPaise, sortOrder: i }
-          : { propertyId: hold.propertyId, bookingId: booking.id, kind: "offering" as const, offeringId: line.offeringId, slotId: line.slotId, party: line.party, amountPaise: line.totalPaise, sortOrder: i },
+          : line.kind === "offering"
+            ? { propertyId: hold.propertyId, bookingId: booking.id, kind: "offering" as const, offeringId: line.offeringId, slotId: line.slotId, party: line.party, amountPaise: line.totalPaise, sortOrder: i }
+            : { propertyId: hold.propertyId, bookingId: booking.id, kind: "addon" as const, addonId: line.addonId, quantity: line.quantity, party: { adults: 0, children: {} }, amountPaise: line.totalPaise, sortOrder: i },
       ),
     );
     await tx.update(holds).set({ bookingId: booking.id }).where(eq(holds.id, hold.id));

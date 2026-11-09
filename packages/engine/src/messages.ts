@@ -1,7 +1,7 @@
 import { and, asc, eq, inArray, lt, sql } from "drizzle-orm";
 import { bookings, guests, messages, properties, type Database } from "@repo/db";
 import type { Tx } from "./bookings";
-import type { Quote } from "./holds";
+import { lineTitle, type Quote } from "./holds";
 
 /*
  * Email through an outbox (docs/implementation-plan.md, section 8). A
@@ -64,7 +64,7 @@ export async function holdConfirmationEmail(tx: Tx, bookingId: string, manageUrl
   const { property, guest, footer } = await context(tx, booking);
   if (!guest.email) return;
   const quote = booking.quote as Quote;
-  const lines = quote.lines.map((line): [string, string] => [line.kind === "stay" ? line.roomTypeName : `${line.offeringName}, ${line.slotLabel}`, line.totalPaise === null ? "" : rupees(line.totalPaise)]);
+  const lines = quote.lines.map((line): [string, string] => [lineTitle(line), line.totalPaise === null ? "" : rupees(line.totalPaise)]);
   const body = layout({
     resort: property.name,
     heading: `You're booked, ${guest.name.split(" ")[0]}`,

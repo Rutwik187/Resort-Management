@@ -2,7 +2,9 @@ import { createHmac, randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { and, eq } from "drizzle-orm";
 import {
+  addons,
   ageBands,
+  bookingItems,
   bookings,
   cancellationRules,
   dateRates,
@@ -26,6 +28,7 @@ import {
   bookingForGuest,
   bookOnline,
   changeBookingStatus,
+  changeStay,
   completeCheckout,
   createBooking,
   createPaymentLink,
@@ -38,6 +41,7 @@ import {
   holdStay,
   loadCancellationRules,
   paymentAccount,
+  quoteSeats,
   quoteStay,
   recheckOnlinePayments,
   requestRefund,
@@ -387,5 +391,81 @@ describe("Refunds", () => {
     expect(await db.$count(refunds, and(eq(refunds.bookingId, booking.id), eq(refunds.status, "processed")))).toBe(1);
     expect(await db.$count(onlinePayments, eq(onlinePayments.bookingId, booking.id))).toBe(1);
     expect(todayInIndia()).toMatch(/^\d{4}-/);
+  });
+});
+
+describe("Add-ons", () => {
+  const ids: Record<string, string> = {};
+  beforeAll(async () => {
+    const rows = await db
+      .insert(addons)
+      .values([
+        { propertyId, code: "bbq", name: "Barbecue dinner", basis: "person", pricePaise: 80_000, soldWith: "both", maxQuantity: 8 },
+        { propertyId, code: "decor", name: "Room decoration", basis: "unit", pricePaise: 250_000, soldWith: "stay" },
+        { propertyId, code: "mattress", name: "Extra mattress", basis: "night", pricePaise: 60_000, soldWith: "stay" },
+        { propertyId, code: "desk", name: "Cake", basis: "unit", pricePaise: 90_000, onWebsite: false },
+      ])
+      .returning();
+    for (const row of rows) ids[row.code] = row.id;
+  });
+
+  it("prices per person, per unit and per night, with 18% GST on top of the room's 5%", async () => {
+    const quote = await quoteStay(db, {
+      propertyId,
+      checkIn: "2027-05-03",
+      checkOut: "2027-05-05",
+      rooms: [{ roomTypeId: roomId, party: couple }],
+      addons: [
+        { addonId: ids.bbq, quantity: 2 },
+        { addonId: ids.mattress, quantity: 1 },
+      ],
+    });
+    const extras = quote.lines.filter((l) => l.kind === "addon");
+    expect(extras.map((l) => [l.addonName, l.quantity, l.nights, l.totalPaise])).toEqual([
+      ["Barbecue dinner", 2, 1, 160_000],
+      ["Extra mattress", 1, 2, 120_000],
+    ]);
+    // Rooms ₹10,000 at 5%, add-ons ₹2,800 at 18%.
+    expect(quote).toMatchObject({ subtotalPaise: 1_280_000, taxPaise: 50_000 + 50_400, totalPaise: 1_380_400 });
+  });
+
+  it("refuses add-ons for the wrong kind of booking, over their limit, off sale, or kept off the website", async () => {
+    const stay = { propertyId, checkIn: "2027-05-03", checkOut: "2027-05-04", rooms: [{ roomTypeId: roomId, party: couple }] };
+    await expect(quoteSeats(db, { propertyId, day: "2027-05-03", seats: [], addons: [{ addonId: ids.decor, quantity: 1 }] })).rejects.toThrow();
+    await expect(quoteStay(db, { ...stay, addons: [{ addonId: ids.bbq, quantity: 9 }] })).rejects.toThrow(/at most 8/);
+    await expect(quoteStay(db, { ...stay, addons: [{ addonId: ids.desk, quantity: 1 }], website: true })).rejects.toThrow(/not on sale/);
+    expect((await quoteStay(db, { ...stay, addons: [{ addonId: ids.desk, quantity: 1 }] })).subtotalPaise).toBe(500_000 + 90_000);
+    await db.update(addons).set({ active: false }).where(eq(addons.id, ids.decor));
+    await expect(quoteStay(db, { ...stay, addons: [{ addonId: ids.decor, quantity: 1 }] })).rejects.toThrow(/not on sale/);
+    await db.update(addons).set({ active: true }).where(eq(addons.id, ids.decor));
+  });
+
+  it("books add-ons on the website by code, and invoices them at their own rate", async () => {
+    const started = await bookOnline(db, { ...online("2027-05-10", "2027-05-11"), addons: [{ code: "decor", quantity: 1 }] });
+    expect(started.dueNowPaise).toBe(525_000 + 295_000);
+    await expect(bookOnline(db, { ...online("2027-05-10", "2027-05-11"), addons: [{ code: "desk", quantity: 1 }] })).rejects.toThrow(/not on sale/);
+    await completeCheckout(db, fake.pay(started.checkout.orderId));
+    const booking = await bookingOf(started.number);
+    const items = await db.select().from(bookingItems).where(eq(bookingItems.bookingId, booking.id));
+    expect(items.find((i) => i.kind === "addon")).toMatchObject({ addonId: ids.decor, quantity: 1, amountPaise: 250_000 });
+    const [invoice] = await db.select().from(invoices).where(eq(invoices.bookingId, booking.id));
+    expect(invoice.lines.map((l) => [l.description, l.quantity, l.unit, l.rateBps, l.taxPaise])).toEqual([
+      ["Valley Room, 10 May 2027 to 11 May 2027", 1, "night", 500, 25_000],
+      ["Room decoration", 1, "unit", 1800, 45_000],
+    ]);
+    const page = await bookingForGuest(db, started.token);
+    expect(page?.items.map((i) => i.title)).toEqual(["Valley Room", "Room decoration (1 unit)"]);
+  });
+
+  it("keeps a stay's add-ons when its dates change, with per-night ones over the new nights", async () => {
+    const hold = await holdStay(db, { propertyId, checkIn: "2027-05-17", checkOut: "2027-05-18", rooms: [{ roomTypeId: roomId, party: couple }], addons: [{ addonId: ids.mattress, quantity: 1 }, { addonId: ids.bbq, quantity: 2 }] });
+    const { bookingId } = await createBooking(db, { holdId: hold.holdId, guest, source: "phone", confirm: true });
+    await db.update(addons).set({ pricePaise: 99_900 }).where(eq(addons.id, ids.mattress)); // a new price doesn't touch this booking
+    await changeStay(db, { bookingId, checkIn: "2027-05-17", checkOut: "2027-05-20", rooms: [{ roomTypeId: roomId, party: couple }], reason: "Staying longer" });
+    const [booking] = await db.select().from(bookings).where(eq(bookings.id, bookingId));
+    // Rooms ₹15,000 at 5%; mattress ₹600 × 3 nights and barbecue ₹1,600 at 18%.
+    expect(booking).toMatchObject({ subtotalPaise: 1_500_000 + 180_000 + 160_000, taxPaise: 75_000 + 61_200 });
+    const items = await db.select().from(bookingItems).where(eq(bookingItems.bookingId, bookingId));
+    expect(items.filter((i) => i.kind === "addon").map((i) => i.amountPaise).sort()).toEqual([160_000, 180_000]);
   });
 });

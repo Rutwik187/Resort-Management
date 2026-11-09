@@ -1,10 +1,10 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { bookingItems, bookings, guests, holds, invoices, offerings, offeringSlots, onlinePayments, properties, roomTypes, units, type ConsentJson, type Database } from "@repo/db";
+import { addons, bookingItems, bookings, guests, holds, invoices, offerings, offeringSlots, onlinePayments, properties, roomTypes, units, type ConsentJson, type Database } from "@repo/db";
 import { searchStays, seatsLeft } from "./availability";
 import { createBooking, normalisePhone, type GuestInput } from "./bookings";
 import { isDate } from "./dates";
 import { NotFoundError, RuleError } from "./errors";
-import { holdSeats, holdStay, releaseHold, type Quote } from "./holds";
+import { holdSeats, holdStay, lineTitle, releaseHold, type Quote } from "./holds";
 import { holdConfirmationEmail } from "./messages";
 import { paymentAccount, startCheckout } from "./online";
 import type { Party } from "./pricing";
@@ -56,6 +56,8 @@ export type WebsiteBookingInput = {
   propertyCode: string;
   stay?: { checkIn: string; checkOut: string; rooms: { code: string; party: Party }[] };
   day?: { date: string; passes: { code: string; party: Party }[] };
+  /** Add-ons by code, with how many (PR-06). */
+  addons?: { code: string; quantity: number }[];
   guest: GuestInput;
   notes?: string;
   marketing: boolean;
@@ -95,6 +97,14 @@ export async function bookOnline(db: Database, input: WebsiteBookingInput): Prom
   if (!property?.active) throw new NotFoundError("Resort");
   if (!(await paymentAccount(db, property.id))) throw new RuleError("This resort takes requests on WhatsApp for now.");
 
+  // Add-ons by their codes. Only those shown on the website can be chosen.
+  const addonCodes = [...new Set((input.addons ?? []).map((a) => a.code))];
+  const addonRows = addonCodes.length
+    ? await db.select({ id: addons.id, code: addons.code }).from(addons).where(and(eq(addons.propertyId, property.id), inArray(addons.code, addonCodes)))
+    : [];
+  if (addonRows.length !== addonCodes.length) throw new RuleError("One of these add-ons can't be booked online. Please send the request instead.");
+  const extras = (input.addons ?? []).map((a) => ({ addonId: addonRows.find((r) => r.code === a.code)!.id, quantity: a.quantity }));
+
   let held;
   if (input.stay && input.stay.rooms.length) {
     const codes = [...new Set(input.stay.rooms.map((r) => r.code))];
@@ -108,6 +118,8 @@ export async function bookOnline(db: Database, input: WebsiteBookingInput): Prom
       checkIn: input.stay.checkIn,
       checkOut: input.stay.checkOut,
       rooms: input.stay.rooms.map((room) => ({ roomTypeId: types.find((t) => t.code === room.code)!.id, party: room.party })),
+      addons: extras,
+      website: true,
     });
   } else if (input.day && input.day.passes.length) {
     const codes = [...new Set(input.day.passes.map((p) => p.code))];
@@ -119,7 +131,7 @@ export async function bookOnline(db: Database, input: WebsiteBookingInput): Prom
       .orderBy(asc(offeringSlots.sortOrder), asc(offeringSlots.label));
     const slotFor = (code: string) => slots.find((s) => s.code === code)?.slotId;
     if (codes.some((code) => !slotFor(code))) throw new RuleError("One of these passes can't be booked online. Please send the request instead.");
-    held = await holdSeats(db, { propertyId: property.id, day: input.day.date, seats: input.day.passes.map((pass) => ({ slotId: slotFor(pass.code)!, party: pass.party })) });
+    held = await holdSeats(db, { propertyId: property.id, day: input.day.date, seats: input.day.passes.map((pass) => ({ slotId: slotFor(pass.code)!, party: pass.party })), addons: extras, website: true });
   } else {
     throw new RuleError("Choose a room or a pass first.");
   }
@@ -168,14 +180,22 @@ export async function bookingForGuest(db: Database, token: string) {
   const [guest] = await db.select().from(guests).where(eq(guests.id, booking.guestId));
   const [hold] = await db.select({ expiresAt: holds.expiresAt, status: holds.status }).from(holds).where(eq(holds.bookingId, booking.id)).orderBy(desc(holds.createdAt)).limit(1);
   const items = await db
-    .select({ id: bookingItems.id, kind: bookingItems.kind, roomType: roomTypes.name, unit: units.name, offering: offerings.name, slot: offeringSlots.label, party: bookingItems.party, amountPaise: bookingItems.amountPaise })
+    .select({ id: bookingItems.id, kind: bookingItems.kind, roomType: roomTypes.name, unit: units.name, offering: offerings.name, slot: offeringSlots.label, addon: addons.name, quantity: bookingItems.quantity, sortOrder: bookingItems.sortOrder, party: bookingItems.party, amountPaise: bookingItems.amountPaise })
     .from(bookingItems)
     .leftJoin(roomTypes, eq(roomTypes.id, bookingItems.roomTypeId))
     .leftJoin(units, eq(units.id, bookingItems.unitId))
     .leftJoin(offerings, eq(offerings.id, bookingItems.offeringId))
     .leftJoin(offeringSlots, eq(offeringSlots.id, bookingItems.slotId))
+    .leftJoin(addons, eq(addons.id, bookingItems.addonId))
     .where(eq(bookingItems.bookingId, booking.id))
     .orderBy(asc(bookingItems.sortOrder));
+  const quote = booking.quote as Quote;
+  // An item in words, from the quote line it came from.
+  const titled = items.map((item) => {
+    const line = quote.lines[item.sortOrder];
+    const title = line && line.kind === item.kind ? lineTitle(line) : (item.roomType ?? (item.offering ? `${item.offering}, ${item.slot}` : (item.addon ?? "")));
+    return { ...item, title };
+  });
   const payments = await db
     .select({ id: onlinePayments.id, amountPaise: onlinePayments.amountPaise, status: onlinePayments.status, paidAt: onlinePayments.paidAt, method: onlinePayments.method, via: onlinePayments.via })
     .from(onlinePayments)
@@ -201,10 +221,10 @@ export async function bookingForGuest(db: Database, token: string) {
     refundedPaise: booking.refundedPaise,
     balancePaise: booking.totalPaise === null ? null : Math.max(0, booking.totalPaise - booking.paidPaise),
     holdExpiresAt: booking.status === "pending_payment" && hold?.status === "active" ? hold.expiresAt.toISOString() : null,
-    quote: booking.quote as Quote,
+    quote,
     guest: { name: guest.name, phone: guest.phone, email: guest.email },
     resort: { code: property.code, name: property.name, phone: property.phone, email: property.email, checkInTime: property.checkInTime, checkOutTime: property.checkOutTime },
-    items,
+    items: titled,
     payments,
     invoices: docs,
   };

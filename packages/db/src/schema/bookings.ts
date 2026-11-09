@@ -15,7 +15,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { offerings, offeringSlots, roomTypes, units } from "./catalogue";
+import { addons, offerings, offeringSlots, roomTypes, units } from "./catalogue";
 import { createdBy, timestamps } from "./common";
 import { properties } from "./properties";
 
@@ -32,7 +32,7 @@ export const bookingStatus = pgEnum("booking_status", [
   "expired",
 ]);
 export const bookingSource = pgEnum("booking_source", ["website", "admin", "phone", "walk_in", "whatsapp", "email", "travel_agent", "corporate", "other"]);
-export const bookingItemKind = pgEnum("booking_item_kind", ["stay", "offering"]);
+export const bookingItemKind = pgEnum("booking_item_kind", ["stay", "offering", "addon"]);
 
 /** Who is coming, by age band code: { adults: 2, children: { child: 1, infant: 1 } }. */
 export type PartyJson = { adults: number; children: Record<string, number> };
@@ -124,6 +124,10 @@ export const bookingItems = pgTable(
     unitId: uuid().references(() => units.id),
     offeringId: uuid().references(() => offerings.id),
     slotId: uuid().references(() => offeringSlots.id),
+    addonId: uuid().references(() => addons.id),
+    /** Units, people or rooms for an add-on. One for rooms and tickets. */
+    quantity: smallint().notNull().default(1),
+    /** Who is coming. An add-on's is empty. */
     party: jsonb().$type<PartyJson>().notNull(),
     extraBeds: smallint().notNull().default(0),
     /** Null while the rate is to be confirmed by the team. */
@@ -135,8 +139,10 @@ export const bookingItems = pgTable(
     index().on(t.bookingId),
     check(
       "booking_items_kind",
-      sql`(${t.kind} = 'stay' and ${t.roomTypeId} is not null and ${t.offeringId} is null)
-        or (${t.kind} = 'offering' and ${t.offeringId} is not null and ${t.slotId} is not null and ${t.roomTypeId} is null)`,
+      // Compared as text: Postgres can't use an enum value in the transaction that adds it.
+      sql`(${t.kind}::text = 'stay' and ${t.roomTypeId} is not null and ${t.offeringId} is null and ${t.addonId} is null)
+        or (${t.kind}::text = 'offering' and ${t.offeringId} is not null and ${t.slotId} is not null and ${t.roomTypeId} is null and ${t.addonId} is null)
+        or (${t.kind}::text = 'addon' and ${t.addonId} is not null and ${t.roomTypeId} is null and ${t.offeringId} is null and ${t.quantity} >= 1)`,
     ),
   ],
 );
