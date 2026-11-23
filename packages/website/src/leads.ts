@@ -57,7 +57,7 @@ export async function visitorIp() {
 }
 
 /** Whether this visitor may send another of these now (SEC-04). A limit that can't be checked lets the request through. */
-export async function withinLimit(kind: string, code: PropertyCode, limit: number, windowSeconds: number) {
+export async function withinLimit(kind: string, code: string, limit: number, windowSeconds: number) {
   try {
     return await takeRequest(getDb(), `${kind}:${code}:${await visitorIp()}`, limit, windowSeconds);
   } catch (error) {
@@ -142,7 +142,7 @@ const corporate = z.object({
  * resort the guest chose. Returns whether it was saved, so the form can
  * offer WhatsApp when it wasn't.
  */
-export async function saveCorporateEnquiry(siteCode: PropertyCode, input: unknown): Promise<{ ok: boolean }> {
+export async function saveCorporateEnquiry(siteCode: PropertyCode | "GROUP", input: unknown): Promise<{ ok: boolean }> {
   const parsed = corporate.safeParse(input);
   if (!parsed.success || !process.env.DATABASE_URL) return { ok: false };
   if (!(await withinLimit("corporate", siteCode, 5, 600))) return { ok: false };
@@ -156,7 +156,7 @@ export async function saveCorporateEnquiry(siteCode: PropertyCode, input: unknow
       "Rooms needed": form.rooms ? String(form.rooms) : "",
       Meals: form.meals,
       "Meeting and AV": form.meeting,
-      "Asked from": siteCode === form.property ? "" : `The ${siteCode} website`,
+      "Asked from": siteCode === form.property ? "" : siteCode === "GROUP" ? "The group website" : `The ${siteCode} website`,
     }).filter(([, value]) => value),
   );
   try {

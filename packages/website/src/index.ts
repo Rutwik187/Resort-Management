@@ -109,6 +109,15 @@ export async function liveReviews(code: PropertyCode): Promise<WebsiteReviews | 
   return data?.reviews ?? null;
 }
 
+/** The lowest published base rate on the website, for "from ₹4,000 a night" (URD 4.1). Null when none is published. */
+export async function liveFromPrice(code: PropertyCode): Promise<{ paise: number; basis: "room" | "person" } | null> {
+  const data = await catalogue(code);
+  const rates = (data?.roomTypes ?? []).flatMap((t) => t.rates);
+  if (!rates.length) return null;
+  const low = rates.reduce((a, b) => (b.basePaise < a.basePaise ? b : a));
+  return { paise: low.basePaise, basis: low.basis };
+}
+
 /** The resort's notices from the admin, newest first. None without a database. */
 export async function liveNotices(code: PropertyCode): Promise<WebsiteNotice[]> {
   const data = await catalogue(code);

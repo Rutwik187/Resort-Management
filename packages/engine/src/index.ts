@@ -11,6 +11,7 @@ export { closedDates } from "./closed-dates";
 export { syncSettlements } from "./settlements";
 export { pruneRequestLimits, takeRequest } from "./limits";
 export { syncGoogleReviews } from "./reviews";
+export { groupDaySearch, groupStaySearch, type GroupDayResult, type GroupStayResult } from "./group";
 export { queueSalesSummaries } from "./summaries";
 export { queueBookingCancelled, queueBookingChanged, queueGuestJourney, queueLowRoomsAlerts, queueNewBookingAlert } from "./booking-messages";
 export { fill as fillTemplate, templateKinds, wording, type TemplateKind } from "./templates";

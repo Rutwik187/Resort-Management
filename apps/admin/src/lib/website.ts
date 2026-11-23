@@ -28,6 +28,11 @@ export function websiteUrls(): Record<string, string> {
 export async function refreshWebsite(code: string, scope: "catalogue" | "content" = "catalogue"): Promise<{ ok: boolean; reason?: string }> {
   const url = websiteUrls()[code.toUpperCase()];
   const secret = process.env.REVALIDATE_SECRET;
+  // The group site (WEBSITE_URLS GROUP=…) shows every resort, so it hears of each change too.
+  const group = websiteUrls().GROUP;
+  if (group && secret) {
+    fetch(`${group}/api/revalidate?code=${code.toUpperCase()}${scope === "content" ? "&scope=content" : ""}`, { method: "POST", headers: { authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(8000) }).catch(() => undefined);
+  }
   if (!url || !secret) return { ok: false, reason: "The website isn't connected to the admin yet." };
   try {
     const response = await fetch(`${url}/api/revalidate${scope === "content" ? "?scope=content" : ""}`, { method: "POST", headers: { authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(8000) });

@@ -1,0 +1,62 @@
+@import "tailwindcss";
+@import "@repo/booking-ui/booking.css";
+
+/*
+ * The group's palette: a quiet stone page, deep forest green for the four
+ * resorts' shared hills, and a warm terracotta from the laterite of their
+ * cottages as the one accent.
+ */
+@theme {
+  --color-stone: #f3f0ea;
+  --color-sand: #e8e2d6;
+  --color-ink: #1b2420;
+  --color-forest: #1f3d30;
+  --color-forest-soft: #2b4f3f;
+  --color-muted: #5b6660;
+  --color-clay: #b4532a;
+  --color-clay-soft: #f1ddd2;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-serif), Georgia, serif;
+}
+
+:root {
+  --bk-page: var(--color-stone);
+  --bk-card: #fbfaf7;
+  --bk-ink: var(--color-ink);
+  --bk-muted: var(--color-muted);
+  --bk-line: rgb(27 36 32 / 0.14);
+  --bk-soft: rgb(27 36 32 / 0.05);
+  --bk-accent: var(--color-forest);
+  --bk-accent-ink: #fbfaf7;
+  --bk-good: #3f6b4f;
+  --bk-alert: var(--color-clay);
+  --bk-band: rgb(31 61 48 / 0.1);
+  --bk-radius: 14px;
+  --bk-control-radius: 999px;
+  --bk-display: var(--font-serif), Georgia, serif;
+  --bk-display-weight: 400;
+  --bk-sticky-top: 4.5rem;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+body {
+  background: var(--color-stone);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+.display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
