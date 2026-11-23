@@ -1,3 +1,4 @@
+import { PolicyCompany } from "@repo/website/company";
 import { faqs, policySections } from "@repo/sanity";
 import { RichText } from "@repo/sanity/rich-text";
 import { contact } from "@/content/resort";
@@ -43,6 +44,7 @@ export default async function PoliciesPage() {
             </a>
             .
           </p>
+          <PolicyCompany code="PV" className="mt-8" />
           <nav aria-label="On this page" className="mt-10 flex flex-wrap gap-3">
             {sections.map((s) => (
               <a key={s.id} href={`#${s.id}`} className="btn btn-line min-h-11 px-4 py-2 text-[0.88rem]">

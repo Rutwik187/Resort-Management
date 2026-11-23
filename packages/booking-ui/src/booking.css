@@ -269,3 +269,21 @@
     }
   }
 }
+
+/* The floating contact buttons (WEB-03) step aside on phones while the
+   booking tray, a notice or the cookie banner covers the foot of the
+   screen, and while any panel is open. */
+@media (max-width: 639px) {
+  body:has([data-bk-dock="open"]) .bk-contact,
+  body:has(.bk-notice) .bk-contact {
+    display: none;
+  }
+}
+body:has(dialog[open]) .bk-contact,
+body:has(.bk-consent) .bk-contact {
+  display: none;
+}
+/* A notice waits while the cookie banner asks. */
+body:has(.bk-consent) .bk-notice {
+  display: none;
+}

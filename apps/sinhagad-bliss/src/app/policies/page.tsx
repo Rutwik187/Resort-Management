@@ -1,3 +1,4 @@
+import { PolicyCompany } from "@repo/website/company";
 import { faqs, policySections } from "@repo/sanity";
 import { RichText } from "@repo/sanity/rich-text";
 import { contact } from "@/content/resort";
@@ -39,6 +40,7 @@ export default async function PoliciesPage() {
             </a>
             .
           </p>
+          <PolicyCompany code="SB" className="mt-8" />
         </div>
       </InView>
 

@@ -1,3 +1,4 @@
+import { CompanyLine } from "@repo/website/company";
 import Link from "next/link";
 import { hasBlog as blogIsLive } from "@repo/sanity";
 import { otherProperties } from "@repo/sites";
@@ -120,6 +121,7 @@ export async function SiteFooter() {
           </Link>
         </nav>
         <p>© 2026 Sinhagad Bliss, Ghera Sinhagad</p>
+        <CompanyLine code="SB" className="basis-full text-[0.85rem] opacity-80" />
       </div>
     </footer>
   );

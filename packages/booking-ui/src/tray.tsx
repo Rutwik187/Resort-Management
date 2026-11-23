@@ -390,6 +390,7 @@ export function TrayDock({ summary, total, visible, open, onOpenChange, children
     <>
       <div
         inert={!visible}
+        data-bk-dock={visible ? "open" : undefined}
         className={`fixed inset-x-0 bottom-0 z-40 border-t border-bk-line bg-bk-card/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 text-bk-ink shadow-[0_-12px_30px_-20px_rgb(0_0_0/0.35)] backdrop-blur transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] lg:hidden ${
           visible ? "translate-y-0" : "translate-y-full"
         }`}

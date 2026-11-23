@@ -1,3 +1,4 @@
+import { PolicyCompany } from "@repo/website/company";
 import Link from "next/link";
 import { faqs, policySections } from "@repo/sanity";
 import { RichText } from "@repo/sanity/rich-text";
@@ -90,6 +91,7 @@ export default async function PoliciesPage() {
             office if anything is unclear.
           </p>
         </div>
+        <PolicyCompany code="GC" className="mx-auto max-w-[1600px] px-4 pb-6 md:px-8" />
         <nav aria-label="On this page" className="mx-auto max-w-[1600px] px-4 pb-6 md:px-8">
           <ul className="flex flex-wrap gap-x-6 gap-y-2 text-[0.95rem]">
             {navItems.map((s) => (

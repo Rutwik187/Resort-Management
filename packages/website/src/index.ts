@@ -3,7 +3,7 @@ import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 import { offerNotes, offersFor, passesFromCatalogue, stayGroupsFromCatalogue, type ListingGroup, type Pass } from "@repo/booking-ui/catalogue";
 import type { OnlineAddon } from "@repo/booking-ui";
 import { getDb } from "@repo/db";
-import { websiteCatalogue, type WebsiteNotice } from "@repo/engine";
+import { websiteCatalogue, type WebsiteCompany, type WebsiteNotice } from "@repo/engine";
 import { contentTag, revalidateContent } from "@repo/sanity";
 import { propertyByCode, type PropertyCode } from "@repo/sites";
 
@@ -80,6 +80,12 @@ export async function liveAddons(code: PropertyCode, kind: "stay" | "day"): Prom
   return (data?.addons ?? [])
     .filter((a) => a.soldWith === "both" || a.soldWith === kind)
     .map((a) => ({ code: a.code, name: a.name, summary: a.summary, basis: a.basis, pricePaise: a.pricePaise, maxQuantity: a.maxQuantity }));
+}
+
+/** The company that runs the resort, from the admin's Settings (WEB-04). Null without a database or before staff enter its legal name. */
+export async function liveCompany(code: PropertyCode): Promise<WebsiteCompany | null> {
+  const data = await catalogue(code);
+  return data?.company.legalName ? data.company : null;
 }
 
 /** The resort's notices from the admin, newest first. None without a database. */

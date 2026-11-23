@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./leads": "./src/leads.ts",
     "./notice": "./src/notice.tsx",
+    "./company": "./src/company.tsx",
     "./invoice": "./src/invoice.tsx",
     "./booking": "./src/booking.ts",
     "./booking-page": "./src/booking-page.tsx"

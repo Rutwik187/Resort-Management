@@ -16,7 +16,7 @@ import { newKey } from "./saved";
 import { Sheet } from "./sheet";
 import { Steps } from "./steps";
 import { useSessionValue } from "./store";
-import { useLiveStock, type LiveCheck } from "./live";
+import { ClosedDatesContext, useClosedDates, useLiveStock, type LiveCheck } from "./live";
 import { addonsRupees, type OnlineBooking } from "./online";
 import { Tray, TrayDock, useCheckout } from "./tray";
 import type { Desk, Party, Pass } from "./types";
@@ -152,6 +152,8 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
   const people = picked.reduce((sum, item) => sum + headcount(item.party), 0);
   // Live places left on the day. A pass in the tray for more guests than it has places stops the guest early.
   const stock = useLiveStock(live, date ? { day: date } : null);
+  // Sold-out dates, greyed out in the calendars (BW-04).
+  const closedDates = useClosedDates(live, "day", useToday());
   const stockOf = (code: string) => stock?.passes.find((pass) => pass.code === code);
   const coming = (passId: string) => picked.filter((item) => item.passId === passId).reduce((sum, item) => sum + headcount(item.party), 0);
   const short = passes.find((pass) => {
@@ -216,6 +218,7 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
   const shownPass = current ? byId.get(current.passId) : undefined;
 
   return (
+    <ClosedDatesContext value={closedDates}>
     <div className="pb-28 lg:pb-0">
       <Steps
         steps={[
@@ -306,6 +309,7 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
         {announcement}
       </p>
     </div>
+    </ClosedDatesContext>
   );
 }
 

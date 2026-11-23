@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Albert_Sans } from "next/font/google";
 import localFont from "next/font/local";
+import { SiteConsent } from "@repo/booking-ui/consent";
+import { ContactDock } from "@repo/booking-ui/contact-dock";
 import { SiteNotices } from "@repo/website/notice";
 import { BookingDrawer } from "@/components/booking-drawer";
 import { Cursor } from "@/components/cursor";
@@ -8,6 +10,7 @@ import { SmoothScroll } from "@/components/smooth-scroll";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { defaultTitle, siteName, siteUrl } from "@/content/site";
+import { contact } from "@/content/resort";
 import "./globals.css";
 
 // Headings: Newsreader, an editorial serif whose optical sizes turn finer and
@@ -76,6 +79,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <main id="main">{children}</main>
         <SiteFooter />
         <SiteNotices code="KS" />
+        <ContactDock resortName={siteName} whatsapp={contact.whatsapp.number} phoneHref={contact.bookingPhone.href} phoneDisplay={contact.bookingPhone.display} />
+        <SiteConsent gtmId={process.env.NEXT_PUBLIC_GTM_ID} metaPixelId={process.env.NEXT_PUBLIC_META_PIXEL_ID} policyHref="/policies" />
         <BookingDrawer />
         <Cursor />
         <div aria-hidden className="grain" />

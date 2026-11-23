@@ -1,10 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import { SiteConsent } from "@repo/booking-ui/consent";
+import { ContactDock } from "@repo/booking-ui/contact-dock";
 import { SiteNotices } from "@repo/website/notice";
 import { BookingDrawer } from "@/components/booking-drawer";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { defaultTitle, legalName, siteName, siteUrl } from "@/content/site";
+import { contact } from "@/content/resort";
 import "./globals.css";
 
 // One family for everything: Archivo, a sturdy grotesque. Its width axis runs
@@ -44,6 +47,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <main id="main">{children}</main>
         <SiteFooter />
         <SiteNotices code="GC" />
+        <ContactDock resortName={siteName} whatsapp={contact.whatsapp.number} phoneHref={contact.phone.href} phoneDisplay={contact.phone.display} />
+        <SiteConsent gtmId={process.env.NEXT_PUBLIC_GTM_ID} metaPixelId={process.env.NEXT_PUBLIC_META_PIXEL_ID} policyHref="/policies" />
         <BookingDrawer />
       </body>
     </html>

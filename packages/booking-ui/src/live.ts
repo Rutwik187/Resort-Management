@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { createContext, useEffect, useMemo, useRef, useState } from "react";
 
 /*
  * Live free rooms and seats (booking step 2): sold-out rooms and full
@@ -10,10 +10,12 @@ import { useEffect, useRef, useState } from "react";
  * never looks sold out.
  */
 
-export type LiveQuery = { checkIn: string; checkOut: string } | { day: string };
+export type LiveQuery = { checkIn: string; checkOut: string } | { day: string } | { closed: "stay" | "day"; from: string; to: string };
 export type LiveStock = {
   rooms: { code: string; free: number; note: string | null }[];
   passes: { code: string; left: number; note: string | null }[];
+  /** For a `closed` query: the nights or days with nothing left to sell (BW-04). */
+  closed?: string[];
 };
 export type LiveCheck = (query: LiveQuery) => Promise<LiveStock | null>;
 
@@ -42,4 +44,41 @@ export function useLiveStock(check: LiveCheck | undefined, query: LiveQuery | nu
     };
   }, [key, has]);
   return loaded.key === key ? loaded.stock : null;
+}
+
+/*
+ * Dates with nothing left to sell, greyed out in every calendar inside a
+ * planner (BW-04): nights when every room is taken, or days when every
+ * package is full. Read once when the planner opens, for the next 18
+ * months. Without them the calendar works as before, and the hold still
+ * refuses what is sold out.
+ */
+const none: ReadonlySet<string> = new Set();
+export type ClosedDates = { stay: ReadonlySet<string>; day: ReadonlySet<string> };
+export const ClosedDatesContext = createContext<ClosedDates>({ stay: none, day: none });
+
+/** Loads the closed dates for stays or day visits, from today. */
+export function useClosedDates(check: LiveCheck | undefined, kind: "stay" | "day", today: string): ClosedDates {
+  const latest = useRef(check);
+  useEffect(() => {
+    latest.current = check;
+  }, [check]);
+  const has = Boolean(check);
+  const [closed, setClosed] = useState<ReadonlySet<string>>(none);
+  useEffect(() => {
+    if (!has || !today || !latest.current) return;
+    let current = true;
+    const to = new Date(Date.parse(`${today}T00:00:00Z`) + 548 * 86_400_000).toISOString().slice(0, 10);
+    latest.current({ closed: kind, from: today, to })
+      .then((stock) => {
+        if (current && stock?.closed?.length) setClosed(new Set(stock.closed));
+      })
+      .catch(() => {
+        // The calendar shows every date; the hold still refuses a sold-out one.
+      });
+    return () => {
+      current = false;
+    };
+  }, [has, kind, today]);
+  return useMemo(() => (kind === "stay" ? { stay: closed, day: none } : { stay: none, day: closed }), [kind, closed]);
 }

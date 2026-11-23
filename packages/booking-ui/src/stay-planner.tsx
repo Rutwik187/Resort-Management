@@ -14,7 +14,7 @@ import { SearchBar, defaultSearch } from "./search-bar";
 import { Sheet } from "./sheet";
 import { Steps } from "./steps";
 import { useSessionValue } from "./store";
-import { useLiveStock, type LiveCheck } from "./live";
+import { ClosedDatesContext, useClosedDates, useLiveStock, type LiveCheck } from "./live";
 import { addonsRupees, type OnlineBooking } from "./online";
 import { Tray, TrayDock, useCheckout } from "./tray";
 import type { Desk, Listing, ListingGroup, Party, Picked, StaySearch } from "./types";
@@ -163,6 +163,8 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
 
   // Live free rooms for these dates. A room in the tray that is sold out, or added more often than it is free, stops the guest early.
   const stock = useLiveStock(live, pending ? null : { checkIn: search.checkIn, checkOut: search.checkOut });
+  // Sold-out dates, greyed out in the calendars (BW-04).
+  const closedDates = useClosedDates(live, "stay", useToday());
   const stockOf = (code: string) => stock?.rooms.find((room) => room.code === code);
   const short = listings.find((listing) => {
     const own = stockOf(listing.id);
@@ -244,6 +246,7 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
   const dockTotal = pending ? "Add dates for the price" : total === null ? "Price to confirm" : `${formatRupees(total + extrasTotal)} + GST`;
 
   return (
+    <ClosedDatesContext value={closedDates}>
     <div className="pb-28 lg:pb-0">
       <div id="book" className="scroll-mt-28">
         <Steps
@@ -334,6 +337,7 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
         {announcement}
       </p>
     </div>
+    </ClosedDatesContext>
   );
 }
 

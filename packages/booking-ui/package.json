@@ -7,7 +7,9 @@
     ".": "./src/index.ts",
     "./booking.css": "./src/booking.css",
     "./catalogue": "./src/catalogue.ts",
-    "./notice": "./src/site-notice.tsx"
+    "./notice": "./src/site-notice.tsx",
+    "./consent": "./src/consent.tsx",
+    "./contact-dock": "./src/contact-dock.tsx"
   },
   "scripts": {
     "lint": "eslint",

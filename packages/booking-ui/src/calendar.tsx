@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useContext, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { addDays, addMonths, formatDay, formatLong, formatMonth, monthOf, monthWeeks, nightsOf, plural, sameDayIn, weekdayOf } from "./dates";
+import { ClosedDatesContext } from "./live";
 import { useToday } from "./use-today";
 
 /** Which date the next tap sets: check-in ("start") or check-out ("end"). */
@@ -65,6 +66,7 @@ const weekdays = [
 export function Calendar({ start, end, choosing = "start", min, maxNights = 30, months = 1, weekendNights = false, autoFocus = false, onPick, actions, onChoose }: CalendarProps) {
   const id = useId();
   const today = useToday();
+  const closedDates = useContext(ClosedDatesContext);
   const first = min || today;
   const stay = end !== undefined;
   const choosingEnd = stay && choosing === "end" && start !== "";
@@ -99,7 +101,12 @@ export function Calendar({ start, end, choosing = "start", min, maxNights = 30, 
   const afterShown = addMonths(view, months);
   const canBack = !first || view > monthOf(first);
   const canForward = !last || afterShown <= last;
-  const blocked = (date: string) => (first !== "" && date < first) || (last !== "" && date > last) || (choosingEnd && date > lastEnd);
+  // Sold-out nights or days (BW-04). A stay can end on a sold-out night, which it doesn't use, but can't run past one.
+  const closed = closedDates[stay ? "stay" : "day"];
+  const firstClosed = choosingEnd && closed.size ? [...closed].filter((night) => night >= start).sort()[0] ?? "" : "";
+  const soldOut = (date: string) => closed.has(date) && !(choosingEnd && date > start);
+  const blocked = (date: string) =>
+    (first !== "" && date < first) || (last !== "" && date > last) || (choosingEnd && date > lastEnd) || (firstClosed !== "" && date > firstClosed) || soldOut(date);
   const tabbable = focus >= view && focus < afterShown ? focus : first > view && first < afterShown ? first : view;
 
   const previewEnd = choosingEnd && hover > start && hover <= lastEnd ? hover : "";
@@ -210,13 +217,15 @@ export function Calendar({ start, end, choosing = "start", min, maxNights = 30, 
                               data-date={date}
                               tabIndex={date === tabbable ? 0 : -1}
                               aria-disabled={off || undefined}
-                              aria-label={`${formatLong(date)}${stay && isStart ? ", check-in" : ""}${isEnd ? ", check-out" : ""}${date === today ? ", today" : ""}${weekend ? ", weekend rate" : ""}`}
+                              aria-label={`${formatLong(date)}${stay && isStart ? ", check-in" : ""}${isEnd ? ", check-out" : ""}${date === today ? ", today" : ""}${soldOut(date) ? ", sold out" : ""}${weekend ? ", weekend rate" : ""}`}
                               onClick={() => pick(date)}
                               onMouseEnter={() => choosingEnd && setHover(date)}
                               className={`relative mx-auto flex aspect-square w-full max-w-11 items-center justify-center rounded-bk-control text-[0.95rem] tabular-nums outline-offset-2 transition-colors focus-visible:outline-2 focus-visible:outline-bk-ink ${
                                 chosen
                                   ? "bg-bk-accent font-semibold text-bk-accent-ink"
-                                  : off
+                                  : soldOut(date) && !(first !== "" && date < first)
+                                    ? "cursor-not-allowed text-bk-muted/50 line-through decoration-1"
+                                    : off
                                     ? "cursor-not-allowed text-bk-muted/40"
                                     : `hover:bg-bk-soft ${weekend ? "text-bk-alert" : ""}`
                               }`}
@@ -254,12 +263,17 @@ export function Calendar({ start, end, choosing = "start", min, maxNights = 30, 
         </button>
       </div>
 
-      {(weekendNights || actions) && (
+      {(weekendNights || actions || closed.size > 0) && (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-bk-line pt-3 text-[0.85rem]">
           <div className="min-w-0">
             {weekendNights && (
               <p className="text-bk-muted">
                 <span className="text-bk-alert">Fri</span> and <span className="text-bk-alert">Sat</span> nights take the weekend rate
+              </p>
+            )}
+            {closed.size > 0 && (
+              <p className="text-bk-muted">
+                <span className="line-through">12</span> {stay ? "Crossed-out nights are sold out" : "Crossed-out days are full"}
               </p>
             )}
           </div>

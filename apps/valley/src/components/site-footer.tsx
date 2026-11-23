@@ -1,3 +1,4 @@
+import { CompanyLine } from "@repo/website/company";
 import Link from "next/link";
 import { hasBlog as blogIsLive } from "@repo/sanity";
 import { otherProperties } from "@repo/sites";
@@ -113,6 +114,7 @@ export async function SiteFooter() {
           </Link>
         </nav>
         <p>© 2026 Prathamesh Valley Resorts, Bhilar</p>
+        <CompanyLine code="PV" className="basis-full text-[0.85rem] opacity-80" />
       </div>
     </footer>
   );

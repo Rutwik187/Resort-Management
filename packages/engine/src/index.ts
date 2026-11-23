@@ -7,6 +7,7 @@ export { addonQuantityWords, addonsFor, addonTotal, carryAddons, priceAddons, ty
 export { freeUnits, searchStays, seatsLeft, stayRuleProblem, type SeatOption, type StayOption } from "./availability";
 export { createBlock, liftBlock, type BlockReason } from "./blocks";
 export { setDayCapacity } from "./capacity";
+export { closedDates } from "./closed-dates";
 export {
   addBookingNote,
   allowedMoves,
@@ -43,7 +44,7 @@ export {
 export { expireHolds } from "./jobs";
 export { recordPayment, type PaymentInput, type PaymentMethod } from "./payments";
 export { headcount, payingGuests, priceNight, priceOffering, priceStay, type AgeBand, type NightPrice, type Party, type Rate, type RoomPricing, type Season } from "./pricing";
-export { websiteCatalogue, type WebsiteAddon, type WebsiteCatalogue, type WebsiteNotice, type WebsitePass, type WebsiteRate, type WebsiteRoomType } from "./website";
+export { websiteCatalogue, type WebsiteAddon, type WebsiteCatalogue, type WebsiteCompany, type WebsiteNotice, type WebsitePass, type WebsiteRate, type WebsiteRoomType } from "./website";
 export { recordWebsiteLead, type LeadInterest, type WebsiteLeadInput } from "./leads";
 export { offerDiscount, offerLabel, offerProblem, type OfferRule, type OfferTarget } from "./offers";
 export { changeStay, quoteChange, type StayChange } from "./changes";

@@ -9,6 +9,7 @@ import { getDb, onlinePayments, properties } from "@repo/db";
 import {
   bookingForGuest,
   bookOnline,
+  closedDates,
   completeCheckout,
   lineTitle,
   NotFoundError,
@@ -186,7 +187,7 @@ export async function recheckGuestBooking(siteCode: PropertyCode, token: string)
   }
 }
 
-const liveQuery = z.union([z.object({ checkIn: day, checkOut: day }), z.object({ day })]);
+const liveQuery = z.union([z.object({ checkIn: day, checkOut: day }), z.object({ day }), z.object({ closed: z.enum(["stay", "day"]), from: day, to: day })]);
 
 /**
  * Live free rooms for a stay, or places left on a day, for the lists
@@ -201,6 +202,7 @@ export async function liveStock(siteCode: PropertyCode, query: unknown): Promise
   const q = parsed.data;
   if ("checkIn" in q && (q.checkOut <= q.checkIn || q.checkOut > addDaysIso(q.checkIn, 30))) return null;
   try {
+    if ("closed" in q) return { rooms: [], passes: [], closed: await closedDates(getDb(), { propertyCode: siteCode, kind: q.closed, from: q.from, to: q.to }) };
     const found = await websiteAvailability(getDb(), "day" in q ? { propertyCode: siteCode, day: q.day } : { propertyCode: siteCode, checkIn: q.checkIn, checkOut: q.checkOut });
     return { rooms: found.rooms, passes: found.passes };
   } catch (error) {

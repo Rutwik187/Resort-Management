@@ -65,11 +65,17 @@ export type WebsiteNotice = { id: string; message: string; linkLabel: string | n
 /** An add-on the guest can choose before paying (PR-06). Its price is before GST. */
 export type WebsiteAddon = { code: string; name: string; summary: string | null; basis: "unit" | "person" | "night"; pricePaise: number; soldWith: "stay" | "day" | "both"; maxQuantity: number };
 
-export type WebsiteCatalogue = { roomTypes: WebsiteRoomType[]; passes: WebsitePass[]; addons: WebsiteAddon[]; offers: WebsiteOffer[]; notices: WebsiteNotice[] };
+/** The company that runs the resort, for the footer and policies page (WEB-04). Empty fields stay empty: staff fill them in Settings. */
+export type WebsiteCompany = { legalName: string | null; gstin: string | null; address: string | null; phone: string | null; email: string | null };
+
+export type WebsiteCatalogue = { company: WebsiteCompany; roomTypes: WebsiteRoomType[]; passes: WebsitePass[]; addons: WebsiteAddon[]; offers: WebsiteOffer[]; notices: WebsiteNotice[] };
 
 /** A resort's website catalogue, or null when there is no such resort. A few queries, run one after another. */
 export async function websiteCatalogue(db: Executor, propertyCode: string): Promise<WebsiteCatalogue | null> {
-  const [property] = await db.select({ id: properties.id }).from(properties).where(eq(properties.code, propertyCode));
+  const [property] = await db
+    .select({ id: properties.id, legalName: properties.legalName, gstin: properties.gstin, address: properties.address, phone: properties.phone, email: properties.email })
+    .from(properties)
+    .where(eq(properties.code, propertyCode));
   if (!property) return null;
 
   const types = await db
@@ -136,6 +142,7 @@ export async function websiteCatalogue(db: Executor, propertyCode: string): Prom
     .orderBy(desc(siteNotices.createdAt));
 
   return {
+    company: { legalName: property.legalName || null, gstin: property.gstin || null, address: property.address || null, phone: property.phone || null, email: property.email || null },
     notices: noticeRows.map((n) => ({ id: n.id, message: n.message, linkLabel: n.linkLabel, linkUrl: n.linkUrl, startsOn: n.startsOn, endsOn: n.endsOn })),
     offers: offerRows.map((offer) => ({ title: offer.title, details: offer.details, appliesTo: offer.appliesTo, label: offerLabel(offer), startsOn: offer.startsOn, endsOn: offer.endsOn })),
     roomTypes: types.map((type) => ({

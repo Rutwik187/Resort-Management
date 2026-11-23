@@ -1,11 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Manrope } from "next/font/google";
+import { SiteConsent } from "@repo/booking-ui/consent";
+import { ContactDock } from "@repo/booking-ui/contact-dock";
 import { SiteNotices } from "@repo/website/notice";
 import { BookingDrawer } from "@/components/booking-drawer";
 import { SmoothScroll } from "@/components/smooth-scroll";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { defaultTitle, siteName, siteUrl } from "@/content/site";
+import { contact } from "@/content/resort";
 import "./globals.css";
 
 // Headings: Fraunces, a soft "old style" serif. Its optical-size axis makes
@@ -64,6 +67,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <main id="main">{children}</main>
         <SiteFooter />
         <SiteNotices code="PV" />
+        <ContactDock resortName={siteName} whatsapp={contact.whatsapp.number} phoneHref={contact.phone.href} phoneDisplay={contact.phone.display} />
+        <SiteConsent gtmId={process.env.NEXT_PUBLIC_GTM_ID} metaPixelId={process.env.NEXT_PUBLIC_META_PIXEL_ID} policyHref="/policies" />
         <BookingDrawer />
       </body>
     </html>
