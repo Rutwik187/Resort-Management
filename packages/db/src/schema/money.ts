@@ -214,6 +214,12 @@ export const onlinePayments = pgTable(
     /** card, upi, netbanking, wallet… as Razorpay reports it. */
     method: text(),
     paidAt: timestamp({ withTimezone: true }),
+    /** Razorpay's fee and the GST on it, in paise, from the payment or its settlement (URD 6.6). */
+    feePaise: bigint({ mode: "number" }),
+    feeTaxPaise: bigint({ mode: "number" }),
+    /** The settlement that paid it out to the company's bank, and when. */
+    settlementId: text(),
+    settledAt: timestamp({ withTimezone: true }),
     error: text(),
     createdBy: createdBy(),
     ...timestamps,

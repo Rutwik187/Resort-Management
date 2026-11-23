@@ -29,6 +29,7 @@ export default async function SettingsPage({ params }: PageProps<"/[property]/se
           lowStockThreshold: property.lowStockThreshold,
           advancePercent: property.advancePercent,
           refundApprovalPaise: property.refundApprovalPaise,
+          reportEmails: property.reportEmails,
           stateCode: property.stateCode,
           stateName: property.stateName,
         }}

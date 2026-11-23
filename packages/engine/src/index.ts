@@ -8,6 +8,8 @@ export { freeUnits, searchStays, seatsLeft, stayRuleProblem, type SeatOption, ty
 export { createBlock, liftBlock, type BlockReason } from "./blocks";
 export { setDayCapacity } from "./capacity";
 export { closedDates } from "./closed-dates";
+export { syncSettlements } from "./settlements";
+export { queueSalesSummaries } from "./summaries";
 export { loadPackage, packageArrivals, packageCheckOut, packageProblem, packagesByIds, pricePackage, type StayPackage } from "./packages";
 export {
   addBookingNote,

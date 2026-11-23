@@ -31,6 +31,8 @@ export const properties = pgTable(
     advancePercent: smallint().notNull().default(100),
     /** Refunds above this need someone who may approve refunds. Empty: every refund does. */
     refundApprovalPaise: bigint({ mode: "number" }),
+    /** Who gets the daily, weekly and monthly sales summaries (RPT-01). */
+    reportEmails: text().array().notNull().default(sql`'{}'::text[]`),
     /** For GST invoices: the state the resort is in. Maharashtra is 27. */
     stateCode: text().notNull().default("27"),
     stateName: text().notNull().default("Maharashtra"),

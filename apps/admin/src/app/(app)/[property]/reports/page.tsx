@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { BedDouble, Download, Inbox, IndianRupee, TrendingUp, Wallet } from "lucide-react";
-import { can } from "@repo/auth";
+import { BedDouble, Building2, Download, FileSpreadsheet, Inbox, IndianRupee, TrendingUp, Wallet } from "lucide-react";
+import { accessibleProperties, can } from "@repo/auth";
+import { getDb } from "@repo/db";
 import { addDays, isDate, todayInIndia } from "@repo/engine";
 import { BarChartCard } from "@/components/bar-chart-card";
 import { NoAccess } from "@/components/no-access";
@@ -11,7 +12,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { leadInterestLabel, leadSourceLabel, leadStatusLabel, longDate, methodLabel, plural, rupees, shortDate, sourceLabel } from "@/lib/format";
 import { daysReport, leadsReport, occupancyReport, paymentsReport, salesReport, type Period } from "@/lib/reports";
+import { ReportTableCard } from "@/components/report-table";
+import { buildReport, reportKinds, type ReportKind } from "@/lib/report-tables";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
+import { PrintButton } from "../bookings/[number]/forms";
 import { PeriodPicker } from "./period-picker";
 
 export const metadata = { title: "Reports" };
@@ -82,6 +86,20 @@ export default async function ReportsPage({ params, searchParams }: PageProps<"/
   if (!full && !leadsToo && !["today", "yesterday"].includes(period.key)) period = periodFor("today", undefined, undefined, today);
   const base = `/${property.code.toLowerCase()}/reports`;
 
+  // The report tab, and one resort or every resort this person sees reports for (URD 7.4: per resort and the group).
+  const allowed = reportKinds.filter((kind) => can(staff, kind.needs, property.id) || (kind.needs !== "reports.leads" && full) || (kind.needs === "reports.leads" && leadsToo) || (kind.needs === "reports.daily" && daily));
+  const report = allowed.find((kind) => kind.key === one(query.report))?.key as ReportKind | undefined;
+  const groupIds = (await accessibleProperties(getDb(), staff)).filter((r) => can(staff, "reports.view", r.id)).map((r) => r.id);
+  const group = one(query.scope) === "group" && groupIds.length > 1 && full;
+  const keep: Record<string, string> = { ...(report ? { report } : {}), ...(group ? { scope: "group" } : {}) };
+  const periodQuery: Record<string, string> = period.key === "month" ? {} : period.key === "custom" ? { period: "custom", from: period.from, to: period.to } : { period: period.key };
+  const tabHref = (changes: Record<string, string | undefined>) => {
+    const text = new URLSearchParams(Object.entries({ ...periodQuery, ...keep, ...changes }).filter((e): e is [string, string] => Boolean(e[1]))).toString();
+    return text ? `${base}?${text}` : base;
+  };
+  const tables = report ? await buildReport(report, group ? groupIds : [property.id], period) : null;
+  const exportHref = (format: string) => `${base}/export?${new URLSearchParams({ ...periodQuery, from: period.from, to: period.to, ...keep, format })}`;
+
   const [sales, payments, occupancy, days, leadFigures] = await Promise.all([
     daily ? salesReport(property.id, period) : null,
     daily ? paymentsReport(property.id, period) : null,
@@ -125,20 +143,78 @@ export default async function ReportsPage({ params, searchParams }: PageProps<"/
     <>
       <PageHeader
         title="Reports"
-        description={`${property.name}, ${period.label.toLowerCase()}: ${longDate(period.from)}${period.from === period.to ? "" : ` to ${longDate(period.to)}`}. Sales count bookings by the day they were made; rooms count the nights stayed.`}
+        description={`${group ? "All resorts" : property.name}, ${period.label.toLowerCase()}: ${longDate(period.from)}${period.from === period.to ? "" : ` to ${longDate(period.to)}`}. Sales count bookings by the day they were made; rooms count the nights stayed.`}
         actions={
-          full && (
-            <Button variant="outline" asChild>
-              <a href={`${base}/export?from=${period.from}&to=${period.to}`} download>
-                <Download />
-                Bookings as CSV
-              </a>
-            </Button>
-          )
+          <>
+            {tables && (
+              <>
+                <Button variant="outline" asChild>
+                  <a href={exportHref("xlsx")} download>
+                    <FileSpreadsheet />
+                    Excel
+                  </a>
+                </Button>
+                <Button variant="outline" asChild>
+                  <a href={exportHref("csv")} download>
+                    <Download />
+                    CSV
+                  </a>
+                </Button>
+                <PrintButton />
+              </>
+            )}
+            {!tables && full && (
+              <Button variant="outline" asChild>
+                <a href={`${base}/export?from=${period.from}&to=${period.to}`} download>
+                  <Download />
+                  Bookings as CSV
+                </a>
+              </Button>
+            )}
+          </>
         }
       />
 
-      <PeriodPicker base={base} current={period.key} from={period.from} to={period.to} limited={!full && !leadsToo} />
+      <nav aria-label="Reports" className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5 print:hidden">
+        {[{ key: undefined, label: "Overview" }, ...allowed].map((kind) => {
+          const active = report === kind.key;
+          return (
+            <Link
+              key={kind.key ?? "overview"}
+              href={tabHref({ report: kind.key })}
+              aria-current={active ? "page" : undefined}
+              className={`shrink-0 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${active ? "bg-background text-foreground shadow-xs ring-1 ring-border" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+            >
+              {kind.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <PeriodPicker base={base} current={period.key} from={period.from} to={period.to} limited={!full && !leadsToo} keep={keep} />
+        {report && full && groupIds.length > 1 && (
+          <Button variant={group ? "secondary" : "outline"} size="sm" asChild>
+            <Link href={tabHref({ scope: group ? undefined : "group" })}>
+              <Building2 />
+              {group ? "All resorts: on" : "All resorts"}
+            </Link>
+          </Button>
+        )}
+      </div>
+
+      {tables && (
+        <div className="grid gap-4">
+          <p className="hidden text-sm print:block">
+            {group ? "All resorts" : property.name} · {longDate(period.from)} to {longDate(period.to)}
+          </p>
+          {tables.map((table) => (
+            <ReportTableCard key={table.title} table={table} />
+          ))}
+        </div>
+      )}
+
+      <div className={tables ? "hidden" : "contents"}>
 
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         {sales && <StatCard label="Sales" value={rupees(sales.paise)} note={`${plural(sales.count, "booking")}${sales.count ? `, ${wholeRupees(sales.paise / sales.count)} each on average` : ""}`} icon={TrendingUp} />}
@@ -385,6 +461,7 @@ export default async function ReportsPage({ params, searchParams }: PageProps<"/
           )}
         </Card>
       )}
+      </div>
     </>
   );
 }

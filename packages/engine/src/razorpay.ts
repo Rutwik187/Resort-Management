@@ -36,7 +36,9 @@ export function razorpaySender(keys: RazorpayKeys): RazorpaySend {
 }
 
 export type RazorpayOrder = { id: string; amount: number; status: "created" | "attempted" | "paid" };
-export type RazorpayPayment = { id: string; order_id: string | null; amount: number; status: "created" | "authorized" | "captured" | "refunded" | "failed"; method: string | null; error_description?: string | null };
+export type RazorpayPayment = { id: string; order_id: string | null; amount: number; status: "created" | "authorized" | "captured" | "refunded" | "failed"; method: string | null; error_description?: string | null; fee?: number | null; tax?: number | null };
+/** One line of Razorpay's settlement reconciliation: a payment, refund or adjustment, and the settlement it went in. */
+export type RazorpayReconItem = { entity_id: string; type: string; amount: number; fee: number | null; tax: number | null; settlement_id: string | null; settled_at: number | null; settled: boolean };
 export type RazorpayLink = { id: string; short_url: string; status: "created" | "partially_paid" | "expired" | "cancelled" | "paid"; payments?: { payment_id: string; amount: number; status: string; method?: string }[] | null };
 export type RazorpayRefund = { id: string; payment_id: string; amount: number; status: "pending" | "processed" | "failed" };
 
@@ -45,6 +47,9 @@ export const razorpay = (send: RazorpaySend) => ({
     send("POST", "/orders", { amount: input.amount, currency: "INR", receipt: input.receipt, notes: input.notes }) as Promise<RazorpayOrder>,
   orderPayments: async (orderId: string) => ((await send("GET", `/orders/${orderId}/payments`)) as { items: RazorpayPayment[] }).items,
   payment: (paymentId: string) => send("GET", `/payments/${paymentId}`) as Promise<RazorpayPayment>,
+  /** The settlement reconciliation for one day: every payment settled that day, with its fee and GST on the fee. */
+  settlementRecon: async (year: number, month: number, day: number, skip = 0) =>
+    ((await send("GET", `/settlements/recon/combined?year=${year}&month=${month}&day=${day}&count=1000&skip=${skip}`)) as { items: RazorpayReconItem[] }).items ?? [],
   capture: (paymentId: string, amount: number) => send("POST", `/payments/${paymentId}/capture`, { amount, currency: "INR" }) as Promise<RazorpayPayment>,
   createLink: (input: {
     amount: number;

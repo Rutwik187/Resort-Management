@@ -1,5 +1,5 @@
 import { getDb } from "@repo/db";
-import { dueFollowUps, expireHolds, queueFollowUpReminders, recheckOnlinePayments, sendQueuedEmails } from "@repo/engine";
+import { addDays, dueFollowUps, expireHolds, queueFollowUpReminders, queueSalesSummaries, recheckOnlinePayments, sendQueuedEmails, syncSettlements, todayInIndia } from "@repo/engine";
 
 export const maxDuration = 60;
 
@@ -18,6 +18,10 @@ export async function GET(request: Request) {
   const payments = await recheckOnlinePayments(db);
   // Follow-ups due now or overdue: a reminder to the person on each, once a day (CRM-04).
   const reminders = await queueFollowUpReminders(db, await dueFollowUps(db));
+  // Yesterday's Razorpay settlements, with fees and GST on fees (URD 6.6).
+  const settlements = await syncSettlements(db, addDays(todayInIndia(), -1));
+  // The day's sales summary, and the week's on Mondays and the month's on the 1st (RPT-01).
+  const summaries = await queueSalesSummaries(db);
   const emails = await sendQueuedEmails(db, { limit: 200 });
-  return Response.json({ expired, ...payments, reminders, emails });
+  return Response.json({ expired, ...payments, reminders, settlements, summaries, emails });
 }

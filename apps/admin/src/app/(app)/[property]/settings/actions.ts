@@ -31,6 +31,11 @@ const settingsInput = z.object({
   refundApproval: rupeesField("The refund limit").optional(),
   stateCode: z.string().trim().regex(/^\d{2}$/, "The state code has two digits, such as 27 for Maharashtra."),
   stateName: z.string().trim().min(2, "Write the state's name.").max(60),
+  reportEmails: z
+    .string()
+    .transform((value) => value.split(/[\s,;]+/).filter(Boolean))
+    .pipe(z.array(z.email("One of the summary addresses isn't an email address.")).max(20, "At most 20 addresses."))
+    .optional(),
 });
 
 /** The resort's company details, times and booking settings (plan section 9, Settings). */
@@ -57,6 +62,7 @@ export async function saveSettings(propertyId: string, _state: FormState, form: 
         refundApprovalPaise: input.refundApproval ?? null,
         stateCode: input.stateCode,
         stateName: input.stateName,
+        reportEmails: [...new Set((input.reportEmails ?? []).map((e) => e.toLowerCase()))],
       })
       .where(eq(properties.id, propertyId))
       .returning();

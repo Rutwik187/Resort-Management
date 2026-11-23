@@ -14,8 +14,13 @@ const periods = [
 ] as const;
 
 /** The report's period: one of the usual ones, or any dates. The daily report offers today and yesterday only. */
-export function PeriodPicker({ base, current, from, to, limited }: { base: string; current: string; from: string; to: string; limited: boolean }) {
+export function PeriodPicker({ base, current, from, to, limited, keep = {} }: { base: string; current: string; from: string; to: string; limited: boolean; keep?: Record<string, string> }) {
   const router = useRouter();
+  // The report and the resorts shown stay as the period changes.
+  const href = (query: Record<string, string>) => {
+    const text = new URLSearchParams({ ...keep, ...query }).toString();
+    return text ? `${base}?${text}` : base;
+  };
   const shown = limited ? periods.filter(([key]) => key === "today" || key === "yesterday") : periods;
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -23,7 +28,7 @@ export function PeriodPicker({ base, current, from, to, limited }: { base: strin
         {shown.map(([key, label]) => (
           <Link
             key={key}
-            href={key === "month" ? base : `${base}?period=${key}`}
+            href={key === "month" ? href({}) : href({ period: key })}
             aria-current={current === key ? "page" : undefined}
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${current === key ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
           >
@@ -41,8 +46,8 @@ export function PeriodPicker({ base, current, from, to, limited }: { base: strin
             placeholder="Choose dates"
             short
             onChange={(start, end) => {
-              if (start && end) router.push(`${base}?period=custom&from=${start}&to=${end}`);
-              else router.push(base);
+              if (start && end) router.push(href({ period: "custom", from: start, to: end }));
+              else router.push(href({}));
             }}
             className={current === "custom" ? "border-primary/40 bg-primary/[0.04] font-medium" : undefined}
           />

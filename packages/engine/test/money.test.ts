@@ -82,6 +82,7 @@ function fakeRazorpay() {
     },
     orderPayments: async (orderId) => [...payments.values()].filter((p) => p.order_id === orderId),
     payment: async (id) => payments.get(id)!,
+    settlementRecon: async () => [],
     capture: async (id) => {
       const p = payments.get(id)!;
       p.status = "captured";

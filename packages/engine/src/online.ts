@@ -106,14 +106,14 @@ export async function completeCheckout(db: Database, input: { orderId: string; p
  * hold ran out, it gets the same rooms back when they're still free; if
  * not, or if it was cancelled, the money is refunded at once.
  */
-export async function applyOnlinePayment(db: Database, onlinePaymentId: string, payment: Pick<RazorpayPayment, "id" | "amount" | "method">) {
+export async function applyOnlinePayment(db: Database, onlinePaymentId: string, payment: Pick<RazorpayPayment, "id" | "amount" | "method"> & Partial<Pick<RazorpayPayment, "fee" | "tax">>) {
   const result = await db.transaction(async (tx) => {
     const [row] = await tx.select().from(onlinePayments).where(eq(onlinePayments.id, onlinePaymentId)).for("update");
     if (!row) throw new NotFoundError("Payment");
     if (row.status === "paid") return { bookingId: row.bookingId, already: true, refundId: null as string | null };
     await tx
       .update(onlinePayments)
-      .set({ status: "paid", paymentId: payment.id, method: payment.method, amountPaise: payment.amount, paidAt: sql`now()`, error: null })
+      .set({ status: "paid", paymentId: payment.id, method: payment.method, amountPaise: payment.amount, paidAt: sql`now()`, error: null, feePaise: payment.fee ?? null, feeTaxPaise: payment.tax ?? null })
       .where(eq(onlinePayments.id, row.id));
     const [booking] = await tx.select().from(bookings).where(eq(bookings.id, row.bookingId)).for("update");
     const paid = booking.paidPaise + payment.amount;

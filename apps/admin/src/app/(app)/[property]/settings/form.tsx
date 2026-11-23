@@ -22,6 +22,7 @@ type Settings = {
   lowStockThreshold: number;
   advancePercent: number;
   refundApprovalPaise: number | null;
+  reportEmails: string[];
   stateCode: string;
   stateName: string;
 };
@@ -122,6 +123,11 @@ export function SettingsForm({ propertyId, settings }: { propertyId: string; set
                   <FieldDescription>Accounts start refunds up to this amount at once. Larger ones wait for a Super Admin.</FieldDescription>
                 </Field>
               </div>
+              <Field>
+                <FieldLabel htmlFor="reportEmails">Sales summaries go to</FieldLabel>
+                <Input id="reportEmails" name="reportEmails" defaultValue={settings.reportEmails.join(", ")} placeholder="owner@example.com, manager@example.com" />
+                <FieldDescription>The day&apos;s figures at 9 pm, the week&apos;s on Mondays and the month&apos;s on the 1st (RPT-01). Separate addresses with commas.</FieldDescription>
+              </Field>
             </FieldGroup>
           </CardContent>
         </Card>
