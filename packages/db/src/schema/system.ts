@@ -1,6 +1,7 @@
 import { bigserial, boolean, index, integer, jsonb, pgTable, smallint, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { createdBy, timestamps } from "./common";
 import { properties } from "./properties";
+import { bookings } from "./bookings";
 
 /**
  * Every create, change, delete, refund, price change and sign-in (USR-05):
@@ -84,4 +85,104 @@ export const redirects = pgTable(
     ...timestamps,
   },
   (t) => [unique().on(t.propertyId, t.fromPath)],
+);
+
+/**
+ * Each background job's lock and last run (plan section 12). A run takes
+ * the lock for a few minutes; a second run at the same time finds it taken
+ * and skips, so a doubled Vercel Cron call does nothing twice.
+ */
+export const jobRuns = pgTable("job_runs", {
+  name: text().primaryKey(),
+  lockedUntil: timestamp({ withTimezone: true }),
+  lastStartedAt: timestamp({ withTimezone: true }),
+  lastFinishedAt: timestamp({ withTimezone: true }),
+  lastResult: jsonb(),
+  lastError: text(),
+});
+
+/**
+ * A guest's ID proof, uploaded at check-in (ADM-08). The file lives in the
+ * private Vercel Blob store (encrypted at rest); staff open it only
+ * through the admin, which checks their role and logs each view. It is
+ * deleted on its own after the resort's retention days.
+ */
+export const idProofs = pgTable(
+  "id_proofs",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    propertyId: uuid()
+      .notNull()
+      .references(() => properties.id),
+    bookingId: uuid()
+      .notNull()
+      .references(() => bookings.id),
+    /** The guest it belongs to, as staff named them, such as "Asha Kulkarni" or "Second guest". */
+    label: text().notNull(),
+    pathname: text().notNull().unique(),
+    contentType: text().notNull(),
+    size: integer().notNull(),
+    uploadedBy: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    /** The day it is deleted, from the resort's retention days. */
+    deleteAfter: timestamp({ withTimezone: true }).notNull(),
+    deletedAt: timestamp({ withTimezone: true }),
+  },
+  (t) => [index().on(t.bookingId), index().on(t.deleteAfter)],
+);
+
+/**
+ * A photo in a resort's gallery (URD 4.2, CMS-06), in the public Vercel
+ * Blob store. Staff upload many at once into a category, add alt text and
+ * a caption, feature or hide them, and set the order.
+ */
+export const galleryItems = pgTable(
+  "gallery_items",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    propertyId: uuid()
+      .notNull()
+      .references(() => properties.id),
+    category: text().notNull(),
+    url: text().notNull(),
+    pathname: text().notNull().unique(),
+    width: integer(),
+    height: integer(),
+    /** Required before the photo shows on the website (CMS-09). */
+    alt: text(),
+    caption: text(),
+    featured: boolean().notNull().default(false),
+    hidden: boolean().notNull().default(false),
+    sortOrder: integer().notNull().default(0),
+    createdBy: createdBy(),
+    ...timestamps,
+  },
+  (t) => [index().on(t.propertyId, t.category, t.sortOrder)],
+);
+
+/**
+ * Page text and photos staff change in the admin (plan section 2): one row
+ * per slot a site lists, such as home.headline. Edits stay in the draft
+ * until published; the site shows the published value, or its own text
+ * when there is none.
+ */
+export const contentSlots = pgTable(
+  "content_slots",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    propertyId: uuid()
+      .notNull()
+      .references(() => properties.id),
+    key: text().notNull(),
+    draftText: text(),
+    draftImageUrl: text(),
+    draftImageAlt: text(),
+    publishedText: text(),
+    publishedImageUrl: text(),
+    publishedImageAlt: text(),
+    publishedAt: timestamp({ withTimezone: true }),
+    createdBy: createdBy(),
+    ...timestamps,
+  },
+  (t) => [unique().on(t.propertyId, t.key)],
 );

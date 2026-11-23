@@ -45,6 +45,8 @@ export const properties = pgTable(
     googleRating: text(),
     googleReviewCount: integer(),
     reviewsSyncedAt: timestamp({ withTimezone: true }),
+    /** How many days guests' ID proofs are kept before they are deleted on their own (ADM-08). */
+    idProofRetentionDays: integer().notNull().default(30),
     /** For GST invoices: the state the resort is in. Maharashtra is 27. */
     stateCode: text().notNull().default("27"),
     stateName: text().notNull().default("Maharashtra"),

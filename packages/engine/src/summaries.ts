@@ -56,12 +56,16 @@ async function figures(db: Database, propertyId: string, from: string, to: strin
   };
 }
 
-/** Writes the summaries due today for every resort with recipients. Returns how many were queued. */
-export async function queueSalesSummaries(db: Database, today = todayInIndia()) {
-  const due: { kind: string; label: string; from: string; to: string }[] = [{ kind: "summary_daily", label: `Daily summary, ${day(today)}`, from: today, to: today }];
+/**
+ * Writes the summaries due today for every resort with recipients. The
+ * evening run writes the day's; the morning run writes the week's on
+ * Mondays and the month's on the 1st. Returns how many were queued.
+ */
+export async function queueSalesSummaries(db: Database, today = todayInIndia(), which: { daily?: boolean; periodic?: boolean } = { daily: true, periodic: true }) {
+  const due: { kind: string; label: string; from: string; to: string }[] = which.daily ? [{ kind: "summary_daily", label: `Daily summary, ${day(today)}`, from: today, to: today }] : [];
   const weekday = new Date(`${today}T00:00:00Z`).getUTCDay();
-  if (weekday === 1) due.push({ kind: "summary_weekly", label: `Weekly summary, ${day(addDays(today, -7))} to ${day(addDays(today, -1))}`, from: addDays(today, -7), to: addDays(today, -1) });
-  if (today.endsWith("-01")) {
+  if (which.periodic && weekday === 1) due.push({ kind: "summary_weekly", label: `Weekly summary, ${day(addDays(today, -7))} to ${day(addDays(today, -1))}`, from: addDays(today, -7), to: addDays(today, -1) });
+  if (which.periodic && today.endsWith("-01")) {
     const lastMonthEnd = addDays(today, -1);
     const first = `${lastMonthEnd.slice(0, 8)}01`;
     due.push({ kind: "summary_monthly", label: `Monthly summary, ${new Date(`${first}T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" })}`, from: first, to: lastMonthEnd });

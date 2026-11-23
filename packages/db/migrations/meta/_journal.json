@@ -127,6 +127,20 @@
       "when": 1795429833901,
       "tag": "0017_reviews_redirects_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795433459962,
+      "tag": "0018_job_runs",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1795433558288,
+      "tag": "0019_storage",
+      "breakpoints": true
     }
   ]
 }

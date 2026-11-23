@@ -34,6 +34,7 @@ export default async function SettingsPage({ params }: PageProps<"/[property]/se
           teamEmails: property.teamEmails,
           reviewUrl: property.reviewUrl,
           mapsUrl: property.mapsUrl,
+          idProofRetentionDays: property.idProofRetentionDays,
           stateCode: property.stateCode,
           stateName: property.stateName,
         }}

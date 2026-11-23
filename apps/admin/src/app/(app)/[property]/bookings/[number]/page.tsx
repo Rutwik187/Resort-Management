@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRightLeft, CalendarCheck, CalendarRange, CircleAlert, Clock, IndianRupee, Link2, Mail, MessageCircle, MessageSquareText, Phone, PencilLine, Sparkles, Undo2 } from "lucide-react";
 import { can } from "@repo/auth";
-import { getDb } from "@repo/db";
+import { and, asc, eq, isNull } from "drizzle-orm";
+import { getDb, idProofs, properties } from "@repo/db";
 import { addonQuantityWords, freeUnits, todayInIndia, type Quote } from "@repo/engine";
 import { NoAccess } from "@/components/no-access";
 import { PersonAvatar } from "@/components/person-avatar";
@@ -20,6 +21,7 @@ import { CancelForm, MoveButton, NoShowButton, NoteForm, PaymentForm, PriceForm,
 import { MessagesCard } from "@/components/messages-card";
 import { InvoicesCard, loadMoney, OnlinePaymentRows, RefundsCard, WaitingLinks } from "./money";
 import { BookingPageButton, PaymentLinkForm, ResendConfirmationButton } from "./money-forms";
+import { IdProofCard } from "./id-proof-card";
 
 export async function generateMetadata({ params }: PageProps<"/[property]/bookings/[number]">) {
   return { title: (await params).number.toUpperCase() };
@@ -40,6 +42,12 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
 
   const may = (permission: Parameters<typeof can>[1]) => can(staff, permission, property.id);
   const today = todayInIndia();
+  // Guests' ID proofs (ADM-08), for the roles that may see them, on bookings that came or are due.
+  const showIdProofs = may("id_proofs.manage") && ["confirmed", "part_paid", "checked_in", "checked_out"].includes(booking.status);
+  const proofs = showIdProofs
+    ? await getDb().select().from(idProofs).where(and(eq(idProofs.bookingId, booking.id), isNull(idProofs.deletedAt))).orderBy(asc(idProofs.createdAt))
+    : [];
+  const [retention] = showIdProofs ? await getDb().select({ days: properties.idProofRetentionDays }).from(properties).where(eq(properties.id, property.id)) : [];
   // After a change, what the guest paid over the new price, to give back.
   const refundParam = (await searchParams).refund;
   const refund = Math.max(0, Number(Array.isArray(refundParam) ? refundParam[0] : refundParam) || 0);
@@ -227,6 +235,16 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
                 {may("bookings.cancel") && booking.status !== "checked_in" && <CancelForm bookingId={booking.id} />}
               </CardContent>
             </Card>
+          )}
+          {showIdProofs && (
+            <IdProofCard
+              propertyId={property.id}
+              bookingId={booking.id}
+              base={`/${property.code.toLowerCase()}`}
+              guestName={guest.name}
+              retentionDays={retention?.days ?? 30}
+              proofs={proofs.map((p) => ({ id: p.id, label: p.label, contentType: p.contentType, size: p.size, createdAt: p.createdAt.toISOString(), deleteAfter: p.deleteAfter.toISOString() }))}
+            />
           )}
         </aside>
 

@@ -24,6 +24,7 @@ export const permissions = {
   "leads.manage": "Work leads",
   "leads.export": "Export leads to Excel",
   "guests.export": "Export guests who agreed to marketing",
+  "id_proofs.manage": "Upload and open guests' ID proofs",
   "reports.daily": "See the daily report",
   "reports.leads": "See lead reports",
   "reports.view": "See all reports",
@@ -67,13 +68,14 @@ export const builtInRoles: RoleDefinition[] = [
       "leads.manage",
       "reports.view",
       "website.manage",
+      "id_proofs.manage",
     ],
   },
   {
     key: "front_desk",
     name: "Front Desk",
     description: "Offline bookings, check-in and check-out, blocking rooms, seeing bookings.",
-    permissions: ["dashboard.view", "bookings.view", "bookings.create", "bookings.modify", "inventory.view", "inventory.block", "leads.view", "reports.daily"],
+    permissions: ["dashboard.view", "bookings.view", "bookings.create", "bookings.modify", "inventory.view", "inventory.block", "leads.view", "reports.daily", "id_proofs.manage"],
   },
   {
     key: "sales",

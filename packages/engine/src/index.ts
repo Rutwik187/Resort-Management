@@ -10,6 +10,7 @@ export { setDayCapacity } from "./capacity";
 export { closedDates } from "./closed-dates";
 export { syncSettlements } from "./settlements";
 export { pruneRequestLimits, takeRequest } from "./limits";
+export { runJob } from "./job-runs";
 export { syncGoogleReviews } from "./reviews";
 export { groupDaySearch, groupStaySearch, type GroupDayResult, type GroupStayResult } from "./group";
 export { queueSalesSummaries } from "./summaries";

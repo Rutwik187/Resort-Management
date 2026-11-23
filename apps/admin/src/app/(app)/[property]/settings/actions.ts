@@ -31,6 +31,7 @@ const settingsInput = z.object({
   refundApproval: rupeesField("The refund limit").optional(),
   stateCode: z.string().trim().regex(/^\d{2}$/, "The state code has two digits, such as 27 for Maharashtra."),
   stateName: z.string().trim().min(2, "Write the state's name.").max(60),
+  idProofRetentionDays: wholeNumber("The days to keep ID proofs", 1, 365),
   teamEmails: z
     .string()
     .transform((value) => value.split(/[\s,;]+/).filter(Boolean))
@@ -70,6 +71,7 @@ export async function saveSettings(propertyId: string, _state: FormState, form: 
         stateCode: input.stateCode,
         stateName: input.stateName,
         reportEmails: [...new Set((input.reportEmails ?? []).map((e) => e.toLowerCase()))],
+        idProofRetentionDays: input.idProofRetentionDays,
         teamEmails: [...new Set((input.teamEmails ?? []).map((e) => e.toLowerCase()))],
         reviewUrl: input.reviewUrl ?? null,
         mapsUrl: input.mapsUrl ?? null,

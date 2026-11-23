@@ -26,6 +26,7 @@ type Settings = {
   teamEmails: string[];
   reviewUrl: string | null;
   mapsUrl: string | null;
+  idProofRetentionDays: number;
   stateCode: string;
   stateName: string;
 };
@@ -126,6 +127,11 @@ export function SettingsForm({ propertyId, settings }: { propertyId: string; set
                   <FieldDescription>Accounts start refunds up to this amount at once. Larger ones wait for a Super Admin.</FieldDescription>
                 </Field>
               </div>
+              <Field>
+                <FieldLabel htmlFor="idProofRetentionDays">Keep ID proofs for, in days</FieldLabel>
+                <Input id="idProofRetentionDays" name="idProofRetentionDays" type="number" min={1} max={365} required defaultValue={settings.idProofRetentionDays} />
+                <FieldDescription>Guests&apos; ID proofs from check-in are deleted on their own after this many days (ADM-08). A change applies to new uploads.</FieldDescription>
+              </Field>
               <Field>
                 <FieldLabel htmlFor="teamEmails">The team&apos;s alerts go to</FieldLabel>
                 <Input id="teamEmails" name="teamEmails" defaultValue={settings.teamEmails.join(", ")} placeholder="frontdesk@example.com, manager@example.com" />
