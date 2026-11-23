@@ -15,7 +15,6 @@ const oldPages: [string, string][] = [
   ["/all-amenities", "/stays#amenities"],
   ["/stay_packages", "/stays"],
   ["/cottages", "/stays"],
-  ["/gallery", "/"],
   ["/activities", "/stays#amenities"],
   ["/faq", "/"],
   ["/contact-us", "/#enquire"],
