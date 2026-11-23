@@ -1,5 +1,7 @@
 "use client";
 
+import { currentCampaign, trackEvent } from "@repo/booking-ui/consent";
+import { FormConsent, formConsent } from "@repo/booking-ui/form-consent";
 import { useId, useState, type CSSProperties, type FormEvent } from "react";
 import { CountInput, DateInput, FieldError, contactErrors, formatLong, type ContactErrors } from "@repo/booking-ui";
 import { contact } from "@/content/resort";
@@ -52,6 +54,9 @@ export function EnquiryForm({ defaultPurpose = "stay", compact = false, classNam
       (form.elements.namedItem(found.name ? "name" : "phone") as HTMLInputElement | null)?.focus();
       return;
     }
+    // The privacy consent is needed to send (WEB-08).
+    const consent = formConsent(form);
+    if (!consent) return;
     const lines = [
       "Hello Prathamesh Valley Resorts, I would like to plan:",
       chosen.label,
@@ -64,7 +69,8 @@ export function EnquiryForm({ defaultPurpose = "stay", compact = false, classNam
     ].filter(Boolean);
     window.open(`https://wa.me/${contact.whatsapp.number}?text=${encodeURIComponent(lines.join("\n"))}`, "_blank", "noopener,noreferrer");
     // Kept as a lead in the admin too. WhatsApp has opened already, so this never holds the guest up.
-    sendEnquiry({ purpose, name: data.get("name"), phone: data.get("phone"), date: date || undefined, guests: data.get("guests") || undefined, note: lines.join("\n") }).catch(() => undefined);
+    sendEnquiry({ consent, campaign: currentCampaign() as Record<string, string>, purpose, name: data.get("name"), phone: data.get("phone"), date: date || undefined, guests: data.get("guests") || undefined, note: lines.join("\n") }).catch(() => undefined);
+    trackEvent("generate_lead", { lead_type: purpose }, { event: "Lead", params: { content_category: purpose } });
   }
 
   return (
@@ -155,6 +161,7 @@ export function EnquiryForm({ defaultPurpose = "stay", compact = false, classNam
         <textarea id={`${id}-note`} name="note" rows={2} className={`${field} resize-none`} />
       </div>
 
+      <FormConsent policyHref="/policies" boxClassName="accent-current" />
       <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
         <button type="submit" className="btn btn-ink" aria-describedby={`${id}-dest`}>
           Send on WhatsApp <span aria-hidden className="btn-arrow">→</span>

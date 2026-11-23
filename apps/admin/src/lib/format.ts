@@ -108,11 +108,22 @@ export const balance = (booking: { totalPaise: number | null; paidPaise: number 
 export const mealLabel = { EP: "Room only (EP)", CP: "With breakfast (CP)", MAP: "Breakfast and one meal (MAP)", AP: "All meals (AP)" } as const;
 export const nightsLabel = { any: "Every night", weekday: "Weekday nights", weekend: "Weekend nights" } as const;
 
-/** A lead's state, in the words staff use. "won" reads as booked. */
-export const leadStatusLabel = { new: "New", contacted: "Contacted", quoted: "Quoted", won: "Booked", lost: "Lost" } as const;
+/** A lead's place in the pipeline (URD 7.5), in the words staff use. "won" reads as booked. */
+export const leadStatusLabel = {
+  new: "New",
+  contacted: "Contacted",
+  site_visit_scheduled: "Site visit booked",
+  site_visit_done: "Site visit done",
+  quoted: "Quotation sent",
+  negotiation: "Negotiation",
+  won: "Booked",
+  lost: "Lost",
+} as const;
 export const leadSourceLabel = {
   website_booking: "Website booking request",
   website_enquiry: "Website enquiry",
+  meta_ads: "Meta lead ad",
+  google_ads: "Google lead ad",
   phone: "Phone",
   walk_in: "Walk-in",
   whatsapp: "WhatsApp",
@@ -120,7 +131,7 @@ export const leadSourceLabel = {
   referral: "Referral",
   other: "Other",
 } as const;
-export const leadInterestLabel = { stay: "Stay", day: "Day visit", wedding: "Wedding", event: "Event", other: "Other" } as const;
+export const leadInterestLabel = { stay: "Stay", day: "Day visit", wedding: "Wedding", corporate: "Corporate", event: "Event", other: "Other" } as const;
 
 /** Such as "just now", "5 min ago", "3 hours ago" or "2 days ago". */
 export function ago(at: Date, now = new Date()) {

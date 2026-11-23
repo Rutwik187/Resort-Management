@@ -1,5 +1,5 @@
 import { getDb } from "@repo/db";
-import { expireHolds, recheckOnlinePayments, sendQueuedEmails } from "@repo/engine";
+import { dueFollowUps, expireHolds, queueFollowUpReminders, recheckOnlinePayments, sendQueuedEmails } from "@repo/engine";
 
 export const maxDuration = 60;
 
@@ -16,6 +16,8 @@ export async function GET(request: Request) {
   const db = getDb();
   const expired = await expireHolds(db);
   const payments = await recheckOnlinePayments(db);
+  // Follow-ups due now or overdue: a reminder to the person on each, once a day (CRM-04).
+  const reminders = await queueFollowUpReminders(db, await dueFollowUps(db));
   const emails = await sendQueuedEmails(db, { limit: 200 });
-  return Response.json({ expired, ...payments, emails });
+  return Response.json({ expired, ...payments, reminders, emails });
 }

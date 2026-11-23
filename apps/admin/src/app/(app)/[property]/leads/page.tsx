@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { CalendarClock, Inbox, Search, X } from "lucide-react";
+import { eq } from "drizzle-orm";
+import { CalendarClock, Download, Inbox, KanbanSquare, List, Search, X } from "lucide-react";
+import { getDb, leadAssignmentRules } from "@repo/db";
 import { z } from "zod";
 import { can } from "@repo/auth";
 import { todayInIndia } from "@repo/engine";
@@ -14,15 +16,17 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ago, leadInterestLabel, leadSourceLabel, plural, shortDate } from "@/lib/format";
-import { findLeads, leadCounts, type LeadFilters } from "@/lib/leads";
+import { findLeads, leadCounts, leadWorkers, type LeadFilters } from "@/lib/leads";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
-import { NewLeadDialog } from "./forms";
+import { LeadBoard } from "./board";
+import { AssignmentRulesDialog, NewLeadDialog } from "./forms";
 
 export const metadata = { title: "Leads" };
 
 const filterInput = z.object({
-  status: z.enum(["open", "new", "contacted", "quoted", "won", "lost"]).optional().catch(undefined),
-  interest: z.enum(["stay", "day", "wedding", "event", "other"]).optional().catch(undefined),
+  status: z.enum(["open", "new", "contacted", "site_visit_scheduled", "site_visit_done", "quoted", "negotiation", "won", "lost"]).optional().catch(undefined),
+  interest: z.enum(["stay", "day", "wedding", "corporate", "event", "other"]).optional().catch(undefined),
+  view: z.literal("board").optional().catch(undefined),
   q: z.string().trim().max(100).optional().catch(undefined),
   mine: z.literal("1").optional().catch(undefined),
 });
@@ -40,13 +44,18 @@ export default async function LeadsPage({ params, searchParams }: PageProps<"/[p
   const raw = Object.fromEntries(Object.entries(await searchParams).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value || undefined]));
   const input = filterInput.parse(raw);
   const status = input.status ?? "open";
-  const filters: LeadFilters = { status, interest: input.interest, q: input.q, mine: input.mine ? staff.userId : undefined };
+  const board = input.view === "board";
+  // The board shows every stage, so it ignores the stage tabs.
+  const filters: LeadFilters = { status: board ? undefined : status, interest: input.interest, q: input.q, mine: input.mine ? staff.userId : undefined };
+  const manage = can(staff, "leads.manage", property.id);
   const today = todayInIndia();
   const [rows, counts] = await Promise.all([findLeads(property.id, filters), leadCounts(property.id, today)]);
+  const workers = manage ? await leadWorkers(property.id) : [];
+  const rules = manage ? (await getDb().select().from(leadAssignmentRules).where(eq(leadAssignmentRules.propertyId, property.id))).map((r) => ({ interest: r.interest, userIds: r.userIds })) : [];
   const base = `/${property.code.toLowerCase()}/leads`;
   const link = (changes: Record<string, string | undefined>) => {
     const query = new URLSearchParams();
-    for (const [key, value] of Object.entries({ status: input.status, interest: input.interest, q: input.q, mine: input.mine, ...changes })) if (value) query.set(key, value);
+    for (const [key, value] of Object.entries({ status: input.status, interest: input.interest, q: input.q, mine: input.mine, view: input.view, ...changes })) if (value) query.set(key, value);
     const text = query.toString();
     return text ? `${base}?${text}` : base;
   };
@@ -54,7 +63,10 @@ export default async function LeadsPage({ params, searchParams }: PageProps<"/[p
     { key: "open", label: "Open", count: counts.open },
     { key: "new", label: "New", count: counts.new },
     { key: "contacted", label: "Contacted", count: counts.contacted },
-    { key: "quoted", label: "Quoted", count: counts.quoted },
+    { key: "site_visit_scheduled", label: "Site visit booked", count: counts.site_visit_scheduled },
+    { key: "site_visit_done", label: "Site visit done", count: counts.site_visit_done },
+    { key: "quoted", label: "Quotation sent", count: counts.quoted },
+    { key: "negotiation", label: "Negotiation", count: counts.negotiation },
     { key: "won", label: "Booked", count: counts.won },
     { key: "lost", label: "Lost", count: counts.lost },
   ] as const;
@@ -65,7 +77,26 @@ export default async function LeadsPage({ params, searchParams }: PageProps<"/[p
       <PageHeader
         title="Leads"
         description="Everyone who asked about a stay, a day visit, a wedding or an event and hasn't booked yet. Requests from the website arrive here by themselves."
-        actions={can(staff, "leads.manage", property.id) && <NewLeadDialog propertyId={property.id} />}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <Link href={board ? link({ view: undefined }) : link({ view: "board" })}>
+                {board ? <List /> : <KanbanSquare />}
+                {board ? "List" : "Board"}
+              </Link>
+            </Button>
+            {can(staff, "leads.export", property.id) && (
+              <Button variant="outline" asChild>
+                <a href={`${base}/export?format=xlsx`}>
+                  <Download />
+                  Excel
+                </a>
+              </Button>
+            )}
+            {manage && <AssignmentRulesDialog propertyId={property.id} workers={workers} rules={rules} />}
+            {manage && <NewLeadDialog propertyId={property.id} />}
+          </div>
+        }
       />
 
       {counts.due > 0 && (
@@ -77,7 +108,15 @@ export default async function LeadsPage({ params, searchParams }: PageProps<"/[p
         </Link>
       )}
 
-      <Card className="gap-0 overflow-hidden py-0">
+      {board && (
+        <LeadBoard
+          base={base}
+          canMove={manage}
+          leads={rows.map((row) => ({ id: row.id, name: row.name, status: row.status, interest: row.interest, guests: row.guests, dateFrom: row.dateFrom, due: row.due, followUpOn: row.followUpOn, estimatedValuePaise: row.estimatedValuePaise, assignedName: row.assignedName, assignedImage: row.assignedImage }))}
+        />
+      )}
+
+      <Card className={`gap-0 overflow-hidden py-0 ${board ? "hidden" : ""}`}>
         <div className="grid gap-3 border-b bg-muted/30 p-4">
           <nav aria-label="Lead lists" className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5">
             {views.map((view) => {
@@ -149,7 +188,7 @@ export default async function LeadsPage({ params, searchParams }: PageProps<"/[p
             </TableHeader>
             <TableBody>
               {[...rows]
-                .sort((a, b) => Number(isDue(b, today)) - Number(isDue(a, today)))
+                .sort((a, b) => Number(b.due) - Number(a.due))
                 .map((row) => (
                   <TableRow key={row.id} className="relative">
                     <TableCell className="pl-4">
@@ -170,7 +209,10 @@ export default async function LeadsPage({ params, searchParams }: PageProps<"/[p
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
                       {row.followUpOn ? (
-                        <span className={isDue(row, today) ? "font-medium text-warn" : "text-muted-foreground"}>{row.followUpOn === today ? "Today" : shortDate(row.followUpOn)}</span>
+                        <span className={row.due ? "font-medium text-warn" : "text-muted-foreground"}>
+                          {row.followUpOn === today ? "Today" : shortDate(row.followUpOn)}
+                          {row.followUpTime ? `, ${row.followUpTime.slice(0, 5)}` : ""}
+                        </span>
                       ) : (
                         <span className="text-muted-foreground">–</span>
                       )}
@@ -203,9 +245,4 @@ export default async function LeadsPage({ params, searchParams }: PageProps<"/[p
       </Card>
     </>
   );
-}
-
-/** An open lead whose follow-up day has come. */
-function isDue(row: { status: string; followUpOn: string | null }, today: string) {
-  return ["new", "contacted", "quoted"].includes(row.status) && row.followUpOn !== null && row.followUpOn <= today;
 }

@@ -2,7 +2,7 @@
 
 import type { LiveQuery, OnlineChoice, OnlineGuest, PaymentAnswer } from "@repo/booking-ui";
 import { confirmOnlinePayment, liveStock, payGuestBalance, recheckGuestBooking, startOnlineBooking } from "@repo/website/booking";
-import { saveBookingRequest, saveEnquiry } from "@repo/website/leads";
+import { saveBookingRequest, saveCorporateEnquiry, saveEnquiry } from "@repo/website/leads";
 
 /*
  * Requests from this site, kept as leads in the admin besides the WhatsApp
@@ -42,4 +42,9 @@ export async function checkBooking(token: string) {
 /** Live free rooms or places left, so the lists show what is sold out. */
 export async function checkStock(query: LiveQuery) {
   return liveStock("KS", query);
+}
+
+/** A corporate enquiry, kept as a Corporate lead at the resort the guest chose. */
+export async function sendCorporateEnquiry(enquiry: unknown) {
+  return saveCorporateEnquiry("KS", enquiry);
 }

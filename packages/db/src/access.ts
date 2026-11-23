@@ -22,6 +22,8 @@ export const permissions = {
   "prices.manage": "Change prices, packages, offers and coupons",
   "leads.view": "See leads",
   "leads.manage": "Work leads",
+  "leads.export": "Export leads to Excel",
+  "guests.export": "Export guests who agreed to marketing",
   "reports.daily": "See the daily report",
   "reports.leads": "See lead reports",
   "reports.view": "See all reports",
@@ -77,7 +79,7 @@ export const builtInRoles: RoleDefinition[] = [
     key: "sales",
     name: "Sales",
     description: "Leads, corporate and wedding enquiries, follow-ups and quotes. Sees bookings read-only.",
-    permissions: ["dashboard.view", "bookings.view", "inventory.view", "leads.view", "leads.manage", "reports.leads"],
+    permissions: ["dashboard.view", "bookings.view", "inventory.view", "leads.view", "leads.manage", "leads.export", "reports.leads"],
   },
   {
     key: "accounts",

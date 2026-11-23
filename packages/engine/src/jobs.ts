@@ -71,6 +71,8 @@ async function abandonedBookingLead(db: Database, bookingId: string) {
     dateTo: row.booking.checkOut ?? undefined,
     guests: quote.lines.reduce((sum, line) => sum + (line.kind === "addon" ? 0 : headcount(line.party)), 0),
     message: `Started booking ${row.booking.number} on the website but didn't finish paying.`,
+    details: { Type: "Abandoned booking" },
+    campaign: (row.booking.campaign as Record<string, string> | null) ?? undefined,
     request: { booking: row.booking.number, totalPaise: row.booking.totalPaise, lines: quote.lines.map(lineTitle) },
   });
 }

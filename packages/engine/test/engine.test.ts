@@ -8,7 +8,12 @@ import {
   capacityDays,
   holds,
   leadActivities,
+  leadAssignmentRules,
   leads,
+  messages,
+  roles,
+  staffMembers,
+  user,
   offeringChildPrices,
   offlinePayments,
   offerings,
@@ -42,6 +47,7 @@ import {
   holdSeats,
   holdStay,
   liftBlock,
+  mergeLeads,
   chooseOffer,
   offerDiscount,
   offerLabel,
@@ -502,6 +508,53 @@ describe("website leads", () => {
     const other = await recordWebsiteLead(db, { propertyCode: "KS", source: "website_enquiry", interest: "day", name: "Arjun", phone: "98765 00002" });
     expect(other.merged).toBe(false);
     await expect(recordWebsiteLead(db, { propertyCode: "XX", source: "website_enquiry", interest: "day", name: "Arjun", phone: "98765 00002" })).rejects.toThrow();
+  });
+});
+
+describe("lead assignment, alerts and merging", () => {
+  it("gives new leads to the resort's staff in turn, skips deactivated staff, alerts them and thanks the guest", async () => {
+    const [role] = await db.insert(roles).values({ key: "sales_test", name: "Sales" }).returning();
+    await db.insert(user).values([
+      { id: "u-asha", name: "Asha", email: "asha@example.test" },
+      { id: "u-ravi", name: "Ravi", email: "ravi@example.test" },
+      { id: "u-old", name: "Old", email: "old@example.test" },
+    ]);
+    await db.insert(staffMembers).values([
+      { userId: "u-asha", roleId: role.id },
+      { userId: "u-ravi", roleId: role.id },
+      { userId: "u-old", roleId: role.id, active: false },
+    ]);
+    await db.insert(leadAssignmentRules).values([
+      { propertyId, interest: null, userIds: ["u-asha", "u-old", "u-ravi"] },
+      { propertyId, interest: "wedding", userIds: ["u-ravi"] },
+    ]);
+    const owners: (string | null)[] = [];
+    for (const n of [11, 12, 13]) {
+      const { leadId } = await recordWebsiteLead(db, { propertyCode: "KS", source: "website_enquiry", interest: "stay", name: `Guest ${n}`, phone: `98765 000${n}` });
+      owners.push((await db.select().from(leads).where(eq(leads.id, leadId)))[0].assignedTo);
+    }
+    expect(owners).toEqual(["u-asha", "u-ravi", "u-asha"]);
+    const wedding = await recordWebsiteLead(db, { propertyCode: "KS", source: "website_enquiry", interest: "wedding", name: "Bride", phone: "98765 00014", email: "bride@example.test" });
+    const [lead] = await db.select().from(leads).where(eq(leads.id, wedding.leadId));
+    expect(lead.assignedTo).toBe("u-ravi");
+    const sent = await db.select().from(messages).where(eq(messages.leadId, wedding.leadId));
+    expect(sent.map((m) => [m.kind, m.to]).sort()).toEqual([
+      ["lead_alert", "ravi@example.test"],
+      ["lead_reply", "bride@example.test"],
+    ]);
+    await db.delete(leadAssignmentRules).where(eq(leadAssignmentRules.propertyId, propertyId));
+  });
+
+  it("merges a duplicate lead: its timeline, advance and missing details move across, and it goes", async () => {
+    const [keep] = await db.insert(leads).values({ propertyId, source: "phone", name: "Kiran", phone: "919800000020", advancePaise: 100_000 }).returning();
+    const [dupe] = await db.insert(leads).values({ propertyId, source: "website_enquiry", name: "Kiran S", phone: "919800000020", email: "kiran@example.test", budget: "₹5 lakh", advancePaise: 50_000 }).returning();
+    await db.insert(leadActivities).values({ leadId: dupe.id, type: "note", note: "Called twice" });
+    await mergeLeads(db, { keepId: keep.id, mergeId: dupe.id, userId: "u-asha" });
+    const [after] = await db.select().from(leads).where(eq(leads.id, keep.id));
+    expect(after).toMatchObject({ email: "kiran@example.test", budget: "₹5 lakh", advancePaise: 150_000 });
+    expect((await db.select().from(leads).where(eq(leads.id, dupe.id))).length).toBe(0);
+    const timeline = await db.select().from(leadActivities).where(eq(leadActivities.leadId, keep.id));
+    expect(timeline.map((a) => a.type).sort()).toEqual(["merged", "note"]);
   });
 });
 

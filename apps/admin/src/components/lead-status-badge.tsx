@@ -7,7 +7,10 @@ import { cn } from "@/lib/utils";
 const look: Record<LeadStatus, { badge: string; dot: string }> = {
   new: { badge: "border-primary/30 bg-primary/10 text-primary", dot: "bg-primary" },
   contacted: { badge: "border-border bg-secondary text-secondary-foreground", dot: "bg-muted-foreground" },
+  site_visit_scheduled: { badge: "border-border bg-secondary text-secondary-foreground", dot: "bg-primary" },
+  site_visit_done: { badge: "border-border bg-secondary text-secondary-foreground", dot: "bg-good" },
   quoted: { badge: "border-warn/30 bg-warn/10 text-warn", dot: "bg-warn" },
+  negotiation: { badge: "border-warn/30 bg-warn/10 text-warn", dot: "bg-warn" },
   won: { badge: "border-good/30 bg-good/10 text-good", dot: "bg-good" },
   lost: { badge: "border-border bg-transparent text-muted-foreground", dot: "bg-muted-foreground/60" },
 };

@@ -1,5 +1,6 @@
 import { index, integer, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { bookings } from "./bookings";
+import { leads } from "./leads";
 import { timestamps } from "./common";
 import { properties } from "./properties";
 
@@ -21,6 +22,8 @@ export const messages = pgTable(
       .notNull()
       .references(() => properties.id),
     bookingId: uuid().references(() => bookings.id),
+    /** The lead it is about, for alerts and replies (NOT-05). */
+    leadId: uuid().references(() => leads.id, { onDelete: "set null" }),
     channel: messageChannel().notNull().default("email"),
     /** Such as "booking_confirmed" or "refund". */
     kind: text().notNull(),
@@ -35,5 +38,5 @@ export const messages = pgTable(
     sentAt: timestamp({ withTimezone: true }),
     ...timestamps,
   },
-  (t) => [index().on(t.status, t.createdAt), index().on(t.bookingId)],
+  (t) => [index().on(t.status, t.createdAt), index().on(t.bookingId), index().on(t.leadId)],
 );

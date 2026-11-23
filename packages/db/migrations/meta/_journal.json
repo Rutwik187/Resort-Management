@@ -92,6 +92,20 @@
       "when": 1795426371487,
       "tag": "0012_stay_packages",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795426928232,
+      "tag": "0013_crm",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795427341868,
+      "tag": "0014_export_permissions",
+      "breakpoints": true
     }
   ]
 }

@@ -113,6 +113,9 @@ export async function SiteFooter() {
               Blog
             </Link>
           )}
+          <Link href="/corporate" className="tap hover:text-chalk">
+            Corporate
+          </Link>
           <Link href="/offers" className="tap hover:text-chalk">
             Offers
           </Link>

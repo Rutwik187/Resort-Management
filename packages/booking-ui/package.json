@@ -10,7 +10,9 @@
     "./notice": "./src/site-notice.tsx",
     "./consent": "./src/consent.tsx",
     "./contact-dock": "./src/contact-dock.tsx",
-    "./offer-of-day": "./src/offer-of-day.tsx"
+    "./offer-of-day": "./src/offer-of-day.tsx",
+    "./form-consent": "./src/form-consent.tsx",
+    "./corporate-form": "./src/corporate-form.tsx"
   },
   "scripts": {
     "lint": "eslint",

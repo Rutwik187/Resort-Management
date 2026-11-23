@@ -2,11 +2,16 @@ import "server-only";
 import { and, asc, count, desc, eq, ilike, inArray, isNotNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { bookings, getDb, leadActivities, leads, rolePermissions, staffMembers, staffProperties, user } from "@repo/db";
 
-export type LeadStatus = "new" | "contacted" | "quoted" | "won" | "lost";
-export type LeadInterest = "stay" | "day" | "wedding" | "event" | "other";
+export type LeadStatus = "new" | "contacted" | "site_visit_scheduled" | "site_visit_done" | "quoted" | "negotiation" | "won" | "lost";
+export type LeadInterest = "stay" | "day" | "wedding" | "corporate" | "event" | "other";
 
+/** The pipeline, in order (URD 7.5). */
+export const leadStatuses: LeadStatus[] = ["new", "contacted", "site_visit_scheduled", "site_visit_done", "quoted", "negotiation", "won", "lost"];
 /** Leads still being worked: not booked and not lost. */
-export const openStatuses: LeadStatus[] = ["new", "contacted", "quoted"];
+export const openStatuses: LeadStatus[] = ["new", "contacted", "site_visit_scheduled", "site_visit_done", "quoted", "negotiation"];
+
+/** Whether a follow-up is due: its day has passed, or it is today and its time (if any) has come, in India. */
+export const followUpDueSql = sql`(${leads.followUpOn} + coalesce(${leads.followUpTime}, '00:00'::time)) <= (now() at time zone 'Asia/Kolkata')`;
 
 export type LeadFilters = { status?: LeadStatus | "open"; interest?: LeadInterest; q?: string; mine?: string };
 
@@ -35,6 +40,11 @@ export async function findLeads(propertyId: string, filters: LeadFilters) {
       dateTo: leads.dateTo,
       guests: leads.guests,
       followUpOn: leads.followUpOn,
+      followUpTime: leads.followUpTime,
+      due: sql<boolean>`(${leads.status} in ('new','contacted','site_visit_scheduled','site_visit_done','quoted','negotiation') and ${leads.followUpOn} is not null and ${followUpDueSql})`,
+      estimatedValuePaise: leads.estimatedValuePaise,
+      budget: leads.budget,
+      assignedTo: leads.assignedTo,
       createdAt: leads.createdAt,
       updatedAt: leads.updatedAt,
       assignedName: user.name,
@@ -54,15 +64,12 @@ export async function leadCounts(propertyId: string, today: string) {
   const [due] = await db
     .select({ n: count() })
     .from(leads)
-    .where(and(eq(leads.propertyId, propertyId), inArray(leads.status, openStatuses), isNotNull(leads.followUpOn), lte(leads.followUpOn, today)));
+    .where(and(eq(leads.propertyId, propertyId), inArray(leads.status, openStatuses), isNotNull(leads.followUpOn), followUpDueSql));
+  void today;
   const by = (status: LeadStatus) => rows.find((r) => r.status === status)?.n ?? 0;
   return {
-    new: by("new"),
-    contacted: by("contacted"),
-    quoted: by("quoted"),
-    won: by("won"),
-    lost: by("lost"),
-    open: by("new") + by("contacted") + by("quoted"),
+    ...(Object.fromEntries(leadStatuses.map((status) => [status, by(status)])) as Record<LeadStatus, number>),
+    open: openStatuses.reduce((sum, status) => sum + by(status), 0),
     all: rows.reduce((sum, r) => sum + r.n, 0),
     due: due?.n ?? 0,
   };
@@ -94,7 +101,7 @@ export async function leadsToAnswer(propertyId: string, today: string, limit = 5
   return getDb()
     .select({ id: leads.id, name: leads.name, interest: leads.interest, status: leads.status, followUpOn: leads.followUpOn, createdAt: leads.createdAt, source: leads.source })
     .from(leads)
-    .where(and(eq(leads.propertyId, propertyId), or(eq(leads.status, "new"), and(inArray(leads.status, openStatuses), lte(leads.followUpOn, today)))))
+    .where(and(eq(leads.propertyId, propertyId), or(eq(leads.status, "new"), and(inArray(leads.status, openStatuses), isNotNull(leads.followUpOn), followUpDueSql))))
     .orderBy(asc(leads.createdAt))
     .limit(limit);
 }

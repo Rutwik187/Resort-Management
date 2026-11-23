@@ -8,6 +8,7 @@ function pages(): MetadataRoute.Sitemap {
     { path: "/stays", priority: 0.9 },
     { path: "/celebrations", priority: 0.8 },
     { path: "/offers", priority: 0.5 },
+    { path: "/corporate", priority: 0.6 },
     { path: "/policies", priority: 0.3 },
   ].map(({ path, priority }) => ({
     url: `${siteUrl}${path}`,

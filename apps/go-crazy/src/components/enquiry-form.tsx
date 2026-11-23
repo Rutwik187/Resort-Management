@@ -1,5 +1,7 @@
 "use client";
 
+import { currentCampaign, trackEvent } from "@repo/booking-ui/consent";
+import { FormConsent, formConsent } from "@repo/booking-ui/form-consent";
 import { useId, useState, type CSSProperties, type FormEvent } from "react";
 import { CountInput, DateInput, FieldError, contactErrors, formatLong, type ContactErrors } from "@repo/booking-ui";
 import { contact, dayPasses, formatRupees, stays, type DayPass } from "@/content/resort";
@@ -64,6 +66,9 @@ export function EnquiryForm({ defaultPurpose = "day", defaultPass = "morning", c
       (form.elements.namedItem(found.name ? "name" : "phone") as HTMLInputElement | null)?.focus();
       return;
     }
+    // The privacy consent is needed to send (WEB-08).
+    const consent = formConsent(form);
+    if (!consent) return;
     const label = purposes.find((p) => p.value === purpose)?.label ?? "A day out";
     const lines = [
       "Hello Prathamesh Go Crazy, I would like to plan:",
@@ -94,7 +99,8 @@ export function EnquiryForm({ defaultPurpose = "day", defaultPass = "morning", c
     const text = lines.filter(Boolean).join("\n");
     window.open(`https://wa.me/${contact.whatsapp.number}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
     // Kept as a lead in the admin too. WhatsApp has opened already, so this never holds the guest up.
-    sendEnquiry({ purpose, name: data.get("name"), phone: data.get("phone"), date: date || undefined, guests: data.get("guests") || undefined, note: text }).catch(() => undefined);
+    sendEnquiry({ consent, campaign: currentCampaign() as Record<string, string>, purpose, name: data.get("name"), phone: data.get("phone"), date: date || undefined, guests: data.get("guests") || undefined, note: text }).catch(() => undefined);
+    trackEvent("generate_lead", { lead_type: purpose }, { event: "Lead", params: { content_category: purpose } });
   }
 
   const twoUp = compact ? "grid grid-cols-2 gap-4" : "grid gap-5 sm:grid-cols-2";
@@ -277,6 +283,7 @@ export function EnquiryForm({ defaultPurpose = "day", defaultPass = "morning", c
         <textarea id={`${id}-note`} name="note" rows={2} className={`${field} resize-none`} />
       </div>
 
+      <FormConsent policyHref="/policies" boxClassName="accent-current" />
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <button type="submit" className="btn btn-ink" aria-describedby={`${id}-dest`}>
           Send on WhatsApp <span aria-hidden className="arrow">→</span>

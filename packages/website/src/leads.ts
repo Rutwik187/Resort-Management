@@ -27,7 +27,13 @@ const bookingRequest = z.object({
 });
 
 /** Each site names its own purposes; these are the admin's kinds of lead. */
-const interests: Record<string, "stay" | "day" | "wedding" | "event"> = { stay: "stay", group: "stay", day: "day", school: "day", picnic: "day", wedding: "wedding", event: "event", corporate: "event" };
+const interests: Record<string, "stay" | "day" | "wedding" | "corporate" | "event"> = { stay: "stay", group: "stay", day: "day", school: "day", picnic: "day", wedding: "wedding", event: "event", corporate: "corporate" };
+
+const consent = z.object({ version: z.string().max(20), marketing: z.boolean(), at: z.string().max(40) }).optional().catch(undefined);
+const campaign = z
+  .partialRecord(z.enum(["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "gclid", "fbclid", "landing", "referrer"]), z.string().max(300))
+  .optional()
+  .catch(undefined);
 
 const enquiry = z.object({
   purpose: text(40).catch(""),
@@ -38,6 +44,8 @@ const enquiry = z.object({
   guests: z.coerce.number().int().min(1).max(5000).optional().catch(undefined),
   /** The whole message the guest sent on WhatsApp, so nothing the form asked for is lost. */
   note: text(4000).optional().catch(undefined),
+  consent,
+  campaign,
 });
 
 /** What the booking widget sent on WhatsApp, as a lead. */
@@ -79,8 +87,76 @@ export async function saveEnquiry(code: PropertyCode, input: unknown) {
       dateFrom: form.date,
       guests: form.guests,
       message: form.note,
+      consent: form.consent,
+      campaign: form.campaign,
     });
   } catch (error) {
     console.error(`A ${code} enquiry wasn't saved as a lead.`, error);
+  }
+}
+
+const corporate = z.object({
+  property: z.enum(["KS", "GC", "SB", "PV"]).catch("KS"),
+  company: text(160).min(2),
+  gstin: text(15).catch(""),
+  name: text(80).min(2),
+  designation: text(80).catch(""),
+  phone: text(30).min(6),
+  email: z.union([z.email().max(160), z.literal("")]).catch(""),
+  dateFrom: day,
+  dateTo: day,
+  guests: z.coerce.number().int().min(1).max(5000).optional().catch(undefined),
+  rooms: z.coerce.number().int().min(1).max(500).optional().catch(undefined),
+  stay: z.enum(["day", "overnight"]).catch("overnight"),
+  meals: text(80).catch(""),
+  meeting: text(300).catch(""),
+  budget: text(80).catch(""),
+  note: text(2000).catch(""),
+  consent: z.object({ version: z.string().max(20), marketing: z.boolean(), at: z.string().max(40) }),
+  campaign,
+});
+
+/**
+ * A corporate enquiry (CRP-02, CRP-05), saved as a Corporate lead at the
+ * resort the guest chose. Returns whether it was saved, so the form can
+ * offer WhatsApp when it wasn't.
+ */
+export async function saveCorporateEnquiry(siteCode: PropertyCode, input: unknown): Promise<{ ok: boolean }> {
+  const parsed = corporate.safeParse(input);
+  if (!parsed.success || !process.env.DATABASE_URL) return { ok: false };
+  const form = parsed.data;
+  const details: Record<string, string> = Object.fromEntries(
+    Object.entries({
+      Company: form.company,
+      GSTIN: form.gstin,
+      Designation: form.designation,
+      "Day or overnight": form.stay === "day" ? "Day event" : "Overnight",
+      "Rooms needed": form.rooms ? String(form.rooms) : "",
+      Meals: form.meals,
+      "Meeting and AV": form.meeting,
+      "Asked from": siteCode === form.property ? "" : `The ${siteCode} website`,
+    }).filter(([, value]) => value),
+  );
+  try {
+    await recordWebsiteLead(getDb(), {
+      propertyCode: form.property,
+      source: "website_enquiry",
+      interest: "corporate",
+      name: form.name,
+      phone: form.phone,
+      email: form.email || undefined,
+      dateFrom: form.dateFrom,
+      dateTo: form.stay === "overnight" ? form.dateTo : undefined,
+      guests: form.guests,
+      message: form.note || undefined,
+      details,
+      budget: form.budget || undefined,
+      consent: form.consent,
+      campaign: form.campaign,
+    });
+    return { ok: true };
+  } catch (error) {
+    console.error(`A corporate enquiry from ${siteCode} wasn't saved as a lead.`, error);
+    return { ok: false };
   }
 }

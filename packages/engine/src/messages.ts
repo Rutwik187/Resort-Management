@@ -17,7 +17,7 @@ const rupees = (paise: number) => `₹${(paise / 100).toLocaleString("en-IN", { 
 const longDay = (date: string) => new Date(`${date}T00:00:00Z`).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
 /** A plain, branded email: the resort's name, a heading, rows, a button and a footer. */
-function layout(input: { resort: string; heading: string; intro: string; rows?: [string, string][]; button?: { label: string; url: string }; footer: string }) {
+export function layout(input: { resort: string; heading: string; intro: string; rows?: [string, string][]; button?: { label: string; url: string }; footer: string }) {
   const rows = (input.rows ?? [])
     .map(([k, v]) => `<tr><td style="padding:6px 0;color:#6b7280">${esc(k)}</td><td style="padding:6px 0;text-align:right">${esc(v)}</td></tr>`)
     .join("");
