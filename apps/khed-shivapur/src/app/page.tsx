@@ -1,3 +1,4 @@
+import { liveOverride } from "@repo/website";
 import { GoogleReviews } from "@repo/website/reviews";
 import { OfferOfTheDay } from "@repo/website/offers";
 import type { Viewport } from "next";
@@ -51,11 +52,12 @@ const resortJsonLd = {
   sameAs: contact.social.map((s) => s.href),
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const heroLine = await liveOverride("KS", "home.heroLine");
   return (
     <PageTransition>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(resortJsonLd) }} />
-      <Hero />
+      <Hero line={heroLine} />
       <BookBar />
       <OfferOfTheDay code="KS" className="mx-auto max-w-[1680px] px-5 py-6 md:px-10" />
       <Intro />

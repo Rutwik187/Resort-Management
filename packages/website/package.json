@@ -10,6 +10,7 @@
     "./company": "./src/company.tsx",
     "./offers": "./src/offers.tsx",
     "./reviews": "./src/reviews.tsx",
+    "./gallery": "./src/gallery.tsx",
     "./invoice": "./src/invoice.tsx",
     "./booking": "./src/booking.ts",
     "./booking-page": "./src/booking-page.tsx"

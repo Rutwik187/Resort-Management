@@ -116,6 +116,9 @@ export async function SiteFooter() {
               Blog
             </Link>
           )}
+          <Link href="/gallery" className="tap hover:text-mist">
+            Gallery
+          </Link>
           <Link href="/corporate" className="tap hover:text-mist">
             Corporate
           </Link>

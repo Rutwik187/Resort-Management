@@ -1,3 +1,4 @@
+import { liveOverride } from "@repo/website";
 import Link from "next/link";
 import { StayPlanner } from "@repo/booking-ui";
 import { liveNotes, liveStayGroups } from "@repo/website";
@@ -17,6 +18,8 @@ export const metadata = pageMetadata({
 });
 
 export default async function StaysPage() {
+  // The opening line staff set in the admin, if any (plan section 2).
+  const lead = await liveOverride("PV", "stays.lead");
   // Rooms, rates and text from the admin; the site's own content if the database is out of reach.
   const groups = await liveStayGroups("PV", stayGroups);
   const notes = await liveNotes("PV", "stay", stayNotes);
@@ -31,8 +34,12 @@ export default async function StaysPage() {
               Cottages and <em>rates</em>
             </h1>
             <p className="max-w-xl text-moss lg:col-span-6">
-              Every cottage is built in lal chira, the red laterite stone of the Konkan. Or choose a package with every meal
-              included.
+              {lead ?? (
+                <>
+                Every cottage is built in lal chira, the red laterite stone of the Konkan. Or choose a package with every meal
+                included.
+                </>
+              )}
             </p>
           </div>
         </header>

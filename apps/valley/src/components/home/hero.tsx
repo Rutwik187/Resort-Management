@@ -26,7 +26,8 @@ const wordSize = "text-[clamp(6rem,28vw,32rem)] md:text-[clamp(6rem,25vw,32rem)]
 // Slow at first, then faster, like stepping toward the card and through it.
 const easeIn = (t: number) => t * t * t;
 
-export function Hero() {
+/** `line` is the words under the heading staff set in the admin, if any; otherwise the site's own. */
+export function Hero({ line }: { line?: string | null } = {}) {
   const ref = useRef<HTMLElement>(null);
   const reduce = useReducedMotion();
   const still = Boolean(reduce);
@@ -95,7 +96,11 @@ export function Hero() {
             )}
             <div className="grid gap-6 border-t border-mist/25 pt-5 md:grid-cols-12 md:items-end">
               <p className="max-w-md text-[1rem] leading-snug text-mist/90 md:col-span-6">
-                Cottages of red laterite stone among the fields of Bhilar, between Panchgani and Mahabaleshwar.
+                {line ?? (
+                <>
+                  Cottages of red laterite stone among the fields of Bhilar, between Panchgani and Mahabaleshwar.
+                </>
+              )}
               </p>
               <div className="flex flex-wrap items-center gap-x-6 gap-y-3 md:col-span-6 md:justify-end">
                 <p className="label hidden text-mist/75 lg:block">

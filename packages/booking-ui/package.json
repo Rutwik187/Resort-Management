@@ -12,7 +12,8 @@
     "./contact-dock": "./src/contact-dock.tsx",
     "./offer-of-day": "./src/offer-of-day.tsx",
     "./form-consent": "./src/form-consent.tsx",
-    "./corporate-form": "./src/corporate-form.tsx"
+    "./corporate-form": "./src/corporate-form.tsx",
+    "./gallery-grid": "./src/gallery-grid.tsx"
   },
   "scripts": {
     "lint": "eslint",

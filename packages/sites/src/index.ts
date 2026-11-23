@@ -84,3 +84,40 @@ export const propertyByCode = (code: PropertyCode) => properties.find((property)
 
 /** The group's other resorts, for a site's "Our resorts" menu and footer. */
 export const otherProperties = (code: PropertyCode) => properties.filter((property) => property.code !== code);
+
+/**
+ * Page text staff may change in the admin (plan section 2), with each
+ * site's own words as the default. The layout stays in code, so each site
+ * keeps its design; a slot with nothing published shows the default.
+ */
+export type TextSlot = { key: string; page: string; label: string; max: number; defaults: Record<PropertyCode, string> };
+
+export const textSlots: TextSlot[] = [
+  {
+    key: "home.heroLine",
+    page: "Home page",
+    label: "The line under the big heading",
+    max: 220,
+    defaults: {
+      KS: "A green valley resort at the foot of the Sahyadri, near Khed Shivapur, just south of Pune.",
+      GC: "An adventure park and resort at the foot of Sinhagad fort, with more than 70 activities, four day passes and cottages for the night.",
+      SB: "A mountain view resort in the foothills of Sinhagad, Pune. Cottages, villas with private pools, and the hills in view.",
+      PV: "Cottages of red laterite stone among the fields of Bhilar, between Panchgani and Mahabaleshwar.",
+    },
+  },
+  {
+    key: "stays.lead",
+    page: "Rooms page",
+    label: "The opening line under the page's heading",
+    max: 300,
+    defaults: {
+      KS: "Ways to stay, from glass houses on stilts to a private-pool villa. Add as many rooms as your group needs, of any kind.",
+      GC: "Laterite stone cottages under the palms, painted cottages, cottages for couples and villas for groups. Every stay includes the activities and the games.",
+      SB: "Rooms that face the hills or open onto a pool, villas for more space, and a package for groups. Add as many rooms as your group needs, of any kind.",
+      PV: "Every cottage is built in lal chira, the red laterite stone of the Konkan. Or choose a package with every meal included.",
+    },
+  },
+];
+
+/** The gallery's usual categories; staff can add others. */
+export const galleryCategories = ["Rooms", "Cottages", "Pool", "Weddings", "Food", "Adventure", "Events", "Nature", "Night views"];

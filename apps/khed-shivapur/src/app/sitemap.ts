@@ -4,7 +4,7 @@ import { siteUrl } from "@/content/site";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const posts = await blogPosts("KS");
-  const pages: MetadataRoute.Sitemap = ["", "/stays", "/day-packages", "/experiences", "/celebrations", "/offers", "/corporate", "/policies"].map((path) => ({
+  const pages: MetadataRoute.Sitemap = ["", "/stays", "/day-packages", "/experiences", "/celebrations", "/offers", "/corporate", "/gallery", "/policies"].map((path) => ({
     url: `${siteUrl}${path}`,
     changeFrequency: "monthly",
     priority: path === "" ? 1 : 0.8,

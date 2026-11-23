@@ -3,7 +3,7 @@ import { blogPosts } from "@repo/sanity";
 import { siteUrl } from "@/content/site";
 
 function pages(): MetadataRoute.Sitemap {
-  return ["", "/stays", "/celebrations", "/explore", "/offers", "/corporate", "/policies"].map((path) => ({
+  return ["", "/stays", "/celebrations", "/explore", "/offers", "/corporate", "/gallery", "/policies"].map((path) => ({
     url: `${siteUrl}${path}`,
     changeFrequency: path === "/policies" ? "yearly" : "monthly",
     priority: path === "" ? 1 : path === "/policies" ? 0.3 : 0.8,

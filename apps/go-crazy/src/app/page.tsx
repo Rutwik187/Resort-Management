@@ -1,3 +1,4 @@
+import { liveOverride } from "@repo/website";
 import { GoogleReviews } from "@repo/website/reviews";
 import { OfferOfTheDay } from "@repo/website/offers";
 import type { Viewport } from "next";
@@ -54,11 +55,12 @@ const parkJsonLd = {
   ),
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const heroLine = await liveOverride("GC", "home.heroLine");
   return (
     <PageTransition>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(parkJsonLd) }} />
-      <Hero />
+      <Hero line={heroLine} />
       <BookBar />
       <OfferOfTheDay code="GC" className="mx-auto max-w-[1600px] px-4 py-6 md:px-8" />
       <Intro />

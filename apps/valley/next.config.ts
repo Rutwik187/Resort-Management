@@ -39,6 +39,8 @@ const nextConfig: NextConfig = {
     // AVIF first: about a third smaller than WebP for the same photo.
     formats: ["image/avif", "image/webp"],
     qualities: [60, 75],
+    // Gallery photos from the admin's public Vercel Blob store.
+    remotePatterns: [{ protocol: "https", hostname: "*.public.blob.vercel-storage.com" }],
   },
   partialPrefetching: true,
   turbopack: {

@@ -47,7 +47,8 @@ function subscribe(onChange: () => void) {
   return () => mq.removeEventListener("change", onChange);
 }
 
-export function Hero() {
+/** `line` is the words under the heading staff set in the admin, if any; otherwise the site's own. */
+export function Hero({ line }: { line?: string | null } = {}) {
   const ref = useRef<HTMLElement>(null);
   const reduce = useReducedMotion();
   const wide = useSyncExternalStore(subscribe, () => window.matchMedia(WIDE).matches, () => false);
@@ -145,8 +146,12 @@ export function Hero() {
 
           <div className="mt-5 grid gap-6 border-t-2 border-chalk/30 pt-5 md:mt-7 md:grid-cols-12 md:items-end">
             <p className="hero-fade max-w-md text-[1.02rem] leading-snug text-chalk/90 md:col-span-5" style={{ "--i": 0 } as React.CSSProperties}>
-              An adventure park and resort at the foot of Sinhagad fort, with more than 70 activities, four day passes
-              and cottages for the night.
+              {line ?? (
+                <>
+                  An adventure park and resort at the foot of Sinhagad fort, with more than 70 activities, four day passes
+                  and cottages for the night.
+                </>
+              )}
             </p>
             <div className="hero-fade flex flex-wrap items-center gap-x-6 gap-y-3 md:col-span-7 md:justify-end" style={{ "--i": 1 } as React.CSSProperties}>
               <Link href="/day-packages" className="btn btn-lime">

@@ -61,7 +61,8 @@ function DuskPhoto() {
   );
 }
 
-export function Hero() {
+/** `line` is the words under the heading staff set in the admin, if any; otherwise the site's own. */
+export function Hero({ line }: { line?: string | null } = {}) {
   const ref = useRef<HTMLElement>(null);
   const reduce = useReducedMotion();
   // The server cannot know the visitor's motion setting, so the first render
@@ -172,8 +173,12 @@ export function Hero() {
 
           <motion.div className="mx-auto mt-6 max-w-xl md:mt-8" style={still ? undefined : { opacity: introOpacity }}>
             <p className="hero-fade text-[1rem] leading-snug text-mist/90 md:text-[1.08rem]" style={{ "--i": 0 } as React.CSSProperties}>
-              A mountain view resort in the foothills of Sinhagad, Pune. Cottages, villas with private pools, and
-              the hills in view.
+              {line ?? (
+                <>
+                  A mountain view resort in the foothills of Sinhagad, Pune. Cottages, villas with private pools, and
+                  the hills in view.
+                </>
+              )}
             </p>
             <div className="hero-fade mt-6 flex flex-wrap items-center justify-center gap-x-7 gap-y-3" style={{ "--i": 1 } as React.CSSProperties}>
               <Link href="/stays#book" tabIndex={-1} className="btn btn-mist hidden md:inline-flex">

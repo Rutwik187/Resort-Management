@@ -1,3 +1,4 @@
+import { liveOverride } from "@repo/website";
 import Link from "next/link";
 import { StayPlanner } from "@repo/booking-ui";
 import { liveNotes, liveStayGroups } from "@repo/website";
@@ -31,6 +32,8 @@ const inside: { name: PhotoKey; alt: string; frame: string }[] = [
 ];
 
 export default async function StaysPage() {
+  // The opening line staff set in the admin, if any (plan section 2).
+  const lead = await liveOverride("SB", "stays.lead");
   // Rooms, rates and text from the admin; the site's own content if the database is out of reach.
   const groups = await liveStayGroups("SB", stayGroups);
   const notes = await liveNotes("SB", "stay", stayNotes);
@@ -45,8 +48,12 @@ export default async function StaysPage() {
               Rooms and <em>villas</em>
             </h1>
             <p className="max-w-xl text-slate lg:col-span-6">
-              Rooms that face the hills or open onto a pool, villas for more space, and a package for groups. Add as many rooms
-              as your group needs, of any kind.
+              {lead ?? (
+                <>
+                Rooms that face the hills or open onto a pool, villas for more space, and a package for groups. Add as many rooms
+                as your group needs, of any kind.
+                </>
+              )}
             </p>
           </div>
         </header>

@@ -70,6 +70,8 @@ All settings live in one file, `.env.local` at the repo root, locally, and in ea
 | `NEXT_PUBLIC_GTM_ID`, `NEXT_PUBLIC_META_PIXEL_ID` | each site | Google Tag Manager and the Meta Pixel, loaded only with consent |
 | `META_PIXEL_ID`, `META_CAPI_TOKEN` | each site | Meta's server-side Conversions API |
 | `GROUP_SITE_URL` | group | The group site's address |
+| `BLOB_READ_WRITE_TOKEN` | admin | The public Vercel Blob store, for gallery photos |
+| `BLOB_PRIVATE_READ_WRITE_TOKEN` | admin | The private Vercel Blob store, for guests' ID proofs |
 | `TEST_DATABASE_ADMIN_URL` | tests | The local PostgreSQL the engine tests use |
 
 ## 4. How it fits together
@@ -95,7 +97,18 @@ flowchart LR
 - **No double bookings.** Each room has at most one row per night (`unit_nights`, unique on room and night), so two guests can't hold the same room (INV-03). Day packages count seats per slot per day.
 - **Sites cache what the admin sets.** Rooms, rates, packages, offers, notices and reviews are cached until the admin calls the site's `/api/revalidate`. Availability and prices for a search are always read live.
 - **Messages go through an outbox** (`messages`). A message is written with the change it reports and sent after the request, or by the daily job.
-- **The daily job** (`/api/cron`, 9 pm in India on Vercel Hobby) ends holds that ran out, rechecks payments, sends follow-up reminders, pulls yesterday's Razorpay settlements, writes the sales summaries, the before-arrival and thank-you emails and the low-rooms alert, reads Google reviews, and sends email. On Vercel Pro it can run every 15 minutes, as the plan asks.
+- **Background jobs** run on Vercel Pro's cron (`apps/admin/vercel.json`), each at `/api/cron/<job>` with `CRON_SECRET`. Each takes a lock in `job_runs`, so a doubled call runs once, and records its last result or error.
+
+  | Job | When (India time) | What it does |
+  |---|---|---|
+  | `frequent` | every 15 minutes 6:30 am to 11:15 pm, hourly at night | ends holds that ran out (unpaid website bookings become leads), rechecks payments and refunds, follow-up reminders, sends email |
+  | `reviews` | every 2 hours in the day | Google reviews |
+  | `morning` | 6 am | yesterday's Razorpay settlements, ID proofs past their retention, old rate-limit counts |
+  | `guests` | 10 am | before-arrival and thank-you emails, the low-rooms alert |
+  | `summary` | 9 pm | the day's sales summary |
+  | `periodic` | 8 am | the week's summary on Mondays, the month's on the 1st |
+
+- **Files** go to Vercel Blob straight from the browser, with a short-lived token from `/api/blob/upload`: gallery photos to the public store, ID proofs to the private store. ID proofs open only through the admin, which checks the role and logs each view.
 
 ### Main tables
 
@@ -155,7 +168,7 @@ The full schema is in `packages/db/src/schema`. Money is whole paise; nights are
 | Meta | Pixel, Conversions API, lead ads | Pixel and token per site; lead ads need a Meta app and `META_LEAD_FORMS` |
 | Google Tag Manager | GA4 and Google Ads | A container id per site in `NEXT_PUBLIC_GTM_ID`; set up GA4 and Ads tags inside GTM to read the events below |
 | WhatsApp and SMS | Messages by WhatsApp and SMS | Provider not chosen. The outbox has a channel for each; templates need approval |
-| Vercel | Hosting | Hobby plan: the daily job runs once a day. Pro allows the 15-minute job |
+| Vercel | Hosting and files | Pro plan for the 15-minute jobs. Create two Blob stores and connect them to `prathamesh-admin`: a public one (`BLOB_READ_WRITE_TOKEN`) and a private one, its token renamed `BLOB_PRIVATE_READ_WRITE_TOKEN` |
 | Neon | Database | Free plan; watch the monthly compute hours |
 
 **Events for Tag Manager** (TRK-01): `begin_checkout`, `add_payment_info`, `purchase` (with `value`, `transaction_id` and `booking_id`) and `generate_lead` (with `lead_type`). The Meta Pixel gets `Purchase` and `Lead` with the same event id the server sends.
@@ -165,7 +178,7 @@ The full schema is in `packages/db/src/schema`. Money is whole paise; nights are
 Sign in with the Google account the Super Admin invited. The resort switcher at the top left changes resort; you see only your resorts and the pages your role allows.
 
 - **Today:** arrivals, departures, guests in house, sales, rooms booked, money waiting, new leads and follow-ups due, and rooms running low.
-- **Bookings:** find by number, name, phone or email. A booking's page has check-in and check-out, room changes, changing dates or guests, payments taken at the desk, payment links, refunds, invoices, Send the booking page, Resend the confirmation, notes, printing, and its emails with what happened to each.
+- **Bookings:** find by number, name, phone or email. A booking's page has ID proofs (Front Desk, Property Manager and Super Admin: from the phone camera or a file, deleted on their own after the days in Settings), check-in and check-out, room changes, changing dates or guests, payments taken at the desk, payment links, refunds, invoices, Send the booking page, Resend the confirmation, notes, printing, and its emails with what happened to each.
 - **New booking:** for phone, walk-in, WhatsApp, agents and companies. Choose an offer or set a price by hand with a reason.
 - **Leads:** the list or the Board. Drag a card to move it on. On a lead: call, WhatsApp, log a conversation, set the follow-up date and time, write a quotation (it prints to PDF), record an advance, merge a duplicate, make the booking. "Who gets new leads" sets who takes website leads in turn. Excel exports the list (Super Admin and Sales).
 - **Guests:** each guest's bookings and spend, tags and notes, data export and removal on request (Super Admin), and the Excel of guests who agreed to offers.
@@ -173,7 +186,7 @@ Sign in with the Google account the Super Admin invited. The resort switcher at 
 - **Rooms, Prices:** room types and rooms; rates for weekdays, weekends and seasons, extra guests and children.
 - **Packages:** day packages with time slots and seats a day; stay and staycation packages; add-ons. Duplicate to make a similar one.
 - **Offers:** offers and coupons with their rules, and the Offer of the Day schedule.
-- **Website:** the website's connection and Refresh now, notices, Google reviews (feature or hide), redirects.
+- **Website:** the website's connection and Refresh now, notices, page text (save a draft, then publish), the gallery (add many photos at once into a category, then edit alt text and captions, order, feature, hide or remove), Google reviews (feature or hide), redirects.
 - **Reports:** the overview and the report tabs; All resorts for group totals; Excel, CSV and Print.
 - **Settings (Super Admin):** company details and GSTIN (shown in each site's footer), times, hold time, advance, refund limit, who gets the team alerts and the sales summaries, the review and directions links, online payments, GST rules, cancellation rules, and the wording of each email.
 - **Staff and Audit log (Super Admin):** invite people with a role and resorts; switch them off; see every change.
@@ -192,7 +205,4 @@ These wait on decisions or accounts outside the code:
 - Live Razorpay keys, Resend sending domains, the Google Places key, Meta and Tag Manager ids.
 - The group site's domain and Vercel project.
 - Separate Sanity logins per resort (needs Sanity's paid plan).
-- Upload of guests' ID proofs (needs private file storage: Vercel Blob or Neon storage).
-- Page text and photos edited in the admin, and a gallery managed by staff (needs file storage for photos).
 - Error tracking (Sentry) and uptime monitoring.
-- Running the daily job every 15 minutes (Vercel Pro).

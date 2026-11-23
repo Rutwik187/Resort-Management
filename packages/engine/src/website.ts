@@ -1,5 +1,5 @@
-import { and, asc, count, desc, eq, gte, inArray, isNull, or } from "drizzle-orm";
-import { addons, ageBands, offerDays, reviews, stayPackageChildPrices, stayPackages, offeringChildPrices, offerings, offeringSlots, offers, properties, rateChildPrices, rates, roomTypes, siteNotices, units, type Executor } from "@repo/db";
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, or } from "drizzle-orm";
+import { addons, ageBands, contentSlots, galleryItems, offerDays, reviews, stayPackageChildPrices, stayPackages, offeringChildPrices, offerings, offeringSlots, offers, properties, rateChildPrices, rates, roomTypes, siteNotices, units, type Executor } from "@repo/db";
 import { addDays, todayInIndia } from "./dates";
 import { offerLabel, offerTakesOff } from "./offers";
 
@@ -120,7 +120,10 @@ export type WebsiteReviews = {
   items: { id: string; author: string; authorUrl: string | null; photoUrl: string | null; rating: number; text: string | null; reviewedAt: string | null; featured: boolean }[];
 };
 
-export type WebsiteCatalogue = { reviews: WebsiteReviews; company: WebsiteCompany; stayPackages: WebsiteStayPackage[]; roomTypes: WebsiteRoomType[]; passes: WebsitePass[]; addons: WebsiteAddon[]; offers: WebsiteOffer[]; offerDays: WebsiteOfferDay[]; notices: WebsiteNotice[] };
+/** A gallery photo on the website (URD 4.2, CMS-06). Only photos with alt text that staff haven't hidden. */
+export type WebsitePhoto = { id: string; url: string; width: number | null; height: number | null; alt: string; caption: string | null; category: string; featured: boolean };
+
+export type WebsiteCatalogue = { reviews: WebsiteReviews; content: Record<string, string>; gallery: WebsitePhoto[]; company: WebsiteCompany; stayPackages: WebsiteStayPackage[]; roomTypes: WebsiteRoomType[]; passes: WebsitePass[]; addons: WebsiteAddon[]; offers: WebsiteOffer[]; offerDays: WebsiteOfferDay[]; notices: WebsiteNotice[] };
 
 /** A resort's website catalogue, or null when there is no such resort. A few queries, run one after another. */
 export async function websiteCatalogue(db: Executor, propertyCode: string): Promise<WebsiteCatalogue | null> {
@@ -224,6 +227,14 @@ export async function websiteCatalogue(db: Executor, propertyCode: string): Prom
   );
   const names = new Map([...types.map((t) => [t.id, t.name] as const), ...passRows.map((p) => [p.id, p.name] as const)]);
 
+  // Published page text (plan section 2), and the gallery in staff's order.
+  const pageText = await db.select({ key: contentSlots.key, text: contentSlots.publishedText }).from(contentSlots).where(and(eq(contentSlots.propertyId, property.id), isNotNull(contentSlots.publishedText)));
+  const photos = await db
+    .select()
+    .from(galleryItems)
+    .where(and(eq(galleryItems.propertyId, property.id), eq(galleryItems.hidden, false), isNotNull(galleryItems.alt)))
+    .orderBy(asc(galleryItems.category), asc(galleryItems.sortOrder), desc(galleryItems.createdAt));
+
   // Featured reviews first, then the newest; hidden ones never (REV-03).
   const reviewRows = await db
     .select()
@@ -266,6 +277,8 @@ export async function websiteCatalogue(db: Executor, propertyCode: string): Prom
         roomTypes: types.filter((t) => p.roomTypeIds.includes(t.id)).map((t) => ({ code: t.code, name: t.name })),
       }))
       .filter((p) => p.roomTypes.length > 0),
+    content: Object.fromEntries(pageText.filter((slot) => slot.text?.trim()).map((slot) => [slot.key, slot.text!.trim()])),
+    gallery: photos.map((p) => ({ id: p.id, url: p.url, width: p.width, height: p.height, alt: p.alt!, caption: p.caption, category: p.category, featured: p.featured })),
     reviews: {
       rating: property.googleRating,
       count: property.googleReviewCount,

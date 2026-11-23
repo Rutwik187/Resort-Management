@@ -53,7 +53,7 @@ export {
 export { expireHolds } from "./jobs";
 export { recordPayment, type PaymentInput, type PaymentMethod } from "./payments";
 export { headcount, payingGuests, priceNight, priceOffering, priceStay, type AgeBand, type NightPrice, type Party, type Rate, type RoomPricing, type Season } from "./pricing";
-export { websiteCatalogue, type WebsiteAddon, type WebsiteCatalogue, type WebsiteCompany, type WebsiteOffer, type WebsiteOfferDay, type WebsiteStayPackage, type WebsiteReviews, type WebsiteNotice, type WebsitePass, type WebsiteRate, type WebsiteRoomType } from "./website";
+export { websiteCatalogue, type WebsiteAddon, type WebsiteCatalogue, type WebsiteCompany, type WebsiteOffer, type WebsiteOfferDay, type WebsiteStayPackage, type WebsiteReviews, type WebsitePhoto, type WebsiteNotice, type WebsitePass, type WebsiteRate, type WebsiteRoomType } from "./website";
 export { dueFollowUps, duplicateLeads, mergeLeads, nextAssignee, recordWebsiteLead, type LeadInterest, type WebsiteLeadInput } from "./leads";
 export { queueFollowUpReminders, queueLeadAlerts } from "./lead-messages";
 export { offerDiscount, offerLabel, offerProblem, offerTakesOff, quoteDiscount, type OfferRule, type OfferTarget } from "./offers";

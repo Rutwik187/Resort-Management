@@ -3,10 +3,10 @@ import Link from "next/link";
 import { and, asc, count, desc, eq } from "drizzle-orm";
 import { ArrowRight, BadgePercent, BedDouble, CalendarRange, ExternalLink, Globe, Link2, Megaphone, NotebookPen, Ticket } from "lucide-react";
 import { can } from "@repo/auth";
-import { getDb, properties, redirects, reviews, roomTypes, siteNotices } from "@repo/db";
+import { contentSlots, galleryItems, getDb, properties, redirects, reviews, roomTypes, siteNotices } from "@repo/db";
 import { todayInIndia, websiteCatalogue } from "@repo/engine";
 import { studioUrl } from "@repo/sanity/config";
-import { properties as sites } from "@repo/sites";
+import { galleryCategories, properties as sites, textSlots } from "@repo/sites";
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ import { propertyFromCode, requireStaffPage } from "@/lib/staff";
 import { websiteUrls } from "@/lib/website";
 import { DeleteNoticeButton, NoticeDialog, NoticeSwitch, RefreshWebsiteButton } from "./forms";
 import { PlaceIdForm, RedirectForm, RemoveRedirectButton, ReviewButtons } from "./seo-forms";
+import { GalleryManager, TextSlotEditor } from "./content-forms";
 
 export const metadata = { title: "Website" };
 
@@ -71,6 +72,8 @@ export default async function WebsitePage({ params }: PageProps<"/[property]/web
   const [settings] = await db.select({ googlePlaceId: properties.googlePlaceId, googleRating: properties.googleRating, googleReviewCount: properties.googleReviewCount, reviewsSyncedAt: properties.reviewsSyncedAt }).from(properties).where(eq(properties.id, property.id));
   const reviewList = await db.select().from(reviews).where(eq(reviews.propertyId, property.id)).orderBy(desc(reviews.featured), desc(reviews.reviewedAt)).limit(30);
   const redirectList = await db.select().from(redirects).where(eq(redirects.propertyId, property.id)).orderBy(asc(redirects.fromPath));
+  const savedText = await db.select().from(contentSlots).where(eq(contentSlots.propertyId, property.id));
+  const photos = await db.select().from(galleryItems).where(eq(galleryItems.propertyId, property.id)).orderBy(asc(galleryItems.category), asc(galleryItems.sortOrder), desc(galleryItems.createdAt));
   const stays = catalogue?.roomTypes ?? [];
   const passes = catalogue?.passes ?? [];
   const offers = catalogue?.offers ?? [];
@@ -216,6 +219,35 @@ export default async function WebsitePage({ params }: PageProps<"/[property]/web
             })}
           </ul>
         )}
+      </Card>
+
+      <Card className="gap-0 overflow-hidden py-0 shadow-xs">
+        <CardHeader className="border-b py-5 [.border-b]:pb-5">
+          <CardTitle>Page text</CardTitle>
+          <CardDescription>Words on the website that staff may change. Save a draft, then publish; the layout and photos stay as designed.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 py-5">
+          {textSlots.map((slot) => {
+            const saved = savedText.find((t) => t.key === slot.key);
+            return (
+              <TextSlotEditor
+                key={slot.key}
+                propertyId={property.id}
+                slot={{ key: slot.key, page: slot.page, label: slot.label, max: slot.max, siteText: slot.defaults[property.code as keyof typeof slot.defaults], published: saved?.publishedText ?? null, draft: saved?.draftText ?? null }}
+              />
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      <Card className="gap-0 overflow-hidden py-0 shadow-xs">
+        <CardHeader className="border-b py-5 [.border-b]:pb-5">
+          <CardTitle>Gallery</CardTitle>
+          <CardDescription>The website&apos;s Gallery page, in category tabs. Add many photos at once into a category; they show within a minute. Large photos are fine: they go straight to storage.</CardDescription>
+        </CardHeader>
+        <CardContent className="py-5">
+          <GalleryManager propertyId={property.id} categories={galleryCategories} photos={photos.map((p) => ({ id: p.id, url: p.url, alt: p.alt, caption: p.caption, category: p.category, featured: p.featured, hidden: p.hidden }))} />
+        </CardContent>
       </Card>
 
       <Card className="gap-0 overflow-hidden py-0 shadow-xs">

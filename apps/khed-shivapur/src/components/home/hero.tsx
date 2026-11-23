@@ -33,7 +33,8 @@ const film = {
   portraitSources: { av1: "/video/breathe-m.av1.mp4", hevc: "/video/breathe-m.hevc.mp4" },
 };
 
-export function Hero() {
+/** `line` is the words under the heading staff set in the admin, if any; otherwise the site's own. */
+export function Hero({ line }: { line?: string | null } = {}) {
   const ref = useRef<HTMLElement>(null);
   const reduce = useReducedMotion();
   const still = Boolean(reduce);
@@ -168,7 +169,11 @@ export function Hero() {
           <div className="mx-auto flex max-w-[1680px] md:justify-end">
             <div className="hero-fade max-w-[22rem] md:max-w-[19rem]" style={{ "--i": 0 } as React.CSSProperties}>
               <p className="text-[0.98rem] leading-snug text-paper/90">
-                A green valley resort at the foot of the Sahyadri, near Khed Shivapur, just south of Pune.
+                {line ?? (
+                <>
+                  A green valley resort at the foot of the Sahyadri, near Khed Shivapur, just south of Pune.
+                </>
+              )}
               </p>
               {/* Two ways in: stay the weekend, or come for the day. */}
               <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">

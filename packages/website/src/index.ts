@@ -3,9 +3,9 @@ import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 import { offerNotes, offersFor, packageListings, passesFromCatalogue, stayGroupsFromCatalogue, type ListingGroup, type Pass } from "@repo/booking-ui/catalogue";
 import type { OnlineAddon } from "@repo/booking-ui";
 import { getDb } from "@repo/db";
-import { websiteCatalogue, type WebsiteCompany, type WebsiteNotice, type WebsiteOffer, type WebsiteOfferDay, type WebsiteReviews } from "@repo/engine";
+import { websiteCatalogue, type WebsiteCompany, type WebsiteNotice, type WebsiteOffer, type WebsiteOfferDay, type WebsitePhoto, type WebsiteReviews } from "@repo/engine";
 import { contentTag, revalidateContent } from "@repo/sanity";
-import { propertyByCode, type PropertyCode } from "@repo/sites";
+import { propertyByCode, textSlots, type PropertyCode } from "@repo/sites";
 
 /*
  * What a resort website reads from the admin (docs/implementation-plan.md,
@@ -116,6 +116,24 @@ export async function liveFromPrice(code: PropertyCode): Promise<{ paise: number
   if (!rates.length) return null;
   const low = rates.reduce((a, b) => (b.basePaise < a.basePaise ? b : a));
   return { paise: low.basePaise, basis: low.basis };
+}
+
+/** A page text slot's published words, or the site's own (plan section 2). */
+export async function liveText(code: PropertyCode, key: string): Promise<string> {
+  const data = await catalogue(code);
+  return data?.content[key] ?? textSlots.find((slot) => slot.key === key)?.defaults[code] ?? "";
+}
+
+/** A page text slot's published words, or null to keep the site's own. */
+export async function liveOverride(code: PropertyCode, key: string): Promise<string | null> {
+  const data = await catalogue(code);
+  return data?.content[key] ?? null;
+}
+
+/** The gallery's photos, in staff's order (URD 4.2). None without a database. */
+export async function liveGallery(code: PropertyCode): Promise<WebsitePhoto[]> {
+  const data = await catalogue(code);
+  return data?.gallery ?? [];
 }
 
 /** The resort's notices from the admin, newest first. None without a database. */

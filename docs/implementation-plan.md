@@ -56,6 +56,7 @@
 | 23 November 2026 | Messages (URD 9.2): wording staff can change per email (NOT-01), emails when a stay changes or is cancelled, before arrival and after check-out with the review link, team alerts, low-rooms alerts (INV-10), Resend the confirmation, and delivery status from Resend's webhook (NOT-05). Migration 0016 |
 | 23 November 2026 | Rate limits and a bot trap on forms and checkout (SEC-04), guest self-cancel with the policy's refund (BK-07), Google reviews synced from the Places API with featured reviews (REV-01 to REV-06), redirects managed in the admin and built into each site (SEO-04, SEO-07), Meta's Conversions API (TRK-02), the Excel of guests who agreed to offers (ADM-10), and nightly backups through GitHub Actions (REL-02). Migration 0017 |
 | 23 November 2026 | The group website (`apps/group`, URD 4.1): the four resorts, search across them for stays and day visits, Book at the resort hand-off (PAY-04), offers, weddings, corporate, blog, contact and policies. `docs/handover.md` covers setup, settings, deploys, backups, and staff and editor guides (QA-03) |
+| 23 November 2026 | Next.js 16.4.6 everywhere, for seven security fixes. Background jobs on Vercel Pro's schedule, each with a lock (`job_runs`, migration 0018). Files on Vercel Blob: guests' ID proofs at check-in in a private store, deleted after the resort's retention days (ADM-08); page text with draft and publish, and a gallery with bulk upload and a Gallery page on each site, in a public store (migration 0019) |
 
 ## Architecture
 
