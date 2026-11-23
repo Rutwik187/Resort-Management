@@ -1,3 +1,4 @@
+import { OfferOfTheDay } from "@repo/website/offers";
 import type { Viewport } from "next";
 import { Hero } from "@/components/home/hero";
 import { Intro } from "@/components/home/intro";
@@ -54,6 +55,7 @@ export default function HomePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(resortJsonLd) }} />
       <Hero />
       <BookBar />
+      <OfferOfTheDay code="SB" className="mx-auto max-w-[1560px] px-5 py-6 md:px-10" />
       <Intro />
       <Rooms />
       <Villas />

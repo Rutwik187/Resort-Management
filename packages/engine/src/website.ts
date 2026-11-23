@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, gte, inArray, isNull, or } from "drizzle-orm";
-import { addons, ageBands, offeringChildPrices, offerings, offeringSlots, offers, properties, rateChildPrices, rates, roomTypes, siteNotices, units, type Executor } from "@repo/db";
+import { addons, ageBands, offerDays, offeringChildPrices, offerings, offeringSlots, offers, properties, rateChildPrices, rates, roomTypes, siteNotices, units, type Executor } from "@repo/db";
 import { addDays, todayInIndia } from "./dates";
-import { offerLabel } from "./offers";
+import { offerLabel, offerTakesOff } from "./offers";
 
 /*
  * What a resort's website shows from the admin: its room types with their
@@ -53,8 +53,25 @@ export type WebsitePass = {
   validTo: string | null;
 };
 
-/** An offer the website shows: what it is and what it covers. Codes stay with the team. */
-export type WebsiteOffer = { title: string; details: string | null; appliesTo: "stay" | "day" | "any"; label: string; startsOn: string | null; endsOn: string | null };
+/**
+ * An offer the website shows: what it is, what it covers, and its terms in
+ * words. A coupon's code shows only when staff made it public.
+ */
+export type WebsiteOffer = {
+  title: string;
+  details: string | null;
+  appliesTo: "stay" | "day" | "any";
+  label: string;
+  startsOn: string | null;
+  endsOn: string | null;
+  code: string | null;
+  /** Whether the guest needs a code for it. */
+  coupon: boolean;
+  terms: string[];
+};
+
+/** A scheduled Offer of the Day (OFR-01). The page shows the one for today, in India, whenever it was cached. */
+export type WebsiteOfferDay = { day: string; title: string; details: string | null; label: string; appliesTo: "stay" | "day" | "any"; terms: string[] };
 
 /**
  * A notice for the website, newest first. Its dates are kept, so the page
@@ -68,7 +85,7 @@ export type WebsiteAddon = { code: string; name: string; summary: string | null;
 /** The company that runs the resort, for the footer and policies page (WEB-04). Empty fields stay empty: staff fill them in Settings. */
 export type WebsiteCompany = { legalName: string | null; gstin: string | null; address: string | null; phone: string | null; email: string | null };
 
-export type WebsiteCatalogue = { company: WebsiteCompany; roomTypes: WebsiteRoomType[]; passes: WebsitePass[]; addons: WebsiteAddon[]; offers: WebsiteOffer[]; notices: WebsiteNotice[] };
+export type WebsiteCatalogue = { company: WebsiteCompany; roomTypes: WebsiteRoomType[]; passes: WebsitePass[]; addons: WebsiteAddon[]; offers: WebsiteOffer[]; offerDays: WebsiteOfferDay[]; notices: WebsiteNotice[] };
 
 /** A resort's website catalogue, or null when there is no such resort. A few queries, run one after another. */
 export async function websiteCatalogue(db: Executor, propertyCode: string): Promise<WebsiteCatalogue | null> {
@@ -134,6 +151,19 @@ export async function websiteCatalogue(db: Executor, propertyCode: string): Prom
     .where(and(eq(offers.propertyId, property.id), eq(offers.active, true), eq(offers.onWebsite, true), or(isNull(offers.endsOn), gte(offers.endsOn, todayInIndia()))))
     .orderBy(asc(offers.sortOrder), asc(offers.title));
 
+  // Offers of the Day from yesterday on, so a page cached overnight still finds today's.
+  const dayRows = await db
+    .select({ day: offerDays.day, offer: offers })
+    .from(offerDays)
+    .innerJoin(offers, eq(offers.id, offerDays.offerId))
+    .where(and(eq(offerDays.propertyId, property.id), eq(offers.active, true), gte(offerDays.day, addDays(todayInIndia(), -1))))
+    .orderBy(asc(offerDays.day))
+    .limit(30);
+  const scheduledIds = new Set(
+    (await db.select({ offerId: offerDays.offerId }).from(offerDays).where(eq(offerDays.propertyId, property.id)).groupBy(offerDays.offerId)).map((r) => r.offerId),
+  );
+  const names = new Map([...types.map((t) => [t.id, t.name] as const), ...passRows.map((p) => [p.id, p.name] as const)]);
+
   // Notices on now or later, newest first. A day's grace keeps one that ends today, whatever the server's clock.
   const noticeRows = await db
     .select()
@@ -144,7 +174,19 @@ export async function websiteCatalogue(db: Executor, propertyCode: string): Prom
   return {
     company: { legalName: property.legalName || null, gstin: property.gstin || null, address: property.address || null, phone: property.phone || null, email: property.email || null },
     notices: noticeRows.map((n) => ({ id: n.id, message: n.message, linkLabel: n.linkLabel, linkUrl: n.linkUrl, startsOn: n.startsOn, endsOn: n.endsOn })),
-    offers: offerRows.map((offer) => ({ title: offer.title, details: offer.details, appliesTo: offer.appliesTo, label: offerLabel(offer), startsOn: offer.startsOn, endsOn: offer.endsOn })),
+    // An offer scheduled as Offer of the Day shows in its strip, on its days only.
+    offers: offerRows.filter((offer) => !scheduledIds.has(offer.id)).map((offer) => ({
+        title: offer.title,
+        details: offer.details,
+        appliesTo: offer.appliesTo,
+        label: offerLabel(offer),
+        startsOn: offer.startsOn,
+        endsOn: offer.endsOn,
+        code: offer.code && offer.showCode ? offer.code : null,
+        coupon: Boolean(offer.code),
+        terms: offerTerms(offer, names),
+      })),
+    offerDays: dayRows.map(({ day, offer }) => ({ day, title: offer.title, details: offer.details, label: offerLabel(offer), appliesTo: offer.appliesTo, terms: offerTerms(offer, names) })),
     roomTypes: types.map((type) => ({
       code: type.code,
       name: type.name,
@@ -182,4 +224,32 @@ export async function websiteCatalogue(db: Executor, propertyCode: string): Prom
       validTo: pass.validTo,
     })),
   };
+}
+
+const weekdayNames = ["Sundays", "Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays"];
+const shortDay = (date: string) => new Date(`${date}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+
+/** An offer's rules as short lines a guest can read, such as "Book by 30 Nov 2026" (OFR-02). */
+export function offerTerms(offer: typeof offers.$inferSelect, names: Map<string, string>): string[] {
+  const terms: string[] = [];
+  const covers = offer.appliesTo === "day" ? "visits" : "stays";
+  if (offer.startsOn && offer.endsOn) terms.push(`For ${covers} from ${shortDay(offer.startsOn)} to ${shortDay(offer.endsOn)}.`);
+  else if (offer.startsOn) terms.push(`For ${covers} from ${shortDay(offer.startsOn)}.`);
+  else if (offer.endsOn) terms.push(`For ${covers} until ${shortDay(offer.endsOn)}.`);
+  if (offer.bookFrom && offer.bookTo) terms.push(`Book between ${shortDay(offer.bookFrom)} and ${shortDay(offer.bookTo)}.`);
+  else if (offer.bookTo) terms.push(`Book by ${shortDay(offer.bookTo)}.`);
+  else if (offer.bookFrom) terms.push(`Book from ${shortDay(offer.bookFrom)}.`);
+  if (offer.minDaysAhead) terms.push(`Book at least ${offer.minDaysAhead} days before you arrive.`);
+  if (offer.maxDaysAhead !== null) terms.push(`For arrivals within ${offer.maxDaysAhead} ${offer.maxDaysAhead === 1 ? "day" : "days"} of booking.`);
+  if (offer.minNights && offer.appliesTo !== "day") terms.push(`Stays of ${offer.minNights} nights or more.`);
+  if (offer.weekdays?.length) terms.push(`${offer.appliesTo === "day" ? "Visits" : "Nights"} on ${offer.weekdays.map((d) => weekdayNames[d]).join(", ")} only.`);
+  const covered = [...offer.roomTypeIds, ...offer.offeringIds].map((id) => names.get(id)).filter(Boolean);
+  if (covered.length) terms.push(`Covers ${covered.join(", ")}.`);
+  if (offer.minAmountPaise) terms.push(`On bookings of ₹${(offer.minAmountPaise / 100).toLocaleString("en-IN")} or more before GST.`);
+  if (offer.maxUsesPerGuest) terms.push(offer.maxUsesPerGuest === 1 ? "Once per guest." : `Up to ${offer.maxUsesPerGuest} times per guest.`);
+  if (offer.maxUses) terms.push("While it lasts.");
+  if (offer.code && !offerTakesOff(offer)) terms.push("The team applies it when you book.");
+  else if (!offer.code && offerTakesOff(offer)) terms.push("Applied by itself when you book online. One offer per booking.");
+  else if (offer.code) terms.push("Enter the code when you book. One offer per booking.");
+  return terms;
 }

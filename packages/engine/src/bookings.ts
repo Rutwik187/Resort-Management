@@ -5,6 +5,7 @@ import {
   bookingItems,
   bookings,
   capacityDays,
+  type CampaignJson,
   type ConsentJson,
   capacityHolds,
   guests,
@@ -23,6 +24,7 @@ import { releaseHeldMessages } from "./messages";
 import { loadTaxRules, taxQuote } from "./tax";
 import { recordPaymentInTx, type PaymentInput } from "./payments";
 import { headcount } from "./pricing";
+import { recordOfferUse, type AppliedOffer } from "./offer-choice";
 
 export type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 export type BookingStatus = (typeof bookings.$inferSelect)["status"];
@@ -111,8 +113,12 @@ export async function createBooking(
     priceOverride?: PriceOverride;
     consent?: ConsentJson;
     today?: string;
+    /** The offer or coupon it takes (OFR-04). Its discount must already be in `priceOverride`. */
+    offer?: AppliedOffer;
+    /** UTM tags and click IDs from the website (TRK-04). */
+    campaign?: CampaignJson;
   },
-): Promise<{ bookingId: string; number: string }> {
+): Promise<{ bookingId: string; number: string; totalPaise: number | null; subtotalPaise: number | null; taxPaise: number | null }> {
   if (input.priceOverride) checkOverride(input.priceOverride);
   return db.transaction(async (tx) => {
     const [hold] = await tx.select().from(holds).where(eq(holds.id, input.holdId)).for("update");
@@ -151,6 +157,7 @@ export async function createBooking(
         ...price,
         quote,
         consent: input.consent ?? null,
+        campaign: input.campaign && Object.keys(input.campaign).length ? input.campaign : null,
         notes: input.notes ?? null,
         createdBy: input.userId ?? null,
       })
@@ -178,9 +185,11 @@ export async function createBooking(
       });
     }
 
+    if (input.offer) await recordOfferUse(tx, { propertyId: hold.propertyId, bookingId: booking.id, offer: input.offer, guestKey: normalisePhone(input.guest.phone) });
+
     if (input.confirm) await markPaid(tx, booking.id, "confirmed", input.userId);
     if (input.payment) await recordPaymentInTx(tx, { ...input.payment, bookingId: booking.id, userId: input.userId });
-    return { bookingId: booking.id, number };
+    return { bookingId: booking.id, number, ...price };
   });
 }
 

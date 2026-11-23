@@ -107,6 +107,12 @@ export async function GuestBookingPage({ code, token, actions, contact }: { code
       <section className={`mt-4 ${card}`}>
         <h2 className="bk-display text-[1.3rem]">Payment</h2>
         <dl className="mt-4 grid gap-2 text-[0.95rem]">
+          {booking.discount && (
+            <div className="flex justify-between gap-4 text-bk-good">
+              <dt>{booking.discount.code ? `Coupon ${booking.discount.code}` : "Offer"}</dt>
+              <dd className="tabular-nums">−{rupees(booking.discount.paise)}</dd>
+            </div>
+          )}
           {booking.subtotalPaise !== null && (
             <div className="flex justify-between gap-4">
               <dt className="text-bk-muted">Price before GST</dt>

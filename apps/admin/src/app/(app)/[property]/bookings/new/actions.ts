@@ -4,7 +4,27 @@ import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb, leadActivities, leads, offers, properties } from "@repo/db";
-import { createBooking, holdSeats, holdStay, lineTitle, nightsOf, offerDiscount, offerProblem, quoteSeats, quoteStay, releaseHold, subtotalOf, type Quote } from "@repo/engine";
+import {
+  createBooking,
+  holdSeats,
+  holdStay,
+  lineTitle,
+  nightsOf,
+  normalisePhone,
+  offerProblem,
+  offerRule,
+  offerTakesOff,
+  offerUsageProblem,
+  quoteDiscount,
+  quoteSeats,
+  quoteStay,
+  quoteTarget,
+  releaseHold,
+  subtotalOf,
+  todayInIndia,
+  type AppliedOffer,
+  type Quote,
+} from "@repo/engine";
 import { offlineSources } from "@/lib/format";
 import { checkbox, date, filled, problem, rupeesField, type FormState } from "@/lib/forms";
 import { audit, requirePermission } from "@/lib/staff";
@@ -127,8 +147,10 @@ export async function createOffline(propertyId: string, _state: FormState, form:
     const [offer] = guest.offerId ? await db.select().from(offers).where(and(eq(offers.id, guest.offerId), eq(offers.propertyId, propertyId))) : [];
     if (guest.offerId && !offer) return { error: "That offer no longer exists." };
     if (offer) {
-      const why = offerProblem(offer, input.kind === "stay" ? { kind: "stay", from: input.checkIn, to: input.checkOut, nights: nightsOf(input.checkIn, input.checkOut).length } : { kind: "day", from: input.day });
+      const why = offerProblem(offerRule(offer), input.kind === "stay" ? { kind: "stay", from: input.checkIn, to: input.checkOut, nights: nightsOf(input.checkIn, input.checkOut).length } : { kind: "day", from: input.day });
       if (why) return { error: why };
+      const used = await offerUsageProblem(db, offer, normalisePhone(guest.phone));
+      if (used) return { error: used };
     }
     const hold =
       input.kind === "stay"
@@ -137,14 +159,25 @@ export async function createOffline(propertyId: string, _state: FormState, form:
 
     const offerName = offer ? `Offer: ${offer.title}${offer.code ? ` (${offer.code})` : ""}` : null;
     const subtotal = subtotalOf(hold.quote);
-    if (offer && offer.discountKind !== "none" && subtotal === null) {
+    const takesOff = offer ? offerTakesOff(offer) : false;
+    if (offer && takesOff && subtotal === null) {
       await releaseHold(db, hold.holdId);
       return { error: "This booking has no price yet, so the offer has nothing to take off. Book without it and set the price on the booking." };
     }
+    // The rules that need the price and the rooms: which rooms it covers, and a minimum amount.
+    if (offer) {
+      const why = offerProblem(offerRule(offer), quoteTarget(hold.quote, todayInIndia()));
+      if (why) {
+        await releaseHold(db, hold.holdId);
+        return { error: why };
+      }
+    }
+    const discountPaise = offer && takesOff && !guest.override ? quoteDiscount(offerRule(offer), hold.quote) : 0;
+    const applied: AppliedOffer | undefined = offer && !guest.override ? { offerId: offer.id, title: offer.title, code: offer.code, discountPaise, offerDay: null } : undefined;
     const priceOverride = guest.override
       ? { subtotalPaise: guest.overridePrice!, reason: guest.overrideReason! }
-      : offer && offer.discountKind !== "none"
-        ? { subtotalPaise: subtotal! - offerDiscount(offer, subtotal!), reason: offerName! }
+      : discountPaise > 0
+        ? { subtotalPaise: subtotal! - discountPaise, reason: offerName! }
         : undefined;
     const payment = guest.payMethod ? { method: guest.payMethod, amountPaise: guest.payAmount!, reference: guest.payReference } : undefined;
     let made: { bookingId: string; number: string };
@@ -154,10 +187,11 @@ export async function createOffline(propertyId: string, _state: FormState, form:
         guest: { name: guest.name, phone: guest.phone, email: guest.email, companyName: guest.companyName, companyGstin: guest.companyGstin },
         source: guest.source,
         // An offer that takes nothing off by itself is noted for the team.
-        notes: offer && offer.discountKind === "none" ? [guest.notes, offerName].filter(Boolean).join("\n") : guest.notes,
+        notes: offer && !takesOff ? [guest.notes, offerName].filter(Boolean).join("\n") : guest.notes,
         userId: staff.userId,
         priceOverride,
         payment,
+        offer: applied,
       });
     } catch (error) {
       // Nothing was booked, so the rooms or seats go straight back.

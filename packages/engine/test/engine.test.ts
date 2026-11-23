@@ -12,6 +12,7 @@ import {
   offeringChildPrices,
   offlinePayments,
   offerings,
+  offerDays,
   offers,
   offeringSlots,
   properties,
@@ -39,13 +40,16 @@ import {
   holdSeats,
   holdStay,
   liftBlock,
+  chooseOffer,
   offerDiscount,
   offerLabel,
   offerProblem,
+  quoteDiscount,
   quoteSeats,
   quoteStay,
   recordPayment,
   recordWebsiteLead,
+  releaseHold,
   RuleError,
   searchStays,
   seatsLeft,
@@ -528,6 +532,70 @@ describe("offers", () => {
     const catalogue = await websiteCatalogue(db, "KS");
     expect(catalogue?.offers.map((o) => o.title)).toEqual(["Two for one"]);
     expect(catalogue?.offers[0]).toMatchObject({ appliesTo: "day", label: "Applied by the team" });
+  });
+});
+
+describe("offer rules and the best offer", () => {
+  const base = { title: "Deal", code: null, discountKind: "percent" as const, discountValue: 10, appliesTo: "any" as const, startsOn: null, endsOn: null, minNights: null, active: true };
+  const stay = { kind: "stay" as const, from: "2029-03-05", to: "2029-03-08", nights: 3, bookedOn: "2029-01-10" };
+
+  it("checks the booking window, days ahead, days of the week, rooms and a minimum amount", () => {
+    expect(offerProblem({ ...base, bookTo: "2029-01-01" }, stay)).toMatch(/could be booked until/);
+    expect(offerProblem({ ...base, bookFrom: "2029-01-01", bookTo: "2029-01-31" }, stay)).toBeNull();
+    expect(offerProblem({ ...base, minDaysAhead: 60 }, stay)).toMatch(/at least 60 days/);
+    expect(offerProblem({ ...base, minDaysAhead: 30 }, stay)).toBeNull();
+    expect(offerProblem({ ...base, maxDaysAhead: 3 }, stay)).toMatch(/within 3 days/);
+    // 5, 6 and 7 March 2029 are a Monday, Tuesday and Wednesday.
+    expect(offerProblem({ ...base, weekdays: [0, 1, 2, 3, 4] }, stay)).toBeNull();
+    expect(offerProblem({ ...base, weekdays: [5, 6] }, stay)).toMatch(/covers Friday, Saturday only/);
+    expect(offerProblem({ ...base, roomTypeIds: ["a"] }, { ...stay, roomTypeIds: ["b"] })).toMatch(/doesn't cover these rooms/);
+    expect(offerProblem({ ...base, minAmountPaise: 2_000_000 }, { ...stay, subtotalPaise: 1_500_000 })).toMatch(/at least ₹20,000/);
+  });
+
+  it("takes free nights off the covered rooms only, and always leaves a night to pay", async () => {
+    const quote = await quoteStay(db, { propertyId, checkIn: "2029-03-05", checkOut: "2029-03-08", rooms: [{ roomTypeId: pairId, party: couple }, { roomTypeId: lastRoomId, party: couple }] });
+    // Three weekday nights at ₹5,000 for each room.
+    expect(quoteDiscount({ ...base, discountKind: "none", discountValue: null, freeNights: 1, roomTypeIds: [pairId] }, quote)).toBe(500_000);
+    expect(quoteDiscount({ ...base, discountKind: "none", discountValue: null, freeNights: 9 }, quote)).toBe(2_000_000);
+    expect(quoteDiscount({ ...base, roomTypeIds: [lastRoomId] }, quote)).toBe(150_000);
+    expect(offerLabel({ discountKind: "none", discountValue: null, freeNights: 1, minNights: 3 })).toBe("Stay 3, pay 2");
+  });
+
+  it("applies the best automatic offer, a better coupon instead, and its limits per guest", async () => {
+    const made = await db
+      .insert(offers)
+      .values([
+        { propertyId, title: "Spring 10", discountKind: "percent", discountValue: 10, startsOn: "2029-03-01", endsOn: "2029-03-31" },
+        { propertyId, title: "Spring 20", code: "SPRING20", discountKind: "percent", discountValue: 20, startsOn: "2029-03-01", endsOn: "2029-03-31", maxUsesPerGuest: 1 },
+        { propertyId, title: "Small", code: "SMALL5", discountKind: "percent", discountValue: 5, startsOn: "2029-03-01", endsOn: "2029-03-31" },
+      ])
+      .returning();
+    const held = await holdStay(db, { propertyId, checkIn: "2029-03-05", checkOut: "2029-03-07", rooms: [{ roomTypeId: pairId, party: couple }] });
+    const choose = (couponCode?: string) => chooseOffer(db, { propertyId, quote: held.quote, couponCode, guestKey: "919800000001", website: true, today: "2029-02-01" });
+
+    expect((await choose()).applied).toMatchObject({ title: "Spring 10", discountPaise: 100_000 });
+    expect((await choose("spring20")).applied).toMatchObject({ title: "Spring 20", code: "SPRING20", discountPaise: 200_000 });
+    expect(await choose("SMALL5")).toMatchObject({ applied: { title: "Spring 10" }, couponOutdone: true });
+    expect((await choose("NOPE")).couponProblem).toMatch(/isn't a coupon here/);
+
+    const applied = (await choose("SPRING20")).applied!;
+    await createBooking(db, { holdId: held.holdId, guest: { name: "Asha", phone: "9800000001" }, source: "website", offer: applied, priceOverride: { subtotalPaise: 1_000_000 - applied.discountPaise, reason: "Offer" } });
+    const [booking] = await db.select().from(bookings).where(eq(bookings.couponCode, "SPRING20"));
+    expect(booking).toMatchObject({ discountPaise: 200_000, subtotalPaise: 800_000 });
+    // The same guest can't use it twice; the automatic offer applies instead.
+    const again = await holdStay(db, { propertyId, checkIn: "2029-03-12", checkOut: "2029-03-14", rooms: [{ roomTypeId: pairId, party: couple }] });
+    const second = await chooseOffer(db, { propertyId, quote: again.quote, couponCode: "SPRING20", guestKey: "919800000001", website: true, today: "2029-02-01" });
+    expect(second.couponProblem).toMatch(/already used Spring 20/);
+
+    // An Offer of the Day applies only on its day, and while its bookings last.
+    const [daily] = await db.insert(offers).values({ propertyId, title: "Daily 30", discountKind: "percent", discountValue: 30 }).returning();
+    await db.insert(offerDays).values({ propertyId, day: "2029-02-02", offerId: daily.id, quantity: 1 });
+    expect((await chooseOffer(db, { propertyId, quote: again.quote, website: true, today: "2029-02-01" })).applied?.title).toBe("Spring 10");
+    expect((await chooseOffer(db, { propertyId, quote: again.quote, website: true, today: "2029-02-02" })).applied).toMatchObject({ title: "Daily 30", offerDay: "2029-02-02" });
+
+    await db.update(offers).set({ active: false }).where(eq(offers.propertyId, propertyId));
+    await releaseHold(db, again.holdId);
+    for (const offer of made) expect(offer.id).toBeTruthy();
   });
 });
 

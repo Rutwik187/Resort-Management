@@ -8,6 +8,7 @@
     "./leads": "./src/leads.ts",
     "./notice": "./src/notice.tsx",
     "./company": "./src/company.tsx",
+    "./offers": "./src/offers.tsx",
     "./invoice": "./src/invoice.tsx",
     "./booking": "./src/booking.ts",
     "./booking-page": "./src/booking-page.tsx"

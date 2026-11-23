@@ -3,7 +3,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { BedDouble, CalendarSearch, CircleAlert, Inbox, Search, Ticket } from "lucide-react";
 import { can } from "@repo/auth";
 import { ageBands, getDb, leads, offers, roomTypes } from "@repo/db";
-import { addDays, addonsFor, isDate, offerLabel, offerProblem, searchStays, seatsLeft, todayInIndia } from "@repo/engine";
+import { addDays, addonsFor, isDate, offerLabel, offerProblem, offerRule, searchStays, seatsLeft, todayInIndia } from "@repo/engine";
 import { DateField, DateRangeField } from "@/components/date-field";
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/page-header";
@@ -87,7 +87,7 @@ export default async function NewBookingPage({ params, searchParams }: PageProps
   const target = kind === "stay" ? { kind: "stay" as const, from: checkIn, to: checkOut, nights: Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000) } : { kind: "day" as const, from: day };
   const offerOptions = offerRows
     .filter((offer) => offer.appliesTo === "any" || offer.appliesTo === kind)
-    .map((offer) => ({ id: offer.id, title: offer.title, code: offer.code, label: offerLabel(offer), discountKind: offer.discountKind, discountValue: offer.discountValue, problem: offerProblem(offer, target) }));
+    .map((offer) => ({ id: offer.id, title: offer.title, code: offer.code, label: offerLabel(offer), discountKind: offer.discountKind, discountValue: offer.discountValue, problem: offerProblem(offerRule(offer), target) }));
   const base = `/${property.code.toLowerCase()}/bookings/new`;
   const nights = Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000);
 

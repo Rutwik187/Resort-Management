@@ -14,6 +14,14 @@ export class RuleError extends Error {
   }
 }
 
+/** The guest's coupon doesn't apply to this booking (OFR-03). They can fix or remove it and try again. */
+export class CouponError extends RuleError {
+  constructor(message: string) {
+    super(message);
+    this.name = "CouponError";
+  }
+}
+
 /** A booking can't move from its status to the one asked for (BK-04). */
 export class TransitionError extends Error {
   constructor(from: string, to: string) {

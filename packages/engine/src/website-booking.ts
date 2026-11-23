@@ -1,11 +1,12 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { addons, bookingItems, bookings, guests, holds, invoices, offerings, offeringSlots, onlinePayments, properties, roomTypes, units, type ConsentJson, type Database } from "@repo/db";
+import { addons, bookingItems, bookings, guests, holds, invoices, offerings, offeringSlots, onlinePayments, properties, roomTypes, units, type CampaignJson, type ConsentJson, type Database } from "@repo/db";
 import { searchStays, seatsLeft } from "./availability";
 import { createBooking, normalisePhone, type GuestInput } from "./bookings";
 import { isDate } from "./dates";
-import { NotFoundError, RuleError } from "./errors";
+import { CouponError, NotFoundError, RuleError } from "./errors";
 import { holdSeats, holdStay, lineTitle, releaseHold, type Quote } from "./holds";
 import { holdConfirmationEmail } from "./messages";
+import { chooseOffer, type AppliedOffer } from "./offer-choice";
 import { paymentAccount, startCheckout } from "./online";
 import type { Party } from "./pricing";
 import { hashToken, newToken } from "./secrets";
@@ -80,6 +81,10 @@ export type WebsiteBookingInput = {
   ip?: string | null;
   /** The site's address as the guest reached it, such as https://prathameshresorts.com, for the link in their email. */
   siteOrigin?: string;
+  /** A coupon code the guest entered (OFR-03). */
+  couponCode?: string;
+  /** UTM tags and click IDs from the visit (TRK-04). */
+  campaign?: CampaignJson;
 };
 
 export type WebsiteBookingStarted = {
@@ -87,6 +92,14 @@ export type WebsiteBookingStarted = {
   /** The guest's private link token. Only its hash is kept. */
   token: string;
   quote: Quote;
+  /** The offer or coupon taken off before GST, if any. */
+  offer: AppliedOffer | null;
+  /** Why the guest's coupon gave way to a better offer, if it did. */
+  couponNote: string | null;
+  /** The booking's price: the quote's, less any offer, with GST on it. */
+  subtotalPaise: number;
+  taxPaise: number;
+  totalPaise: number;
   holdExpiresAt: string;
   dueNowPaise: number;
   checkout: { keyId: string; orderId: string; amountPaise: number; mode: "test" | "live" };
@@ -156,14 +169,27 @@ export async function bookOnline(db: Database, input: WebsiteBookingInput): Prom
     throw new RuleError("A rate for these guests is to be confirmed by the team. Please send the request instead.");
   }
 
+  // The best offer, or the guest's coupon when it gives a better price (OFR-04).
+  // A coupon that doesn't apply stops here, so the guest can fix or remove it; one beaten by a better offer only gets a note.
+  const { applied, couponProblem, couponOutdone } = await chooseOffer(db, { propertyId: property.id, quote: held.quote, couponCode: input.couponCode, guestKey: phone, website: true });
+  if (couponProblem && !couponOutdone) {
+    await releaseHold(db, held.holdId);
+    throw new CouponError(couponProblem);
+  }
+
   const consent: ConsentJson = { termsVersion, marketing: input.marketing, at: new Date().toISOString(), ip: input.ip ?? null };
-  const { bookingId, number } = await createBooking(db, {
+  const subtotal = held.quote.subtotalPaise ?? 0;
+  const created = await createBooking(db, {
     holdId: held.holdId,
     guest: { ...input.guest, companyGstin: gstin },
     source: "website",
     notes: input.notes?.trim() || undefined,
     consent,
+    offer: applied ?? undefined,
+    priceOverride: applied ? { subtotalPaise: subtotal - applied.discountPaise, reason: `Offer: ${applied.title}${applied.code ? ` (${applied.code})` : ""}` } : undefined,
+    campaign: input.campaign,
   });
+  const { bookingId, number } = created;
   const { token, hash } = newToken();
   await db.transaction(async (tx) => {
     await tx.update(bookings).set({ manageTokenHash: hash }).where(eq(bookings.id, bookingId));
@@ -171,7 +197,7 @@ export async function bookOnline(db: Database, input: WebsiteBookingInput): Prom
     if (input.siteOrigin) await holdConfirmationEmail(tx, bookingId, `${input.siteOrigin}/booking?ref=${token}`);
   });
 
-  const total = held.quote.totalPaise;
+  const total = created.totalPaise ?? held.quote.totalPaise;
   // The advance, rounded up to the rupee, and never more than the total.
   const dueNowPaise = Math.min(total, Math.ceil((total * property.advancePercent) / 100 / 100) * 100);
   const checkout = await startCheckout(db, { bookingId, amountPaise: dueNowPaise });
@@ -179,6 +205,11 @@ export async function bookOnline(db: Database, input: WebsiteBookingInput): Prom
     number,
     token,
     quote: held.quote,
+    offer: applied,
+    couponNote: couponProblem,
+    subtotalPaise: created.subtotalPaise ?? subtotal,
+    taxPaise: created.taxPaise ?? 0,
+    totalPaise: total,
     holdExpiresAt: held.expiresAt.toISOString(),
     dueNowPaise,
     checkout: { keyId: checkout.keyId, orderId: checkout.orderId, amountPaise: checkout.amountPaise, mode: checkout.mode },
@@ -232,6 +263,8 @@ export async function bookingForGuest(db: Database, token: string) {
     subtotalPaise: booking.subtotalPaise,
     taxPaise: booking.taxPaise,
     totalPaise: booking.totalPaise,
+    /** The offer or coupon taken off before GST, if any. */
+    discount: booking.discountPaise > 0 ? { paise: booking.discountPaise, code: booking.couponCode } : null,
     paidPaise: booking.paidPaise,
     refundedPaise: booking.refundedPaise,
     balancePaise: booking.totalPaise === null ? null : Math.max(0, booking.totalPaise - booking.paidPaise),

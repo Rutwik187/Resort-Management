@@ -40,6 +40,10 @@ export type OnlineGuest = {
   note: string;
   marketing: boolean;
   acceptedTerms: boolean;
+  /** A coupon code, if the guest has one (OFR-03). */
+  couponCode?: string;
+  /** UTM tags and click IDs from the visit (TRK-04). */
+  campaign?: Record<string, string>;
 };
 
 /** Razorpay's checkout, as the server opened it. */
@@ -52,6 +56,11 @@ export type OnlineStarted = {
   url: string;
   holdExpiresAt: string;
   lines: { title: string; amountPaise: number | null }[];
+  /** The offer or coupon taken off before GST. */
+  offer: { title: string; code: string | null; paise: number } | null;
+  /** Why the guest's coupon gave way to a better offer. */
+  couponNote: string | null;
+  /** The price before GST, after the offer. */
   subtotalPaise: number;
   taxPaise: number;
   totalPaise: number;
@@ -61,7 +70,7 @@ export type OnlineStarted = {
 
 export type PaymentAnswer = { orderId: string; paymentId: string; signature: string };
 
-export type StartResult = { ok: true; started: OnlineStarted } | { ok: false; error: string; whatsapp?: boolean };
+export type StartResult = { ok: true; started: OnlineStarted } | { ok: false; error: string; whatsapp?: boolean; coupon?: boolean };
 export type ConfirmResult = { ok: true } | { ok: false; error: string };
 
 /** The site's server actions for booking online. */

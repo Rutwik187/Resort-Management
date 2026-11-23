@@ -1,3 +1,4 @@
+import { OfferOfTheDay } from "@repo/website/offers";
 import type { Viewport } from "next";
 import { Enquiry } from "@/components/enquiry";
 import { Board } from "@/components/home/board";
@@ -58,6 +59,7 @@ export default function HomePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(parkJsonLd) }} />
       <Hero />
       <BookBar />
+      <OfferOfTheDay code="GC" className="mx-auto max-w-[1600px] px-4 py-6 md:px-8" />
       <Intro />
       <Passes />
       <Board />

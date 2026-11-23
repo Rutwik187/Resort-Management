@@ -3,6 +3,7 @@
 import { useEffect, useId, useState, type FormEvent, type RefObject } from "react";
 import { FieldError, contactErrors } from "./form-fields";
 import { formatRupees } from "./pricing";
+import { currentCampaign, trackEvent } from "./consent";
 import { payWithRazorpay, type OnlineBooking, type OnlineChoice, type OnlineGuest, type OnlineStarted } from "./online";
 
 const field =
@@ -29,8 +30,9 @@ type DetailsProps = {
 /** The guest's details and consent, then the rooms or seats are held and priced. */
 export function OnlineDetails({ headingRef, guest, setGuest, online, choice, onBack, onStarted, onWhatsApp }: DetailsProps) {
   const id = useId();
-  const [errors, setErrors] = useState<{ name?: string; phone?: string; email?: string; terms?: string; gstin?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; phone?: string; email?: string; terms?: string; gstin?: string; coupon?: string }>({});
   const [company, setCompany] = useState(Boolean(guest.companyGstin));
+  const [hasCoupon, setHasCoupon] = useState(Boolean(guest.couponCode));
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<{ error: string; whatsapp?: boolean } | null>(null);
   const set = (patch: Partial<OnlineGuest>) => setGuest({ ...guest, ...patch });
@@ -55,9 +57,15 @@ export function OnlineDetails({ headingRef, guest, setGuest, online, choice, onB
     setBusy(true);
     setFailure(null);
     try {
-      const result = await online.start(picked, company ? guest : { ...guest, companyName: "", companyGstin: "" });
-      if (result.ok) onStarted(result.started);
-      else setFailure(result);
+      const sent = { ...guest, couponCode: hasCoupon ? guest.couponCode?.trim() || undefined : undefined, campaign: currentCampaign() as Record<string, string> };
+      const result = await online.start(picked, company ? sent : { ...sent, companyName: "", companyGstin: "" });
+      if (result.ok) {
+        trackEvent("begin_checkout", { currency: "INR", value: result.started.totalPaise / 100, booking_id: result.started.number, coupon: result.started.offer?.code ?? undefined });
+        onStarted(result.started);
+      } else if (result.coupon) {
+        setErrors((current) => ({ ...current, coupon: result.error }));
+        setFailure(null);
+      } else setFailure(result);
     } catch {
       setFailure({ error: "We couldn't reach the booking system. Try again, or send the request on WhatsApp.", whatsapp: true });
     } finally {
@@ -125,6 +133,32 @@ export function OnlineDetails({ headingRef, guest, setGuest, online, choice, onB
               </label>
               <FieldError id={`${id}-gstin-error`} message={errors.gstin} />
             </div>
+          </div>
+        )}
+        <label className="flex items-start gap-3 text-[0.9rem] text-bk-muted">
+          <input type="checkbox" checked={hasCoupon} onChange={(event) => setHasCoupon(event.target.checked)} className="mt-1 size-4 accent-[var(--bk-accent)]" />
+          Have a coupon code?
+        </label>
+        {hasCoupon && (
+          <div>
+            <label className="block text-[0.9rem] text-bk-muted">
+              Coupon code
+              <input
+                name="coupon"
+                value={guest.couponCode ?? ""}
+                onChange={(event) => {
+                  set({ couponCode: event.target.value.toUpperCase() });
+                  if (errors.coupon) setErrors({ ...errors, coupon: undefined });
+                }}
+                maxLength={40}
+                autoComplete="off"
+                aria-invalid={Boolean(errors.coupon) || undefined}
+                aria-describedby={errors.coupon ? `${id}-coupon-error` : undefined}
+                className={`${field} uppercase ${errors.coupon ? "border-bk-alert" : ""}`}
+              />
+            </label>
+            <FieldError id={`${id}-coupon-error`} message={errors.coupon} />
+            <p className="mt-1 text-[0.82rem] text-bk-muted">We apply the best offer for you. A coupon replaces it only when it saves you more.</p>
           </div>
         )}
         <label className="block text-[0.9rem] text-bk-muted">
@@ -207,13 +241,22 @@ export function OnlineReview({ headingRef, started, guest, online, onBack }: Rev
     setBusy(true);
     setError(null);
     try {
+      trackEvent("add_payment_info", { currency: "INR", value: started.dueNowPaise / 100, booking_id: started.number });
       const answer = await payWithRazorpay(started.checkout, { name: guest.name, phone: guest.phone, email: guest.email });
       if ("closed" in answer) {
         setError(answer.error ? `${answer.error} You can try again.` : null);
         return;
       }
       const result = await online.confirm(answer);
-      if (result.ok) window.location.assign(started.url);
+      if (result.ok) {
+        // Counted once: the server sends the same event ID to Meta's Conversions API.
+        trackEvent(
+          "purchase",
+          { currency: "INR", value: started.totalPaise / 100, transaction_id: started.number, booking_id: started.number, coupon: started.offer?.code ?? undefined },
+          { event: "Purchase", eventId: `purchase-${started.number}`, params: { currency: "INR", value: started.totalPaise / 100 } },
+        );
+        window.location.assign(started.url);
+      }
       else setError(`${result.error} If money left your account, your booking page will update shortly.`);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "The payment window didn't open. Try again.");
@@ -244,6 +287,7 @@ export function OnlineReview({ headingRef, started, guest, online, onBack }: Rev
           <strong className="text-bk-alert">The hold has run out.</strong>
         )}
       </p>
+      {started.couponNote && <p className="mt-3 rounded-[calc(var(--bk-radius)*0.6)] bg-bk-soft px-3 py-2 text-[0.85rem] text-bk-muted">{started.couponNote}</p>}
       {started.checkout.mode === "test" && (
         <p className="mt-3 rounded-[calc(var(--bk-radius)*0.6)] bg-bk-soft px-3 py-2 text-[0.82rem] text-bk-muted">Test mode: no money moves. Pay with Razorpay&apos;s test card or test netbanking.</p>
       )}
@@ -254,6 +298,15 @@ export function OnlineReview({ headingRef, started, guest, online, onBack }: Rev
             <dd className="tabular-nums">{line.amountPaise === null ? "" : rupees(line.amountPaise)}</dd>
           </div>
         ))}
+        {started.offer && (
+          <div className="flex justify-between gap-4 text-bk-good">
+            <dt>
+              {started.offer.title}
+              {started.offer.code ? ` (${started.offer.code})` : ""}
+            </dt>
+            <dd className="tabular-nums">−{rupees(started.offer.paise)}</dd>
+          </div>
+        )}
         <div className="flex justify-between gap-4 border-t border-bk-line pt-2">
           <dt className="text-bk-muted">Price before GST</dt>
           <dd className="tabular-nums">{rupees(started.subtotalPaise)}</dd>

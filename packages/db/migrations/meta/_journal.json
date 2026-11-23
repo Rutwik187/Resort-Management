@@ -78,6 +78,13 @@
       "when": 1794247676115,
       "tag": "0010_addons",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795425239249,
+      "tag": "0011_offers_more",
+      "breakpoints": true
     }
   ]
 }

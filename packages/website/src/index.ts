@@ -3,7 +3,7 @@ import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 import { offerNotes, offersFor, passesFromCatalogue, stayGroupsFromCatalogue, type ListingGroup, type Pass } from "@repo/booking-ui/catalogue";
 import type { OnlineAddon } from "@repo/booking-ui";
 import { getDb } from "@repo/db";
-import { websiteCatalogue, type WebsiteCompany, type WebsiteNotice } from "@repo/engine";
+import { websiteCatalogue, type WebsiteCompany, type WebsiteNotice, type WebsiteOffer, type WebsiteOfferDay } from "@repo/engine";
 import { contentTag, revalidateContent } from "@repo/sanity";
 import { propertyByCode, type PropertyCode } from "@repo/sites";
 
@@ -86,6 +86,18 @@ export async function liveAddons(code: PropertyCode, kind: "stay" | "day"): Prom
 export async function liveCompany(code: PropertyCode): Promise<WebsiteCompany | null> {
   const data = await catalogue(code);
   return data?.company.legalName ? data.company : null;
+}
+
+/** Every live offer on the website, with its terms (OFR-02). None without a database. */
+export async function liveOffers(code: PropertyCode): Promise<WebsiteOffer[]> {
+  const data = await catalogue(code);
+  return data?.offers ?? [];
+}
+
+/** The scheduled Offers of the Day, from yesterday on (OFR-01). */
+export async function liveOfferDays(code: PropertyCode): Promise<WebsiteOfferDay[]> {
+  const data = await catalogue(code);
+  return data?.offerDays ?? [];
 }
 
 /** The resort's notices from the admin, newest first. None without a database. */

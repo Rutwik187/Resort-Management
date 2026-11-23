@@ -20,6 +20,9 @@ import { createdBy, timestamps } from "./common";
 import { properties } from "./properties";
 
 /** BK-04. One module in packages/engine says which moves between them are allowed. */
+/** UTM source, medium and campaign, Google's and Meta's click IDs, and the landing page. */
+export type CampaignJson = { utm_source?: string; utm_medium?: string; utm_campaign?: string; utm_term?: string; utm_content?: string; gclid?: string; fbclid?: string; landing?: string; referrer?: string };
+
 export const bookingStatus = pgEnum("booking_status", [
   "pending_payment",
   "confirmed",
@@ -87,6 +90,12 @@ export const bookings = pgTable(
     /** Money received, less refunds paid. */
     paidPaise: bigint({ mode: "number" }).notNull().default(0),
     refundedPaise: bigint({ mode: "number" }).notNull().default(0),
+    /** The offer or coupon it took, and what it took off before GST (OFR-04). */
+    offerId: uuid(),
+    discountPaise: bigint({ mode: "number" }).notNull().default(0),
+    couponCode: text(),
+    /** Where the guest came from: UTM tags and click IDs, as the website saw them (TRK-04). */
+    campaign: jsonb().$type<CampaignJson>(),
     /** The SHA-256 of the guest's private manage-booking link. */
     manageTokenHash: text().unique(),
     /** What the guest agreed to on the website, and when. */

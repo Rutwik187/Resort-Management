@@ -9,7 +9,8 @@
     "./catalogue": "./src/catalogue.ts",
     "./notice": "./src/site-notice.tsx",
     "./consent": "./src/consent.tsx",
-    "./contact-dock": "./src/contact-dock.tsx"
+    "./contact-dock": "./src/contact-dock.tsx",
+    "./offer-of-day": "./src/offer-of-day.tsx"
   },
   "scripts": {
     "lint": "eslint",

@@ -11,6 +11,7 @@ import {
   bookOnline,
   closedDates,
   completeCheckout,
+  CouponError,
   lineTitle,
   NotFoundError,
   payBalanceOnline,
@@ -74,6 +75,8 @@ const guestInput = z.object({
   note: z.string().trim().max(1000),
   marketing: z.boolean(),
   acceptedTerms: z.boolean(),
+  couponCode: z.string().trim().max(40).optional().catch(undefined),
+  campaign: z.partialRecord(z.enum(["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "gclid", "fbclid", "landing", "referrer"]), z.string().max(300)).optional().catch(undefined),
 });
 
 /** The widget's age groups, as the admin's age band codes. */
@@ -111,6 +114,8 @@ export async function startOnlineBooking(siteCode: PropertyCode, choice: OnlineC
       acceptedTerms: g.acceptedTerms,
       ip: forwarded?.split(",")[0]?.trim() ?? null,
       siteOrigin: host ? `${proto}://${host}` : undefined,
+      couponCode: g.couponCode || undefined,
+      campaign: g.campaign,
     });
     const quote = started.quote;
     return {
@@ -123,14 +128,17 @@ export async function startOnlineBooking(siteCode: PropertyCode, choice: OnlineC
           title: line.kind === "stay" ? `${line.roomTypeName}, ${line.nights.length} ${line.nights.length === 1 ? "night" : "nights"}` : lineTitle(line),
           amountPaise: line.totalPaise,
         })),
-        subtotalPaise: quote.subtotalPaise ?? 0,
-        taxPaise: quote.taxPaise ?? 0,
-        totalPaise: quote.totalPaise ?? 0,
+        offer: started.offer ? { title: started.offer.title, code: started.offer.code, paise: started.offer.discountPaise } : null,
+        couponNote: started.couponNote,
+        subtotalPaise: started.subtotalPaise,
+        taxPaise: started.taxPaise,
+        totalPaise: started.totalPaise,
         dueNowPaise: started.dueNowPaise,
         checkout: { ...started.checkout, number: started.number, resortName: started.resortName },
       },
     };
   } catch (error) {
+    if (error instanceof CouponError) return { ok: false, error: error.message, coupon: true };
     if (guestError(error)) return { ok: false, error: (error as Error).message, whatsapp: error instanceof RuleError };
     console.error(`An online booking at ${siteCode} failed.`, error);
     return { ok: false, error: "We couldn't hold your booking just now. Please try again, or send the request on WhatsApp.", whatsapp: true };
