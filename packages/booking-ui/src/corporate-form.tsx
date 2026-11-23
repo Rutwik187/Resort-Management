@@ -96,7 +96,7 @@ export function CorporateEnquiryForm({ resorts, onSend, policyHref, whatsapp }: 
     try {
       const result = await onSend(enquiry);
       setState(result.ok ? "sent" : "failed");
-      if (result.ok) trackEvent("generate_lead", { lead_type: "corporate" }, { event: "Lead", params: { content_category: "corporate" } });
+      if (result.ok) trackEvent("generate_lead", { lead_type: "corporate" }, { event: "Lead", eventId: consent.eventId, params: { content_category: "corporate" } });
     } catch {
       setState("failed");
     }

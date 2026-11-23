@@ -1,3 +1,4 @@
+import { GoogleReviews } from "@repo/website/reviews";
 import { OfferOfTheDay } from "@repo/website/offers";
 import { Hero } from "@/components/home/hero";
 import { Welcome } from "@/components/home/welcome";
@@ -60,6 +61,7 @@ export default function HomePage() {
       <Celebrations />
       <Explore />
       <FindUs />
+      <GoogleReviews code="PV" className="mx-auto max-w-[1600px] px-5 py-16 md:px-10" />
       <Enquiry />
     </PageTransition>
   );

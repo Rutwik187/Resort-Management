@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { bigint, boolean, check, integer, pgTable, smallint, text, time, unique, uuid } from "drizzle-orm/pg-core";
+import { bigint, boolean, check, integer, pgTable, smallint, text, time, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { timestamps } from "./common";
 
 /**
@@ -39,6 +39,12 @@ export const properties = pgTable(
     reviewUrl: text(),
     /** Directions, for the pre-arrival message. */
     mapsUrl: text(),
+    /** The resort's Google Maps place id, for the reviews sync (REV-01). */
+    googlePlaceId: text(),
+    /** The overall rating and count exactly as Google reports them (REV-03), and when they were read. */
+    googleRating: text(),
+    googleReviewCount: integer(),
+    reviewsSyncedAt: timestamp({ withTimezone: true }),
     /** For GST invoices: the state the resort is in. Maharashtra is 27. */
     stateCode: text().notNull().default("27"),
     stateName: text().notNull().default("Maharashtra"),

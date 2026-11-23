@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Contact, Search, X } from "lucide-react";
+import { Contact, Download, Search, X } from "lucide-react";
 import { can } from "@repo/auth";
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/page-header";
@@ -35,7 +35,20 @@ export default async function GuestsPage({ params, searchParams }: PageProps<"/[
 
   return (
     <>
-      <PageHeader title="Guests" description="Everyone who has booked here, with what they booked and spent. Bookings with the same phone, or email, come together as one guest." />
+      <PageHeader
+        title="Guests"
+        description="Everyone who has booked here, with what they booked and spent. Bookings with the same phone, or email, come together as one guest."
+        actions={
+          can(staff, "guests.export", property.id) && (
+            <Button variant="outline" asChild>
+              <a href={`/${property.code.toLowerCase()}/guests/marketing-export`} download>
+                <Download />
+                Guests who agreed to offers (Excel)
+              </a>
+            </Button>
+          )
+        }
+      />
 
       <Card className="gap-0 overflow-hidden py-0">
         <form role="search" className="flex flex-wrap items-center gap-2 border-b bg-muted/30 p-4">

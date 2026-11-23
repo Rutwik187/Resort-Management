@@ -9,13 +9,16 @@ import { useId } from "react";
  */
 
 export const formConsentVersion = "2026-11";
-export type FormConsentValue = { version: string; marketing: boolean; at: string };
+/** What the guest agreed to, with an id this form's Lead event shares with the server's, so Meta counts it once (TRK-02). */
+export type FormConsentValue = { version: string; marketing: boolean; at: string; eventId: string };
 
 /** The two checkboxes, in the site's own type. Put it just above the send button. */
 export function FormConsent({ policyHref, className = "", boxClassName = "" }: { policyHref: string; className?: string; boxClassName?: string }) {
   const id = useId();
   return (
     <div className={`grid gap-3 text-[0.9rem] ${className}`} data-form-consent>
+      {/* A field people never see. Bots that fill every field are dropped (SEC-04). */}
+      <input type="text" name="website_url" tabIndex={-1} autoComplete="off" aria-hidden className="absolute -left-[9999px] size-px opacity-0" />
       <label className="flex items-start gap-3">
         <input
           type="checkbox"
@@ -49,6 +52,7 @@ export function FormConsent({ policyHref, className = "", boxClassName = "" }: {
 
 /** Checks the form's consent box. When it isn't ticked, shows the message and moves the focus there. */
 export function formConsent(form: HTMLFormElement): FormConsentValue | null {
+  if (form.querySelector<HTMLInputElement>('input[name="website_url"]')?.value) return null;
   const box = form.querySelector<HTMLInputElement>('input[name="consent"]');
   if (box && !box.checked) {
     const error = form.querySelector<HTMLElement>("[data-consent-error]");
@@ -57,5 +61,5 @@ export function formConsent(form: HTMLFormElement): FormConsentValue | null {
     return null;
   }
   const marketing = form.querySelector<HTMLInputElement>('input[name="marketing"]')?.checked ?? false;
-  return { version: formConsentVersion, marketing, at: new Date().toISOString() };
+  return { version: formConsentVersion, marketing, at: new Date().toISOString(), eventId: `lead-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}` };
 }

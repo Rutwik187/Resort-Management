@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, gte, inArray, isNull, or } from "drizzle-orm";
-import { addons, ageBands, offerDays, stayPackageChildPrices, stayPackages, offeringChildPrices, offerings, offeringSlots, offers, properties, rateChildPrices, rates, roomTypes, siteNotices, units, type Executor } from "@repo/db";
+import { addons, ageBands, offerDays, reviews, stayPackageChildPrices, stayPackages, offeringChildPrices, offerings, offeringSlots, offers, properties, rateChildPrices, rates, roomTypes, siteNotices, units, type Executor } from "@repo/db";
 import { addDays, todayInIndia } from "./dates";
 import { offerLabel, offerTakesOff } from "./offers";
 
@@ -111,12 +111,32 @@ export type WebsiteStayPackage = {
   roomTypes: { code: string; name: string }[];
 };
 
-export type WebsiteCatalogue = { company: WebsiteCompany; stayPackages: WebsiteStayPackage[]; roomTypes: WebsiteRoomType[]; passes: WebsitePass[]; addons: WebsiteAddon[]; offers: WebsiteOffer[]; offerDays: WebsiteOfferDay[]; notices: WebsiteNotice[] };
+/** Google's rating and count for the resort (REV-03), its listing, and the reviews to show (REV-02, REV-04). */
+export type WebsiteReviews = {
+  rating: string | null;
+  count: number | null;
+  listingUrl: string | null;
+  writeUrl: string | null;
+  items: { id: string; author: string; authorUrl: string | null; photoUrl: string | null; rating: number; text: string | null; reviewedAt: string | null; featured: boolean }[];
+};
+
+export type WebsiteCatalogue = { reviews: WebsiteReviews; company: WebsiteCompany; stayPackages: WebsiteStayPackage[]; roomTypes: WebsiteRoomType[]; passes: WebsitePass[]; addons: WebsiteAddon[]; offers: WebsiteOffer[]; offerDays: WebsiteOfferDay[]; notices: WebsiteNotice[] };
 
 /** A resort's website catalogue, or null when there is no such resort. A few queries, run one after another. */
 export async function websiteCatalogue(db: Executor, propertyCode: string): Promise<WebsiteCatalogue | null> {
   const [property] = await db
-    .select({ id: properties.id, legalName: properties.legalName, gstin: properties.gstin, address: properties.address, phone: properties.phone, email: properties.email })
+    .select({
+      id: properties.id,
+      legalName: properties.legalName,
+      gstin: properties.gstin,
+      address: properties.address,
+      phone: properties.phone,
+      email: properties.email,
+      googleRating: properties.googleRating,
+      googleReviewCount: properties.googleReviewCount,
+      mapsUrl: properties.mapsUrl,
+      reviewUrl: properties.reviewUrl,
+    })
     .from(properties)
     .where(eq(properties.code, propertyCode));
   if (!property) return null;
@@ -204,6 +224,14 @@ export async function websiteCatalogue(db: Executor, propertyCode: string): Prom
   );
   const names = new Map([...types.map((t) => [t.id, t.name] as const), ...passRows.map((p) => [p.id, p.name] as const)]);
 
+  // Featured reviews first, then the newest; hidden ones never (REV-03).
+  const reviewRows = await db
+    .select()
+    .from(reviews)
+    .where(and(eq(reviews.propertyId, property.id), eq(reviews.hidden, false)))
+    .orderBy(desc(reviews.featured), desc(reviews.reviewedAt))
+    .limit(6);
+
   // Notices on now or later, newest first. A day's grace keeps one that ends today, whatever the server's clock.
   const noticeRows = await db
     .select()
@@ -238,6 +266,13 @@ export async function websiteCatalogue(db: Executor, propertyCode: string): Prom
         roomTypes: types.filter((t) => p.roomTypeIds.includes(t.id)).map((t) => ({ code: t.code, name: t.name })),
       }))
       .filter((p) => p.roomTypes.length > 0),
+    reviews: {
+      rating: property.googleRating,
+      count: property.googleReviewCount,
+      listingUrl: property.mapsUrl,
+      writeUrl: property.reviewUrl,
+      items: reviewRows.map((r) => ({ id: r.id, author: r.author, authorUrl: r.authorUrl, photoUrl: r.photoUrl, rating: r.rating, text: r.text, reviewedAt: r.reviewedAt?.toISOString() ?? null, featured: r.featured })),
+    },
     company: { legalName: property.legalName || null, gstin: property.gstin || null, address: property.address || null, phone: property.phone || null, email: property.email || null },
     notices: noticeRows.map((n) => ({ id: n.id, message: n.message, linkLabel: n.linkLabel, linkUrl: n.linkUrl, startsOn: n.startsOn, endsOn: n.endsOn })),
     // An offer scheduled as Offer of the Day shows in its strip, on its days only.

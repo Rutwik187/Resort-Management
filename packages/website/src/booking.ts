@@ -5,10 +5,11 @@ import { after } from "next/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import type { CheckoutOrder, ConfirmResult, LiveStock, OnlineChoice, OnlineGuest, StartResult } from "@repo/booking-ui";
-import { getDb, onlinePayments, properties } from "@repo/db";
+import { bookings, getDb, guests, onlinePayments, properties } from "@repo/db";
 import {
   bookingForGuest,
   bookOnline,
+  cancelByGuest,
   closedDates,
   completeCheckout,
   CouponError,
@@ -26,6 +27,8 @@ import {
 } from "@repo/engine";
 import type { PropertyCode } from "@repo/sites";
 import { catalogueTag } from "./index";
+import { withinLimit } from "./leads";
+import { sendMetaEvent } from "./meta";
 
 /*
  * Booking and paying on a resort's website (docs/implementation-plan.md,
@@ -98,6 +101,8 @@ export async function startOnlineBooking(siteCode: PropertyCode, choice: OnlineC
   if (!parsedGuest.success) return { ok: false, error: "Please check your name, mobile number and email." };
   const c = parsedChoice.data;
   const g = parsedGuest.data;
+  // Each try holds rooms, so a visitor gets ten tries in ten minutes (SEC-04).
+  if (!(await withinLimit("checkout", siteCode, 10, 600))) return { ok: false, error: "Too many tries just now. Please wait a few minutes, or send the request on WhatsApp.", whatsapp: true };
   const head = await headers();
   const forwarded = head.get("x-forwarded-for");
   const host = head.get("x-forwarded-host") ?? head.get("host");
@@ -162,6 +167,9 @@ export async function confirmOnlinePayment(siteCode: PropertyCode, answer: unkno
     const { bookingId } = await completeCheckout(db, parsed.data);
     // The confirmation email goes once the guest has their answer.
     after(() => sendQueuedEmails(db, { bookingId }).catch((error) => console.error("Sending the confirmation failed; the batch job retries.", error)));
+    // Meta hears of the purchase from the server too, under the Pixel's event id, when the guest agreed to marketing (TRK-02).
+    const [paid] = await db.select({ number: bookings.number, totalPaise: bookings.totalPaise, consent: bookings.consent, email: guests.email, phone: guests.phone }).from(bookings).innerJoin(guests, eq(guests.id, bookings.guestId)).where(eq(bookings.id, bookingId));
+    if (paid?.consent?.marketing) await sendMetaEvent({ name: "Purchase", eventId: `purchase-${paid.number}`, value: (paid.totalPaise ?? 0) / 100, email: paid.email, phone: paid.phone });
     return { ok: true };
   } catch (error) {
     if (guestError(error)) return { ok: false, error: (error as Error).message };
@@ -234,5 +242,24 @@ export async function payGuestBalance(siteCode: PropertyCode, token: string): Pr
     if (guestError(error)) return { ok: false, error: (error as Error).message };
     console.error(`A balance payment at ${siteCode} failed to start.`, error);
     return { ok: false, error: "The payment couldn't start. Please try again." };
+  }
+}
+
+/** The guest cancels from their page (BK-07); the refund the rules give is asked for at once. */
+export async function cancelGuestBooking(siteCode: PropertyCode, token: string): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  if (!/^[\w-]{20,64}$/.test(token)) return { ok: false, error: "This link isn't right." };
+  if (!(await withinLimit("cancel", siteCode, 5, 600))) return { ok: false, error: "Too many tries just now. Please wait a few minutes." };
+  const db = getDb();
+  const booking = await bookingForGuest(db, token);
+  if (!booking || booking.resort.code !== siteCode) return { ok: false, error: "This link isn't right." };
+  try {
+    const done = await cancelByGuest(db, token);
+    after(() => sendQueuedEmails(db, { bookingId: booking.id }).catch(() => undefined));
+    const back = done.refundPaise > 0 ? ` ₹${(done.refundPaise / 100).toLocaleString("en-IN")} ${done.refundStatus === "requested" ? "will go back once the resort approves it" : "is on its way back"}.` : "";
+    return { ok: true, message: `Booking ${done.number} is cancelled.${back}` };
+  } catch (error) {
+    if (guestError(error)) return { ok: false, error: (error as Error).message };
+    console.error(`A guest cancellation at ${siteCode} failed.`, error);
+    return { ok: false, error: "That didn't go through. Please call the resort." };
   }
 }

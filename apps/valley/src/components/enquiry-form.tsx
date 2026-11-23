@@ -70,7 +70,7 @@ export function EnquiryForm({ defaultPurpose = "stay", compact = false, classNam
     window.open(`https://wa.me/${contact.whatsapp.number}?text=${encodeURIComponent(lines.join("\n"))}`, "_blank", "noopener,noreferrer");
     // Kept as a lead in the admin too. WhatsApp has opened already, so this never holds the guest up.
     sendEnquiry({ consent, campaign: currentCampaign() as Record<string, string>, purpose, name: data.get("name"), phone: data.get("phone"), date: date || undefined, guests: data.get("guests") || undefined, note: lines.join("\n") }).catch(() => undefined);
-    trackEvent("generate_lead", { lead_type: purpose }, { event: "Lead", params: { content_category: purpose } });
+    trackEvent("generate_lead", { lead_type: purpose }, { event: "Lead", eventId: consent.eventId, params: { content_category: purpose } });
   }
 
   return (

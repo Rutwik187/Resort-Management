@@ -1,7 +1,9 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { addons, bookingItems, stayPackages, bookings, guests, holds, invoices, offerings, offeringSlots, onlinePayments, properties, roomTypes, units, type CampaignJson, type ConsentJson, type Database } from "@repo/db";
 import { searchStays, seatsLeft } from "./availability";
-import { createBooking, normalisePhone, type GuestInput } from "./bookings";
+import { changeBookingStatus, createBooking, normalisePhone, type GuestInput } from "./bookings";
+import { loadCancellationRules, suggestRefund } from "./cancellation";
+import { refundablePayments, requestRefund } from "./refunds";
 import { isDate, nightsOf } from "./dates";
 import { packageArrivals, packageProblem } from "./packages";
 import { CouponError, NotFoundError, RuleError } from "./errors";
@@ -339,4 +341,41 @@ const packageListingCode = (packageCode: string, roomTypeCode: string) => `pkg~$
 function splitPackageCode(code: string): { roomCode: string; packageCode: string | null } {
   const [prefix, packageCode, roomCode] = code.split("~");
   return prefix === "pkg" && packageCode && roomCode ? { roomCode, packageCode } : { roomCode: code, packageCode: null };
+}
+
+/** What cancelling online would give back, by the resort's rules (BK-07). Null when the guest can't cancel online. */
+export async function guestCancellation(db: Database, token: string, today = new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10)) {
+  const [booking] = await db.select().from(bookings).where(eq(bookings.manageTokenHash, hashToken(token)));
+  if (!booking) return null;
+  const arrival = booking.checkIn ?? booking.visitDate;
+  if (!["confirmed", "part_paid"].includes(booking.status) || !arrival || arrival <= today) return null;
+  const rules = await loadCancellationRules(db, booking.propertyId);
+  const suggestion = suggestRefund(rules, booking, today);
+  // Only money paid online goes back by itself; money paid at the resort needs the team.
+  const online = (await refundablePayments(db, booking.id)).reduce((sum, p) => sum + p.refundablePaise, 0);
+  const refundPaise = Math.min(suggestion?.amountPaise ?? 0, online);
+  return { booking, rule: suggestion?.rule ?? null, refundPaise, paidPaise: booking.paidPaise, needsTeam: (suggestion?.amountPaise ?? 0) > online };
+}
+
+/**
+ * The guest cancels through their private link (BK-07). The booking is
+ * cancelled and the refund the resort's rules give is asked for at once:
+ * within the resort's no-approval limit it goes back through Razorpay
+ * straight away, otherwise it waits for a Super Admin.
+ */
+export async function cancelByGuest(db: Database, token: string) {
+  const offer = await guestCancellation(db, token);
+  if (!offer) throw new RuleError("This booking can't be cancelled online. Please call the resort.");
+  await changeBookingStatus(db, { bookingId: offer.booking.id, to: "cancelled", note: "Cancelled by the guest online." });
+  let refund = null;
+  if (offer.refundPaise > 0) {
+    refund = await requestRefund(db, {
+      bookingId: offer.booking.id,
+      amountPaise: offer.refundPaise,
+      reason: `Cancelled online by the guest. ${offer.rule ?? ""}`.trim(),
+      method: "razorpay",
+      canInitiate: true,
+    });
+  }
+  return { number: offer.booking.number, refundPaise: offer.refundPaise, refundStatus: refund?.status ?? null, needsTeam: offer.needsTeam };
 }

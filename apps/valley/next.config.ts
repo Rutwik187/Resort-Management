@@ -8,6 +8,25 @@ import type { NextConfig } from "next";
 const rootEnv = resolve(process.cwd(), "../../.env.local");
 if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
 
+/**
+ * Redirects staff add in the admin (SEO-04, SEO-07), read at build time and
+ * made permanent. The admin rebuilds this site when they change. Without
+ * the admin, the site builds with its own redirects only.
+ */
+async function adminRedirects() {
+  const admin = (process.env.ADMIN_URL ?? "https://prathamesh-admin.vercel.app").replace(/\/$/, "");
+  try {
+    const response = await fetch(`${admin}/api/redirects/PV`, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return [];
+    const rows = (await response.json()) as { source: string; destination: string }[];
+    return rows
+      .filter((r) => r.source.startsWith("/") && r.source !== "/" && (r.destination.startsWith("/") || r.destination.startsWith("https://")))
+      .map((r) => ({ source: r.source, destination: r.destination, permanent: true }));
+  } catch {
+    return [];
+  }
+}
+
 const nextConfig: NextConfig = {
   cacheComponents: true,
   experimental: {
@@ -31,8 +50,9 @@ const nextConfig: NextConfig = {
     },
   },
   // The old WordPress site's pages, so links and search results keep working.
-  redirects() {
+  async redirects() {
     return [
+      ...(await adminRedirects()),
       { source: "/about-us", destination: "/", permanent: true },
       { source: "/stay-packages", destination: "/stays", permanent: true },
       { source: "/events", destination: "/celebrations#events", permanent: true },

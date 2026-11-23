@@ -5,6 +5,7 @@ import {
   bookingEvents,
   bookingItems,
   bookings,
+  cancellationRules,
   capacityDays,
   holds,
   leadActivities,
@@ -49,6 +50,9 @@ import {
   holdStay,
   liftBlock,
   mergeLeads,
+  cancelByGuest,
+  guestCancellation,
+  newManageLink,
   queueGuestJourney,
   chooseOffer,
   offerDiscount,
@@ -571,6 +575,22 @@ describe("guest messages", () => {
     const [message] = await db.select().from(messages).where(eq(messages.bookingId, bookingId)).then((rows) => rows.filter((m) => m.kind === "pre_arrival"));
     expect(message.subject).toBe("Prathamesh Resorts awaits you, Riya");
     expect(message.text).toContain(`Check-in from 13:00 on Thursday, 3 May 2029. Booking ${number}.`);
+  });
+});
+
+describe("guest self-cancel", () => {
+  it("cancels from the guest's link before arrival, and leaves a desk payment's refund to the team", async () => {
+    await db.insert(cancellationRules).values({ propertyId, appliesTo: "stay", daysBefore: 7, refundPercent: 100 });
+    const held = await holdStay(db, { propertyId, checkIn: "2029-07-10", checkOut: "2029-07-11", rooms: [{ roomTypeId: pairId, party: couple }] });
+    const { bookingId } = await createBooking(db, { holdId: held.holdId, guest: { name: "Dev", phone: "9800000040" }, source: "phone", payment: { method: "cash", amountPaise: 500_000 } });
+    const token = await newManageLink(db, bookingId);
+    const offer = await guestCancellation(db, token, "2029-06-01");
+    expect(offer).toMatchObject({ refundPaise: 0, paidPaise: 500_000, needsTeam: true });
+    const done = await cancelByGuest(db, token);
+    expect(done).toMatchObject({ refundPaise: 0, needsTeam: true });
+    const [after] = await db.select().from(bookings).where(eq(bookings.id, bookingId));
+    expect(after.status).toBe("cancelled");
+    expect(await guestCancellation(db, token)).toBeNull();
   });
 });
 

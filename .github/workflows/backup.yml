@@ -1,0 +1,50 @@
+# Nightly copies of the production database and the Sanity content (REL-02).
+# Each run keeps its copy as a workflow artifact for 30 days, off Neon and Vercel.
+# Secrets to add in GitHub (Settings → Secrets and variables → Actions):
+#   NEON_DATABASE_URL_UNPOOLED  the production database's direct address (not the pooler)
+#   SANITY_AUTH_TOKEN           optional: a Sanity read token, to export the blog, FAQs and policies
+# To restore, see docs/handover.md, "Backups and restore".
+name: Nightly backup
+
+on:
+  schedule:
+    # 2 am in India.
+    - cron: "30 20 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SANITY_AUTH_TOKEN: ${{ secrets.SANITY_AUTH_TOKEN }}
+    steps:
+      - name: Copy the database
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL_UNPOOLED }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then echo "NEON_DATABASE_URL_UNPOOLED isn't set." && exit 1; fi
+          stamp=$(date -u +%Y-%m-%d)
+          # pg_dump must be at least the server's version; Neon runs Postgres 18.
+          docker run --rm -e DATABASE_URL postgres:18 sh -c 'pg_dump "$DATABASE_URL" --format=custom --no-owner --no-privileges' > "prathamesh-db-$stamp.dump"
+          ls -lh "prathamesh-db-$stamp.dump"
+          test -s "prathamesh-db-$stamp.dump"
+
+      - name: Export the Sanity dataset
+        if: ${{ env.SANITY_AUTH_TOKEN != '' }}
+        run: |
+          stamp=$(date -u +%Y-%m-%d)
+          npx -y sanity@6.22.0 dataset export production "prathamesh-sanity-$stamp.tar.gz" --project ipifz5ts --overwrite
+
+      - name: Keep the copies for 30 days
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.run_id }}
+          path: |
+            prathamesh-db-*.dump
+            prathamesh-sanity-*.tar.gz
+          retention-days: 30
+          if-no-files-found: error

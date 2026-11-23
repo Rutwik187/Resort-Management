@@ -1,7 +1,7 @@
 "use server";
 
 import type { LiveQuery, OnlineChoice, OnlineGuest, PaymentAnswer } from "@repo/booking-ui";
-import { confirmOnlinePayment, liveStock, payGuestBalance, recheckGuestBooking, startOnlineBooking } from "@repo/website/booking";
+import { cancelGuestBooking, confirmOnlinePayment, liveStock, payGuestBalance, recheckGuestBooking, startOnlineBooking } from "@repo/website/booking";
 import { saveBookingRequest, saveCorporateEnquiry, saveEnquiry } from "@repo/website/leads";
 
 /*
@@ -47,4 +47,9 @@ export async function checkStock(query: LiveQuery) {
 /** A corporate enquiry, kept as a Corporate lead at the resort the guest chose. */
 export async function sendCorporateEnquiry(enquiry: unknown) {
   return saveCorporateEnquiry("GC", enquiry);
+}
+
+/** The guest cancels from their booking page (BK-07). */
+export async function cancelOwnBooking(token: string) {
+  return cancelGuestBooking("GC", token);
 }

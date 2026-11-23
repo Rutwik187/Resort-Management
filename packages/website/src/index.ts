@@ -3,7 +3,7 @@ import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 import { offerNotes, offersFor, packageListings, passesFromCatalogue, stayGroupsFromCatalogue, type ListingGroup, type Pass } from "@repo/booking-ui/catalogue";
 import type { OnlineAddon } from "@repo/booking-ui";
 import { getDb } from "@repo/db";
-import { websiteCatalogue, type WebsiteCompany, type WebsiteNotice, type WebsiteOffer, type WebsiteOfferDay } from "@repo/engine";
+import { websiteCatalogue, type WebsiteCompany, type WebsiteNotice, type WebsiteOffer, type WebsiteOfferDay, type WebsiteReviews } from "@repo/engine";
 import { contentTag, revalidateContent } from "@repo/sanity";
 import { propertyByCode, type PropertyCode } from "@repo/sites";
 
@@ -101,6 +101,12 @@ export async function liveOffers(code: PropertyCode): Promise<WebsiteOffer[]> {
 export async function liveOfferDays(code: PropertyCode): Promise<WebsiteOfferDay[]> {
   const data = await catalogue(code);
   return data?.offerDays ?? [];
+}
+
+/** Google's rating, count and the reviews to show (REV-02). Null without a database. */
+export async function liveReviews(code: PropertyCode): Promise<WebsiteReviews | null> {
+  const data = await catalogue(code);
+  return data?.reviews ?? null;
 }
 
 /** The resort's notices from the admin, newest first. None without a database. */

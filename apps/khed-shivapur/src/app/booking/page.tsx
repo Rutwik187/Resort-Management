@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { GuestBookingPage } from "@repo/website/booking-page";
-import { checkBooking, confirmPayment, payBalance } from "@/app/actions";
+import { cancelOwnBooking, checkBooking, confirmPayment, payBalance } from "@/app/actions";
 import { desk } from "@/content/booking";
 
 export const metadata: Metadata = { title: "Your booking", robots: { index: false, follow: false } };
@@ -22,5 +22,5 @@ export default function BookingPage({ searchParams }: PageProps<"/booking">) {
 async function Booking({ searchParams }: { searchParams: PageProps<"/booking">["searchParams"] }) {
   const ref = (await searchParams).ref;
   if (typeof ref !== "string") notFound();
-  return <GuestBookingPage code="KS" token={ref} actions={{ pay: payBalance.bind(null, ref), confirm: confirmPayment, check: checkBooking.bind(null, ref) }} contact={desk} />;
+  return <GuestBookingPage code="KS" token={ref} actions={{ pay: payBalance.bind(null, ref), confirm: confirmPayment, check: checkBooking.bind(null, ref), cancel: cancelOwnBooking.bind(null, ref) }} contact={desk} />;
 }

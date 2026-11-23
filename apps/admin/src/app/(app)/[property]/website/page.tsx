@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq } from "drizzle-orm";
 import { ArrowRight, BadgePercent, BedDouble, CalendarRange, ExternalLink, Globe, Link2, Megaphone, NotebookPen, Ticket } from "lucide-react";
 import { can } from "@repo/auth";
-import { getDb, roomTypes, siteNotices } from "@repo/db";
+import { getDb, properties, redirects, reviews, roomTypes, siteNotices } from "@repo/db";
 import { todayInIndia, websiteCatalogue } from "@repo/engine";
 import { studioUrl } from "@repo/sanity/config";
 import { properties as sites } from "@repo/sites";
@@ -13,10 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { ago, plural, rupees, shortDate } from "@/lib/format";
+import { ago, plural, rupees, shortDate, when } from "@/lib/format";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
 import { websiteUrls } from "@/lib/website";
 import { DeleteNoticeButton, NoticeDialog, NoticeSwitch, RefreshWebsiteButton } from "./forms";
+import { PlaceIdForm, RedirectForm, RemoveRedirectButton, ReviewButtons } from "./seo-forms";
 
 export const metadata = { title: "Website" };
 
@@ -67,6 +68,9 @@ export default async function WebsitePage({ params }: PageProps<"/[property]/web
   const rank = (n: Notice) => (n === showing ? 0 : isOn(n) ? 1 : n.active && (!n.endsOn || n.endsOn >= today) ? 2 : 3);
   const ordered = [...notices].sort((a, b) => rank(a) - rank(b));
 
+  const [settings] = await db.select({ googlePlaceId: properties.googlePlaceId, googleRating: properties.googleRating, googleReviewCount: properties.googleReviewCount, reviewsSyncedAt: properties.reviewsSyncedAt }).from(properties).where(eq(properties.id, property.id));
+  const reviewList = await db.select().from(reviews).where(eq(reviews.propertyId, property.id)).orderBy(desc(reviews.featured), desc(reviews.reviewedAt)).limit(30);
+  const redirectList = await db.select().from(redirects).where(eq(redirects.propertyId, property.id)).orderBy(asc(redirects.fromPath));
   const stays = catalogue?.roomTypes ?? [];
   const passes = catalogue?.passes ?? [];
   const offers = catalogue?.offers ?? [];
@@ -212,6 +216,61 @@ export default async function WebsitePage({ params }: PageProps<"/[property]/web
             })}
           </ul>
         )}
+      </Card>
+
+      <Card className="gap-0 overflow-hidden py-0 shadow-xs">
+        <CardHeader className="border-b py-5 [.border-b]:pb-5">
+          <CardTitle>Google reviews</CardTitle>
+          <CardDescription>
+            The website shows Google&apos;s rating and count exactly as Google gives them, and the reviews below with Google&apos;s attribution. Feature the ones for the home page. The daily job reads them again; Google&apos;s Places API gives up to five at a time.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 py-5">
+          <PlaceIdForm propertyId={property.id} placeId={settings.googlePlaceId} />
+          {settings.reviewsSyncedAt && (
+            <p className="text-sm text-muted-foreground">
+              {settings.googleRating ? `${settings.googleRating} stars from ${settings.googleReviewCount ?? 0} reviews on Google` : "No rating yet"} · read {when(settings.reviewsSyncedAt)}
+            </p>
+          )}
+          {reviewList.length > 0 && (
+            <ul className="divide-y rounded-lg border">
+              {reviewList.map((review) => (
+                <li key={review.id} className={`flex flex-wrap items-start justify-between gap-3 p-3 text-sm ${review.hidden ? "opacity-60" : ""}`}>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">
+                      {review.author} <span className="text-warn">{"★".repeat(review.rating)}</span>
+                      <span className="text-muted-foreground">{"★".repeat(5 - review.rating)}</span>
+                    </p>
+                    {review.text && <p className="mt-1 line-clamp-3 text-muted-foreground">{review.text}</p>}
+                  </div>
+                  <ReviewButtons reviewId={review.id} featured={review.featured} hidden={review.hidden} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="gap-0 overflow-hidden py-0 shadow-xs">
+        <CardHeader className="border-b py-5 [.border-b]:pb-5">
+          <CardTitle>Redirects</CardTitle>
+          <CardDescription>Old addresses that move to new ones for good, so search rankings follow (SEO-04). The website rebuilds when you add or remove one.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 py-5">
+          <RedirectForm propertyId={property.id} />
+          {redirectList.length > 0 && (
+            <ul className="divide-y rounded-lg border">
+              {redirectList.map((r) => (
+                <li key={r.id} className="flex items-center justify-between gap-3 px-3 py-2 font-mono text-sm">
+                  <span className="min-w-0 truncate">
+                    {r.fromPath} <span className="text-muted-foreground">→</span> {r.toPath}
+                  </span>
+                  <RemoveRedirectButton redirectId={r.id} from={r.fromPath} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
       </Card>
 
       <div className="grid gap-1">

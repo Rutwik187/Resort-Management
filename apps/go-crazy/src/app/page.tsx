@@ -1,3 +1,4 @@
+import { GoogleReviews } from "@repo/website/reviews";
 import { OfferOfTheDay } from "@repo/website/offers";
 import type { Viewport } from "next";
 import { Enquiry } from "@/components/enquiry";
@@ -67,6 +68,7 @@ export default function HomePage() {
       <SchoolsTeaser />
       <CelebrationsTeaser />
       <Near />
+      <GoogleReviews code="GC" className="mx-auto max-w-[1600px] px-4 py-16 md:px-8" />
       <Enquiry />
     </PageTransition>
   );

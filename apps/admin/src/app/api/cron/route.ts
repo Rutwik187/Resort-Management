@@ -1,5 +1,5 @@
 import { getDb } from "@repo/db";
-import { addDays, dueFollowUps, expireHolds, queueFollowUpReminders, queueGuestJourney, queueLowRoomsAlerts, queueSalesSummaries, recheckOnlinePayments, sendQueuedEmails, syncSettlements, todayInIndia } from "@repo/engine";
+import { addDays, dueFollowUps, pruneRequestLimits, syncGoogleReviews, expireHolds, queueFollowUpReminders, queueGuestJourney, queueLowRoomsAlerts, queueSalesSummaries, recheckOnlinePayments, sendQueuedEmails, syncSettlements, todayInIndia } from "@repo/engine";
 
 export const maxDuration = 60;
 
@@ -25,6 +25,9 @@ export async function GET(request: Request) {
   // Before-arrival and thank-you emails, and the low-rooms alert to each team (URD 9.2, INV-10).
   const journey = await queueGuestJourney(db);
   const lowRooms = await queueLowRoomsAlerts(db);
+  // Google reviews for every resort with a place id (REV-01), and old rate-limit counts.
+  const reviews = await syncGoogleReviews(db);
+  await pruneRequestLimits(db);
   const emails = await sendQueuedEmails(db, { limit: 200 });
-  return Response.json({ expired, ...payments, reminders, settlements, summaries, journey, lowRooms, emails });
+  return Response.json({ expired, ...payments, reminders, settlements, summaries, journey, lowRooms, reviews, emails });
 }

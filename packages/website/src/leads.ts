@@ -1,7 +1,9 @@
 import "server-only";
 import { z } from "zod";
 import { getDb } from "@repo/db";
-import { recordWebsiteLead } from "@repo/engine";
+import { headers } from "next/headers";
+import { recordWebsiteLead, takeRequest } from "@repo/engine";
+import { sendMetaEvent } from "./meta";
 import type { PropertyCode } from "@repo/sites";
 
 /*
@@ -29,7 +31,7 @@ const bookingRequest = z.object({
 /** Each site names its own purposes; these are the admin's kinds of lead. */
 const interests: Record<string, "stay" | "day" | "wedding" | "corporate" | "event"> = { stay: "stay", group: "stay", day: "day", school: "day", picnic: "day", wedding: "wedding", event: "event", corporate: "corporate" };
 
-const consent = z.object({ version: z.string().max(20), marketing: z.boolean(), at: z.string().max(40) }).optional().catch(undefined);
+const consent = z.object({ version: z.string().max(20), marketing: z.boolean(), at: z.string().max(40), eventId: z.string().max(60).optional() }).optional().catch(undefined);
 const campaign = z
   .partialRecord(z.enum(["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "gclid", "fbclid", "landing", "referrer"]), z.string().max(300))
   .optional()
@@ -48,10 +50,27 @@ const enquiry = z.object({
   campaign,
 });
 
+/** The visitor's IP address, as Vercel passes it on. */
+export async function visitorIp() {
+  const head = await headers();
+  return head.get("x-real-ip") ?? head.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+}
+
+/** Whether this visitor may send another of these now (SEC-04). A limit that can't be checked lets the request through. */
+export async function withinLimit(kind: string, code: PropertyCode, limit: number, windowSeconds: number) {
+  try {
+    return await takeRequest(getDb(), `${kind}:${code}:${await visitorIp()}`, limit, windowSeconds);
+  } catch (error) {
+    console.error("The rate limit couldn't be checked.", error);
+    return true;
+  }
+}
+
 /** What the booking widget sent on WhatsApp, as a lead. */
 export async function saveBookingRequest(code: PropertyCode, input: unknown) {
   const parsed = bookingRequest.safeParse(input);
   if (!parsed.success || !process.env.DATABASE_URL) return;
+  if (!(await withinLimit("request", code, 10, 600))) return;
   const request = parsed.data;
   try {
     await recordWebsiteLead(getDb(), {
@@ -75,6 +94,7 @@ export async function saveBookingRequest(code: PropertyCode, input: unknown) {
 export async function saveEnquiry(code: PropertyCode, input: unknown) {
   const parsed = enquiry.safeParse(input);
   if (!parsed.success || !process.env.DATABASE_URL) return;
+  if (!(await withinLimit("enquiry", code, 5, 600))) return;
   const form = parsed.data;
   try {
     await recordWebsiteLead(getDb(), {
@@ -87,9 +107,10 @@ export async function saveEnquiry(code: PropertyCode, input: unknown) {
       dateFrom: form.date,
       guests: form.guests,
       message: form.note,
-      consent: form.consent,
+      consent: form.consent ? { version: form.consent.version, marketing: form.consent.marketing, at: form.consent.at } : undefined,
       campaign: form.campaign,
     });
+    if (form.consent?.marketing) await sendMetaEvent({ name: "Lead", eventId: form.consent.eventId ?? `lead-${code}-${Date.now()}`, phone: form.phone, email: form.email, category: form.purpose });
   } catch (error) {
     console.error(`A ${code} enquiry wasn't saved as a lead.`, error);
   }
@@ -112,7 +133,7 @@ const corporate = z.object({
   meeting: text(300).catch(""),
   budget: text(80).catch(""),
   note: text(2000).catch(""),
-  consent: z.object({ version: z.string().max(20), marketing: z.boolean(), at: z.string().max(40) }),
+  consent: z.object({ version: z.string().max(20), marketing: z.boolean(), at: z.string().max(40), eventId: z.string().max(60).optional() }),
   campaign,
 });
 
@@ -124,6 +145,7 @@ const corporate = z.object({
 export async function saveCorporateEnquiry(siteCode: PropertyCode, input: unknown): Promise<{ ok: boolean }> {
   const parsed = corporate.safeParse(input);
   if (!parsed.success || !process.env.DATABASE_URL) return { ok: false };
+  if (!(await withinLimit("corporate", siteCode, 5, 600))) return { ok: false };
   const form = parsed.data;
   const details: Record<string, string> = Object.fromEntries(
     Object.entries({
@@ -151,9 +173,10 @@ export async function saveCorporateEnquiry(siteCode: PropertyCode, input: unknow
       message: form.note || undefined,
       details,
       budget: form.budget || undefined,
-      consent: form.consent,
+      consent: { version: form.consent.version, marketing: form.consent.marketing, at: form.consent.at },
       campaign: form.campaign,
     });
+    if (form.consent.marketing) await sendMetaEvent({ name: "Lead", eventId: form.consent.eventId ?? `lead-${siteCode}-${Date.now()}`, phone: form.phone, email: form.email || undefined, category: "corporate" });
     return { ok: true };
   } catch (error) {
     console.error(`A corporate enquiry from ${siteCode} wasn't saved as a lead.`, error);

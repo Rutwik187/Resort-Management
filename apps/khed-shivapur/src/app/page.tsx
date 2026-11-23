@@ -1,3 +1,4 @@
+import { GoogleReviews } from "@repo/website/reviews";
 import { OfferOfTheDay } from "@repo/website/offers";
 import type { Viewport } from "next";
 import { Hero } from "@/components/home/hero";
@@ -66,6 +67,7 @@ export default function HomePage() {
       <Kitchens />
       <Place />
       <OurResorts />
+      <GoogleReviews code="KS" className="mx-auto max-w-[1680px] px-5 py-16 md:px-10" />
       <Enquiry />
     </PageTransition>
   );

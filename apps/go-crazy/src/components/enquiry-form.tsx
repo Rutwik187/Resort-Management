@@ -100,7 +100,7 @@ export function EnquiryForm({ defaultPurpose = "day", defaultPass = "morning", c
     window.open(`https://wa.me/${contact.whatsapp.number}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
     // Kept as a lead in the admin too. WhatsApp has opened already, so this never holds the guest up.
     sendEnquiry({ consent, campaign: currentCampaign() as Record<string, string>, purpose, name: data.get("name"), phone: data.get("phone"), date: date || undefined, guests: data.get("guests") || undefined, note: text }).catch(() => undefined);
-    trackEvent("generate_lead", { lead_type: purpose }, { event: "Lead", params: { content_category: purpose } });
+    trackEvent("generate_lead", { lead_type: purpose }, { event: "Lead", eventId: consent.eventId, params: { content_category: purpose } });
   }
 
   const twoUp = compact ? "grid grid-cols-2 gap-4" : "grid gap-5 sm:grid-cols-2";

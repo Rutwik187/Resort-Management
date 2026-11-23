@@ -1,3 +1,4 @@
+import { GoogleReviews } from "@repo/website/reviews";
 import { OfferOfTheDay } from "@repo/website/offers";
 import type { Viewport } from "next";
 import { Hero } from "@/components/home/hero";
@@ -64,6 +65,7 @@ export default function HomePage() {
       <Celebrations />
       <WayUp />
       <Offers />
+      <GoogleReviews code="SB" className="mx-auto max-w-[1560px] px-5 py-16 md:px-10" />
       <Enquiry />
     </PageTransition>
   );

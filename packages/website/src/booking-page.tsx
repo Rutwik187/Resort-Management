@@ -1,8 +1,8 @@
 import "server-only";
 import { notFound } from "next/navigation";
-import { PayBalanceButton, RefreshWhileWaiting, type ConfirmResult, type PaymentAnswer } from "@repo/booking-ui";
+import { CancelBookingButton, PayBalanceButton, RefreshWhileWaiting, type ConfirmResult, type PaymentAnswer } from "@repo/booking-ui";
 import { getDb, invoices, bookings } from "@repo/db";
-import { hashToken } from "@repo/engine";
+import { guestCancellation, hashToken } from "@repo/engine";
 import type { PropertyCode } from "@repo/sites";
 import { and, eq } from "drizzle-orm";
 import { guestBooking } from "./booking";
@@ -45,6 +45,8 @@ type Actions = {
   confirm: (answer: PaymentAnswer) => Promise<ConfirmResult>;
   /** Asks Razorpay about a payment still waiting. */
   check: () => Promise<boolean>;
+  /** Cancels the booking, with the refund the resort's rules give (BK-07). */
+  cancel?: () => Promise<{ ok: true; message: string } | { ok: false; error: string }>;
 };
 
 export async function GuestBookingPage({ code, token, actions, contact }: { code: PropertyCode; token: string; actions: Actions; contact: { phone?: { href: string; display: string }; whatsapp?: { number: string; display: string } } }) {
@@ -54,6 +56,7 @@ export async function GuestBookingPage({ code, token, actions, contact }: { code
   const canPay = booking.balancePaise !== null && booking.balancePaise >= 100 && (["part_paid", "confirmed", "checked_in"].includes(booking.status) || (booking.status === "pending_payment" && booking.holdExpiresAt));
   const waiting = booking.status === "pending_payment";
   const card = "rounded-bk border border-bk-line bg-bk-card p-5 sm:p-6";
+  const cancellable = actions.cancel ? await guestCancellation(getDb(), token) : null;
 
   return (
     <div className="mx-auto max-w-3xl px-5 pb-24 pt-28 text-bk-ink md:pt-36">
@@ -189,6 +192,27 @@ export async function GuestBookingPage({ code, token, actions, contact }: { code
         </div>
         <p className="mt-4 text-[0.85rem] text-bk-muted">Keep this page&apos;s link private: anyone with it can see your booking.</p>
       </section>
+
+      {cancellable && actions.cancel && (
+        <section className={`mt-4 ${card}`}>
+          <h2 className="bk-display text-[1.3rem]">Change of plans?</h2>
+          <p className="mt-2 text-[0.95rem] text-bk-muted">
+            {cancellable.rule ? `The resort's rule today: ${cancellable.rule}.` : "You can cancel before your arrival."} To change dates instead, call or WhatsApp the resort.
+          </p>
+          <div className="mt-4">
+            <CancelBookingButton
+              cancel={actions.cancel}
+              refundText={
+                cancellable.refundPaise > 0
+                  ? `${rupees(cancellable.refundPaise)} of the ${rupees(cancellable.paidPaise)} you paid goes back the way you paid.${cancellable.needsTeam ? " The resort settles the rest of your refund with you." : ""}`
+                  : cancellable.needsTeam
+                    ? "The resort settles any refund with you, since you paid at the resort."
+                    : `By the resort's rules, nothing of the ${rupees(cancellable.paidPaise)} paid goes back.`
+              }
+            />
+          </div>
+        </section>
+      )}
     </div>
   );
 }
