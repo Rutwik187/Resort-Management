@@ -97,7 +97,7 @@ flowchart LR
 - **No double bookings.** Each room has at most one row per night (`unit_nights`, unique on room and night), so two guests can't hold the same room (INV-03). Day packages count seats per slot per day.
 - **Sites cache what the admin sets.** Rooms, rates, packages, offers, notices and reviews are cached until the admin calls the site's `/api/revalidate`. Availability and prices for a search are always read live.
 - **Messages go through an outbox** (`messages`). A message is written with the change it reports and sent after the request, or by the daily job.
-- **Background jobs** run on Vercel Pro's cron (`apps/admin/vercel.json`), each at `/api/cron/<job>` with `CRON_SECRET`. Each takes a lock in `job_runs`, so a doubled call runs once, and records its last result or error.
+- **Background jobs** run on Vercel Cron, each at `/api/cron/<job>` with `CRON_SECRET`. Each takes a lock in `job_runs`, so a doubled call runs once, and records its last result or error.
 
   | Job | When (India time) | What it does |
   |---|---|---|
@@ -108,6 +108,7 @@ flowchart LR
   | `summary` | 9 pm | the day's sales summary |
   | `periodic` | 8 am | the week's summary on Mondays, the month's on the 1st |
 
+- **Hobby or Pro.** Vercel's Hobby plan allows each cron job once a day, so `apps/admin/vercel.json` runs every job once a day at the times above (`frequent` at 6:30 am). After moving the team to Pro, copy `apps/admin/vercel.pro.json` over `apps/admin/vercel.json` and deploy: that turns on the 15-minute and 2-hour runs. Until then, the sites also recheck a payment while the guest waits on their booking page.
 - **Files** go to Vercel Blob straight from the browser, with a short-lived token from `/api/blob/upload`: gallery photos to the public store, ID proofs to the private store. ID proofs open only through the admin, which checks the role and logs each view.
 
 ### Main tables
