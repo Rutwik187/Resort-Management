@@ -6,7 +6,7 @@ import { z } from "zod";
 import { can } from "@repo/auth";
 import { bookings, getDb, properties, refunds } from "@repo/db";
 import { after } from "next/server";
-import { createPaymentLink, decideRefund, newManageLink, NotFoundError, queueBookingLinkEmail, requestRefund, retryRefund, sendQueuedEmails } from "@repo/engine";
+import { createPaymentLink, decideRefund, newManageLink, NotFoundError, queueBookingLinkEmail, queueConfirmationEmail, requestRefund, retryRefund, sendQueuedEmails } from "@repo/engine";
 import { rupees } from "@/lib/format";
 import { filled, problem, rupeesField, type FormState } from "@/lib/forms";
 import { audit, currentStaff, requirePermission } from "@/lib/staff";
@@ -17,7 +17,7 @@ const sendMail = (bookingId: string) => after(() => sendQueuedEmails(getDb(), { 
 
 async function propertyOf(bookingId: string) {
   z.uuid({ error: "That booking no longer exists." }).parse(bookingId);
-  const [booking] = await getDb().select({ propertyId: bookings.propertyId, number: bookings.number }).from(bookings).where(eq(bookings.id, bookingId));
+  const [booking] = await getDb().select({ propertyId: bookings.propertyId, number: bookings.number, status: bookings.status }).from(bookings).where(eq(bookings.id, bookingId));
   if (!booking) throw new NotFoundError("Booking");
   return booking;
 }
@@ -123,6 +123,27 @@ export async function sendBookingPage(bookingId: string): Promise<FormState> {
     if (emailed) sendMail(bookingId);
     refresh();
     return { done: emailed ? `Booking page emailed to the guest. Its address: ${url}` : `No email on the booking. Send this address on WhatsApp: ${url}` };
+  } catch (error) {
+    return problem(error, "Your role can't change bookings.");
+  }
+}
+
+/** Sends the guest's confirmation again, with a fresh link to their booking page (ADM-05). Any earlier link stops working. */
+export async function resendConfirmation(bookingId: string): Promise<FormState> {
+  try {
+    const booking = await propertyOf(bookingId);
+    const staff = await requirePermission("bookings.modify", booking.propertyId);
+    if (!["confirmed", "part_paid", "checked_in", "checked_out"].includes(booking.status)) return { error: "Only a paid or confirmed booking has a confirmation to send." };
+    const [row] = await getDb().select({ code: properties.code }).from(properties).where(eq(properties.id, booking.propertyId));
+    const site = websiteUrls()[row.code];
+    if (!site) return { error: "This resort's website address isn't set (WEBSITE_URLS)." };
+    const token = await newManageLink(getDb(), bookingId);
+    const emailed = await queueConfirmationEmail(getDb(), bookingId, `${site.replace(/\/$/, "")}/booking?ref=${token}`);
+    if (!emailed) return { error: "This booking has no email address. Add one, or send the booking page on WhatsApp." };
+    await audit({ userId: staff.userId, propertyId: booking.propertyId, action: "booking.resend_confirmation", entity: "bookings", entityId: bookingId });
+    sendMail(bookingId);
+    refresh();
+    return { done: "Confirmation sent again." };
   } catch (error) {
     return problem(error, "Your role can't change bookings.");
   }

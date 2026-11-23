@@ -25,6 +25,7 @@ import { loadTaxRules, taxQuote } from "./tax";
 import { recordPaymentInTx, type PaymentInput } from "./payments";
 import { headcount } from "./pricing";
 import { recordOfferUse, type AppliedOffer } from "./offer-choice";
+import { queueBookingCancelled, queueNewBookingAlert } from "./booking-messages";
 
 export type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 export type BookingStatus = (typeof bookings.$inferSelect)["status"];
@@ -254,6 +255,8 @@ export async function markPaid(tx: Tx, bookingId: string, to: "confirmed" | "par
   await tx.update(bookings).set({ status: to }).where(eq(bookings.id, bookingId));
   await tx.insert(bookingEvents).values({ propertyId: booking.propertyId, bookingId, type: "status", fromStatus: booking.status, toStatus: to, userId: userId ?? null, note: note ?? null });
   await ensureInvoice(tx, bookingId, userId);
+  // The team hears of a booking once, when it is first paid or confirmed.
+  if (booking.status === "pending_payment") await queueNewBookingAlert(tx, bookingId);
 }
 
 /** Turns a booking's held rooms and seats into booked ones, taking again any that were let go. */
@@ -338,6 +341,7 @@ export async function changeBookingStatus(db: Database, input: { bookingId: stri
     await tx.update(bookings).set({ status: input.to }).where(eq(bookings.id, booking.id));
     await tx.insert(bookingEvents).values({ propertyId: booking.propertyId, bookingId: booking.id, type: "status", fromStatus: booking.status, toStatus: input.to, userId: input.userId ?? null, note: input.note ?? null });
     if (input.to === "cancelled" || input.to === "no_show") await alignInvoiceToKept(tx, booking.id, input.to === "cancelled" ? "Booking cancelled." : "Guest did not come.", input.userId);
+    if (input.to === "cancelled") await queueBookingCancelled(tx, booking.id, input.note);
   });
 }
 

@@ -1,5 +1,5 @@
 import { getDb } from "@repo/db";
-import { addDays, dueFollowUps, expireHolds, queueFollowUpReminders, queueSalesSummaries, recheckOnlinePayments, sendQueuedEmails, syncSettlements, todayInIndia } from "@repo/engine";
+import { addDays, dueFollowUps, expireHolds, queueFollowUpReminders, queueGuestJourney, queueLowRoomsAlerts, queueSalesSummaries, recheckOnlinePayments, sendQueuedEmails, syncSettlements, todayInIndia } from "@repo/engine";
 
 export const maxDuration = 60;
 
@@ -22,6 +22,9 @@ export async function GET(request: Request) {
   const settlements = await syncSettlements(db, addDays(todayInIndia(), -1));
   // The day's sales summary, and the week's on Mondays and the month's on the 1st (RPT-01).
   const summaries = await queueSalesSummaries(db);
+  // Before-arrival and thank-you emails, and the low-rooms alert to each team (URD 9.2, INV-10).
+  const journey = await queueGuestJourney(db);
+  const lowRooms = await queueLowRoomsAlerts(db);
   const emails = await sendQueuedEmails(db, { limit: 200 });
-  return Response.json({ expired, ...payments, reminders, settlements, summaries, emails });
+  return Response.json({ expired, ...payments, reminders, settlements, summaries, journey, lowRooms, emails });
 }

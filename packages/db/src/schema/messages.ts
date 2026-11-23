@@ -1,4 +1,5 @@
-import { index, integer, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgEnum, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { createdBy } from "./common";
 import { bookings } from "./bookings";
 import { leads } from "./leads";
 import { timestamps } from "./common";
@@ -36,7 +37,34 @@ export const messages = pgTable(
     providerId: text(),
     error: text(),
     sentAt: timestamp({ withTimezone: true }),
+    /** What the provider says happened after sending: delivered, bounced, complained or failed (NOT-05). */
+    delivery: text(),
+    deliveryAt: timestamp({ withTimezone: true }),
     ...timestamps,
   },
   (t) => [index().on(t.status, t.createdAt), index().on(t.bookingId), index().on(t.leadId)],
+);
+
+/**
+ * A resort's own wording for a message (NOT-01): its subject and the text
+ * at the top, with fields such as {{guestName}} filled in when it is sent.
+ * The booking's details, the button and the footer stay as they are. A
+ * kind with no template uses the wording in code.
+ */
+export const messageTemplates = pgTable(
+  "message_templates",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    propertyId: uuid()
+      .notNull()
+      .references(() => properties.id),
+    kind: text().notNull(),
+    channel: messageChannel().notNull().default("email"),
+    subject: text().notNull(),
+    body: text().notNull(),
+    active: boolean().notNull().default(true),
+    createdBy: createdBy(),
+    ...timestamps,
+  },
+  (t) => [unique().on(t.propertyId, t.kind, t.channel)],
 );

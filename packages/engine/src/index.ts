@@ -10,6 +10,8 @@ export { setDayCapacity } from "./capacity";
 export { closedDates } from "./closed-dates";
 export { syncSettlements } from "./settlements";
 export { queueSalesSummaries } from "./summaries";
+export { queueBookingCancelled, queueBookingChanged, queueGuestJourney, queueLowRoomsAlerts, queueNewBookingAlert } from "./booking-messages";
+export { fill as fillTemplate, templateKinds, wording, type TemplateKind } from "./templates";
 export { loadPackage, packageArrivals, packageCheckOut, packageProblem, packagesByIds, pricePackage, type StayPackage } from "./packages";
 export {
   addBookingNote,
@@ -89,4 +91,4 @@ export {
   type WebsiteBookingInput,
   type WebsiteBookingStarted,
 } from "./website-booking";
-export { cancelHeldMessages, holdConfirmationEmail, queueBookingLinkEmail, queueRefundEmail, releaseHeldMessages, sendQueuedEmails } from "./messages";
+export { cancelHeldMessages, holdConfirmationEmail, queueBookingLinkEmail, queueConfirmationEmail, queueRefundEmail, releaseHeldMessages, sendQueuedEmails } from "./messages";

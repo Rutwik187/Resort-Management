@@ -11,6 +11,7 @@ import {
   leadAssignmentRules,
   leads,
   messages,
+  messageTemplates,
   roles,
   staffMembers,
   user,
@@ -48,6 +49,7 @@ import {
   holdStay,
   liftBlock,
   mergeLeads,
+  queueGuestJourney,
   chooseOffer,
   offerDiscount,
   offerLabel,
@@ -555,6 +557,20 @@ describe("lead assignment, alerts and merging", () => {
     expect((await db.select().from(leads).where(eq(leads.id, dupe.id))).length).toBe(0);
     const timeline = await db.select().from(leadActivities).where(eq(leadActivities.leadId, keep.id));
     expect(timeline.map((a) => a.type).sort()).toEqual(["merged", "note"]);
+  });
+});
+
+describe("guest messages", () => {
+  it("writes the before-arrival email once, in the resort's own wording", async () => {
+    await db.insert(messageTemplates).values({ propertyId, kind: "pre_arrival", subject: "{{resortName}} awaits you, {{guestName}}", body: "Check-in from {{checkInTime}} on {{checkIn}}. Booking {{bookingNumber}}." });
+    const today = "2029-05-01";
+    const held = await holdStay(db, { propertyId, checkIn: "2029-05-03", checkOut: "2029-05-04", rooms: [{ roomTypeId: pairId, party: couple }] });
+    const { bookingId, number } = await createBooking(db, { holdId: held.holdId, guest: { name: "Riya Shah", phone: "9800000030", email: "riya@example.test" }, source: "phone", confirm: true });
+    expect(await queueGuestJourney(db, today)).toBe(1);
+    expect(await queueGuestJourney(db, today)).toBe(0);
+    const [message] = await db.select().from(messages).where(eq(messages.bookingId, bookingId)).then((rows) => rows.filter((m) => m.kind === "pre_arrival"));
+    expect(message.subject).toBe("Prathamesh Resorts awaits you, Riya");
+    expect(message.text).toContain(`Check-in from 13:00 on Thursday, 3 May 2029. Booking ${number}.`);
   });
 });
 

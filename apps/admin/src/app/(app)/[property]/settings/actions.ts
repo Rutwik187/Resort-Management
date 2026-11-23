@@ -31,6 +31,13 @@ const settingsInput = z.object({
   refundApproval: rupeesField("The refund limit").optional(),
   stateCode: z.string().trim().regex(/^\d{2}$/, "The state code has two digits, such as 27 for Maharashtra."),
   stateName: z.string().trim().min(2, "Write the state's name.").max(60),
+  teamEmails: z
+    .string()
+    .transform((value) => value.split(/[\s,;]+/).filter(Boolean))
+    .pipe(z.array(z.email("One of the team addresses isn't an email address.")).max(20, "At most 20 addresses."))
+    .optional(),
+  reviewUrl: z.url({ protocol: /^https$/, error: "The review link starts with https://." }).max(500).optional(),
+  mapsUrl: z.url({ protocol: /^https$/, error: "The directions link starts with https://." }).max(500).optional(),
   reportEmails: z
     .string()
     .transform((value) => value.split(/[\s,;]+/).filter(Boolean))
@@ -63,6 +70,9 @@ export async function saveSettings(propertyId: string, _state: FormState, form: 
         stateCode: input.stateCode,
         stateName: input.stateName,
         reportEmails: [...new Set((input.reportEmails ?? []).map((e) => e.toLowerCase()))],
+        teamEmails: [...new Set((input.teamEmails ?? []).map((e) => e.toLowerCase()))],
+        reviewUrl: input.reviewUrl ?? null,
+        mapsUrl: input.mapsUrl ?? null,
       })
       .where(eq(properties.id, propertyId))
       .returning();

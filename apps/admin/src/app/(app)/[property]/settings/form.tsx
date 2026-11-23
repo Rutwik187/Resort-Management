@@ -23,6 +23,9 @@ type Settings = {
   advancePercent: number;
   refundApprovalPaise: number | null;
   reportEmails: string[];
+  teamEmails: string[];
+  reviewUrl: string | null;
+  mapsUrl: string | null;
   stateCode: string;
   stateName: string;
 };
@@ -121,6 +124,23 @@ export function SettingsForm({ propertyId, settings }: { propertyId: string; set
                   <FieldLabel htmlFor="refundApproval">Refunds without approval, up to ₹</FieldLabel>
                   <Input id="refundApproval" name="refundApproval" inputMode="decimal" placeholder="Every refund needs approval" defaultValue={settings.refundApprovalPaise === null ? "" : settings.refundApprovalPaise / 100} />
                   <FieldDescription>Accounts start refunds up to this amount at once. Larger ones wait for a Super Admin.</FieldDescription>
+                </Field>
+              </div>
+              <Field>
+                <FieldLabel htmlFor="teamEmails">The team&apos;s alerts go to</FieldLabel>
+                <Input id="teamEmails" name="teamEmails" defaultValue={settings.teamEmails.join(", ")} placeholder="frontdesk@example.com, manager@example.com" />
+                <FieldDescription>New bookings, changes, cancellations and refunds, and rooms running low. Empty sends them to the resort&apos;s email above.</FieldDescription>
+              </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="reviewUrl">Google review link</FieldLabel>
+                  <Input id="reviewUrl" name="reviewUrl" type="url" defaultValue={settings.reviewUrl ?? ""} placeholder="https://g.page/r/…/review" />
+                  <FieldDescription>Goes in the thank-you email the day after check-out.</FieldDescription>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="mapsUrl">Directions link</FieldLabel>
+                  <Input id="mapsUrl" name="mapsUrl" type="url" defaultValue={settings.mapsUrl ?? ""} placeholder="https://maps.app.goo.gl/…" />
+                  <FieldDescription>Goes in the email two days before arrival.</FieldDescription>
                 </Field>
               </div>
               <Field>

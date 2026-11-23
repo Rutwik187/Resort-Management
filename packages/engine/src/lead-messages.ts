@@ -1,6 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { leads, messages, properties, user, type Database, type Executor } from "@repo/db";
 import { layout } from "./messages";
+import { wording } from "./templates";
 
 /*
  * Lead messages through the outbox (CRM-03, CRM-04): an alert to the person
@@ -45,13 +46,12 @@ export async function queueLeadAlerts(tx: Executor, leadId: string, adminUrl?: s
     await tx.insert(messages).values({ propertyId: lead.propertyId, leadId: lead.id, kind: "lead_alert", to: row.staffEmail, subject: `New lead at ${row.resort}: ${lead.name}`, ...body });
   }
   if (lead.email) {
-    const body = layout({
-      resort: row.resort,
-      heading: `Thank you, ${lead.name.split(" ")[0]}`,
+    const words = await wording(tx, lead.propertyId, "lead_reply", { guestName: lead.name.split(" ")[0], resortName: row.resort, phone: row.phone ? `+${row.phone}` : null }, {
+      subject: `We have your request, ${row.resort}`,
       intro: `We have your request about ${interestWords[lead.interest] ?? "your visit"} and our team will get back to you soon.${row.phone ? ` For anything urgent, call or WhatsApp +${row.phone}.` : ""}`,
-      footer: `${row.resort}. You are getting this because you sent us a request.`,
     });
-    await tx.insert(messages).values({ propertyId: lead.propertyId, leadId: lead.id, kind: "lead_reply", to: lead.email, subject: `We have your request, ${row.resort}`, ...body });
+    const body = layout({ resort: row.resort, heading: `Thank you, ${lead.name.split(" ")[0]}`, intro: words.intro, footer: `${row.resort}. You are getting this because you sent us a request.` });
+    await tx.insert(messages).values({ propertyId: lead.propertyId, leadId: lead.id, kind: "lead_reply", to: lead.email, subject: words.subject, ...body });
   }
 }
 

@@ -184,33 +184,4 @@ export function InvoicesCard({ code, money, booking }: { code: string; money: Mo
   );
 }
 
-const mailLook = { queued: "Waiting to send", sent: "Sent", failed: "Not sent yet", cancelled: "Not sent", held: "Held" } as const;
 
-/** Emails to the guest about this booking. */
-export function MessagesCard({ money }: { money: Money }) {
-  if (money.messages.length === 0) return null;
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Messages</CardTitle>
-        <CardDescription>Emails to the guest about this booking.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-2">
-        {money.messages.map((m) => (
-          <div key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-3 py-2 text-sm">
-            <span className="font-medium">{m.subject}</span>
-            <span className="text-muted-foreground">to {m.to}</span>
-            <Badge variant={m.status === "sent" ? "default" : m.status === "failed" ? "destructive" : "secondary"} className="ml-auto">
-              {mailLook[m.status]}
-            </Badge>
-            <span className="w-full text-xs text-muted-foreground">
-              {m.sentAt ? `Sent ${when(m.sentAt)}` : `Written ${when(m.createdAt)}`}
-              {m.status === "queued" && !process.env.RESEND_API_KEY ? " · Email goes out once RESEND_API_KEY is set." : ""}
-              {m.error ? ` · ${m.error}` : ""}
-            </span>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}

@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/page-header";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
 import { SettingsForm } from "./form";
 import { MoneySettings } from "./money";
+import { MessageTemplates } from "./templates";
 
 export const metadata = { title: "Settings" };
 
@@ -30,11 +31,15 @@ export default async function SettingsPage({ params }: PageProps<"/[property]/se
           advancePercent: property.advancePercent,
           refundApprovalPaise: property.refundApprovalPaise,
           reportEmails: property.reportEmails,
+          teamEmails: property.teamEmails,
+          reviewUrl: property.reviewUrl,
+          mapsUrl: property.mapsUrl,
           stateCode: property.stateCode,
           stateName: property.stateName,
         }}
       />
       <MoneySettings property={property} />
+      <MessageTemplates propertyId={property.id} />
     </>
   );
 }

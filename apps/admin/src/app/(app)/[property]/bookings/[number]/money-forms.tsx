@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, ExternalLink, Link2, RotateCcw, Undo2, X } from "lucide-react";
+import { Check, Copy, ExternalLink, Link2, MailCheck, RotateCcw, Undo2, X } from "lucide-react";
 import { FormNote, useToastAction } from "@/components/form-note";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { methodLabel } from "@/lib/format";
-import { approveRefund, askRefund, sendBookingPage, sendPaymentLink, tryRefundAgain } from "./money-actions";
+import { approveRefund, askRefund, resendConfirmation, sendBookingPage, sendPaymentLink, tryRefundAgain } from "./money-actions";
 
 export function CopyButton({ value, label }: { value: string; label: string }) {
   const [copied, setCopied] = useState(false);
@@ -183,6 +183,19 @@ export function BookingPageButton({ bookingId }: { bookingId: string }) {
         </p>
       )}
       <FormNote state={state?.error ? state : undefined} />
+    </form>
+  );
+}
+
+/** Sends the guest's confirmation email again (ADM-05). */
+export function ResendConfirmationButton({ bookingId }: { bookingId: string }) {
+  const [, action, pending] = useToastAction(async () => resendConfirmation(bookingId));
+  return (
+    <form action={action}>
+      <Button type="submit" variant="outline" className="w-full" disabled={pending}>
+        {pending ? <Spinner /> : <MailCheck />}
+        Resend the confirmation
+      </Button>
     </form>
   );
 }

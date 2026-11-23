@@ -33,6 +33,12 @@ export const properties = pgTable(
     refundApprovalPaise: bigint({ mode: "number" }),
     /** Who gets the daily, weekly and monthly sales summaries (RPT-01). */
     reportEmails: text().array().notNull().default(sql`'{}'::text[]`),
+    /** Who hears about new bookings, changes, cancellations, refunds and low rooms: the front desk and the property manager. */
+    teamEmails: text().array().notNull().default(sql`'{}'::text[]`),
+    /** The resort's Google review link, for the thank-you message (REV-05). */
+    reviewUrl: text(),
+    /** Directions, for the pre-arrival message. */
+    mapsUrl: text(),
     /** For GST invoices: the state the resort is in. Maharashtra is 27. */
     stateCode: text().notNull().default("27"),
     stateName: text().notNull().default("Maharashtra"),

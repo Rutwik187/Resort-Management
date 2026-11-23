@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, lt, sql } from "drizzle-orm";
 import { bookings, guests, messages, properties, type Database } from "@repo/db";
 import type { Tx } from "./bookings";
 import { lineTitle, type Quote } from "./holds";
+import { wording } from "./templates";
 
 /*
  * Email through an outbox (docs/implementation-plan.md, section 8). A
@@ -13,7 +14,7 @@ import { lineTitle, type Quote } from "./holds";
  */
 
 const esc = (value: string) => value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-const rupees = (paise: number) => `₹${(paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+export const rupees = (paise: number) => `₹${(paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const longDay = (date: string) => new Date(`${date}T00:00:00Z`).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
 /** A plain, branded email: the resort's name, a heading, rows, a button and a footer. */
@@ -35,16 +36,16 @@ ${input.button ? `<tr><td style="padding-top:24px"><a href="${esc(input.button.u
   return { html, text };
 }
 
-type BookingRow = typeof bookings.$inferSelect;
+export type BookingRow = typeof bookings.$inferSelect;
 
-async function context(tx: Tx | Database, booking: BookingRow) {
+export async function context(tx: Tx | Database, booking: BookingRow) {
   const [property] = await tx.select().from(properties).where(eq(properties.id, booking.propertyId));
   const [guest] = await tx.select().from(guests).where(eq(guests.id, booking.guestId));
   const contact = [property.phone ? `+${property.phone}` : null, property.email].filter(Boolean).join(" or ");
   return { property, guest, footer: `Booking ${booking.number}. To change or cancel it, reply to this email${contact ? ` or contact us at ${contact}` : ""}.` };
 }
 
-function whenRows(booking: BookingRow): [string, string][] {
+export function whenRows(booking: BookingRow): [string, string][] {
   return booking.checkIn && booking.checkOut
     ? [
         ["Check-in", longDay(booking.checkIn)],
@@ -55,23 +56,42 @@ function whenRows(booking: BookingRow): [string, string][] {
       : [];
 }
 
-/**
- * The confirmation email for a website booking, held until the booking is
- * paid. Written when the booking is made, while its private link is known.
- */
-export async function holdConfirmationEmail(tx: Tx, bookingId: string, manageUrl: string) {
-  const [booking] = await tx.select().from(bookings).where(eq(bookings.id, bookingId));
+/** A booking's fields for templates, such as {{guestName}} and {{checkIn}}. */
+export function bookingVars(booking: BookingRow, guest: { name: string }, property: { name: string; phone: string | null; checkInTime: string; mapsUrl?: string | null; reviewUrl?: string | null }) {
+  const balance = booking.totalPaise === null ? null : Math.max(0, booking.totalPaise - booking.paidPaise);
+  return {
+    guestName: guest.name.split(" ")[0],
+    bookingNumber: booking.number,
+    resortName: property.name,
+    checkIn: booking.checkIn ? longDay(booking.checkIn) : null,
+    checkOut: booking.checkOut ? longDay(booking.checkOut) : null,
+    visitDate: booking.visitDate ? longDay(booking.visitDate) : null,
+    total: booking.totalPaise === null ? "to be confirmed" : rupees(booking.totalPaise),
+    balance: balance === null ? null : rupees(balance),
+    checkInTime: property.checkInTime.slice(0, 5),
+    phone: property.phone ? `+${property.phone}` : null,
+    directions: property.mapsUrl ?? null,
+    reviewLink: property.reviewUrl ?? null,
+  };
+}
+
+/** The confirmation email's body and subject, from the resort's template or the code's words. */
+async function confirmationBody(tx: Tx | Database, booking: BookingRow, manageUrl: string) {
   const { property, guest, footer } = await context(tx, booking);
-  if (!guest.email) return;
   const quote = booking.quote as Quote;
   const lines = quote.lines.map((line): [string, string] => [lineTitle(line), line.totalPaise === null ? "" : rupees(line.totalPaise)]);
+  const words = await wording(tx, booking.propertyId, "booking_confirmed", bookingVars(booking, guest, property), {
+    subject: `Booking confirmed: ${booking.number}, ${property.name}`,
+    intro: `Thank you for booking with ${property.name}. Your booking ${booking.number} is confirmed. Your booking page has the details, your GST invoice and any balance to pay.`,
+  });
   const body = layout({
     resort: property.name,
     heading: `You're booked, ${guest.name.split(" ")[0]}`,
-    intro: `Thank you for booking with ${property.name}. Your booking ${booking.number} is confirmed. Your booking page has the details, your GST invoice and any balance to pay.`,
+    intro: words.intro,
     rows: [
       ...whenRows(booking),
       ...lines,
+      ...(booking.discountPaise > 0 ? ([[booking.couponCode ? `Coupon ${booking.couponCode}` : "Offer", `−${rupees(booking.discountPaise)}`]] as [string, string][]) : []),
       ["Price before GST", booking.subtotalPaise === null ? "" : rupees(booking.subtotalPaise)],
       ["GST", booking.taxPaise === null ? "" : rupees(booking.taxPaise)],
       ["Total", booking.totalPaise === null ? "To be confirmed" : rupees(booking.totalPaise)],
@@ -79,7 +99,27 @@ export async function holdConfirmationEmail(tx: Tx, bookingId: string, manageUrl
     button: { label: "Open your booking", url: manageUrl },
     footer,
   });
-  await tx.insert(messages).values({ propertyId: booking.propertyId, bookingId, kind: "booking_confirmed", to: guest.email, subject: `Booking confirmed: ${booking.number}, ${property.name}`, ...body, status: "held" });
+  return { guest, subject: words.subject, body };
+}
+
+/**
+ * The confirmation email for a website booking, held until the booking is
+ * paid. Written when the booking is made, while its private link is known.
+ */
+export async function holdConfirmationEmail(tx: Tx, bookingId: string, manageUrl: string) {
+  const [booking] = await tx.select().from(bookings).where(eq(bookings.id, bookingId));
+  const { guest, subject, body } = await confirmationBody(tx, booking, manageUrl);
+  if (!guest.email) return;
+  await tx.insert(messages).values({ propertyId: booking.propertyId, bookingId, kind: "booking_confirmed", to: guest.email, subject, ...body, status: "held" });
+}
+
+/** Sends the confirmation again, with a fresh link to the guest's page (ADM-05: resend confirmation). False without an email. */
+export async function queueConfirmationEmail(db: Database, bookingId: string, manageUrl: string) {
+  const [booking] = await db.select().from(bookings).where(eq(bookings.id, bookingId));
+  const { guest, subject, body } = await confirmationBody(db, booking, manageUrl);
+  if (!guest.email) return false;
+  await db.insert(messages).values({ propertyId: booking.propertyId, bookingId, kind: "booking_confirmed", to: guest.email, subject, ...body });
+  return true;
 }
 
 /** Releases a booking's held messages once it is paid: they go at the next send. */
@@ -97,14 +137,12 @@ export async function queueRefundEmail(tx: Tx, bookingId: string, amountPaise: n
   const [booking] = await tx.select().from(bookings).where(eq(bookings.id, bookingId));
   const { property, guest, footer } = await context(tx, booking);
   if (!guest.email) return;
-  const body = layout({
-    resort: property.name,
-    heading: `${rupees(amountPaise)} refunded`,
+  const words = await wording(tx, booking.propertyId, "refund", { ...bookingVars(booking, guest, property), amount: rupees(amountPaise) }, {
+    subject: `Refund of ${rupees(amountPaise)} for ${booking.number}`,
     intro: `We have refunded ${rupees(amountPaise)} for booking ${booking.number}, the way you paid. Banks usually take 5 to 7 working days to show it.`,
-    rows: whenRows(booking),
-    footer,
   });
-  await tx.insert(messages).values({ propertyId: booking.propertyId, bookingId, kind: "refund", to: guest.email, subject: `Refund of ${rupees(amountPaise)} for ${booking.number}`, ...body });
+  const body = layout({ resort: property.name, heading: `${rupees(amountPaise)} refunded`, intro: words.intro, rows: whenRows(booking), footer });
+  await tx.insert(messages).values({ propertyId: booking.propertyId, bookingId, kind: "refund", to: guest.email, subject: words.subject, ...body });
 }
 
 /** Sends the guest their private booking page, such as for a booking made at the desk. */
@@ -113,15 +151,12 @@ export async function queueBookingLinkEmail(db: Database, bookingId: string, man
   const { property, guest, footer } = await context(db, booking);
   if (!guest.email) return false;
   const balance = booking.totalPaise === null ? null : booking.totalPaise - booking.paidPaise;
-  const body = layout({
-    resort: property.name,
-    heading: `Your booking ${booking.number}`,
+  const words = await wording(db, booking.propertyId, "booking_link", bookingVars(booking, guest, property), {
+    subject: `Your booking ${booking.number}, ${property.name}`,
     intro: `Here is your booking page at ${property.name}. It shows your booking, your GST invoice${balance && balance > 0 ? `, and lets you pay the balance of ${rupees(balance)} online` : ""}.`,
-    rows: whenRows(booking),
-    button: { label: "Open your booking", url: manageUrl },
-    footer,
   });
-  await db.insert(messages).values({ propertyId: booking.propertyId, bookingId, kind: "booking_link", to: guest.email, subject: `Your booking ${booking.number}, ${property.name}`, ...body });
+  const body = layout({ resort: property.name, heading: `Your booking ${booking.number}`, intro: words.intro, rows: whenRows(booking), button: { label: "Open your booking", url: manageUrl }, footer });
+  await db.insert(messages).values({ propertyId: booking.propertyId, bookingId, kind: "booking_link", to: guest.email, subject: words.subject, ...body });
   return true;
 }
 

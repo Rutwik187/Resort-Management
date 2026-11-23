@@ -6,6 +6,7 @@ import { isDate, nightsOf, todayInIndia } from "./dates";
 import { NotFoundError, RuleError } from "./errors";
 import { carryAddons } from "./addons";
 import { holdStayIn, withTax, type Quote, type StayRequest } from "./holds";
+import { queueBookingChanged } from "./booking-messages";
 
 
 /** Bookings whose stay can still change. A checked-in guest can change their check-out and rooms. */
@@ -133,6 +134,8 @@ async function changeStayIn(tx: Tx, input: StayChange) {
       },
     });
     await ensureInvoice(tx, booking.id, input.userId, today);
+    // The guest gets the new details and the team hears of it. A preview rolls this back with everything else.
+    await queueBookingChanged(tx, booking.id, { fromTotal: booking.totalPaise, reason: input.reason.trim() });
     return { fromPaise: booking.totalPaise, toPaise: totalPaise, paidPaise: booking.paidPaise, quote: hold.quote };
   }
 }

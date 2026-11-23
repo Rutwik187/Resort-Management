@@ -4,6 +4,7 @@ import { ArrowRightLeft, Banknote, CalendarClock, CalendarPlus, CircleAlert, Cli
 import { z } from "zod";
 import { can } from "@repo/auth";
 import { LeadStatusBadge } from "@/components/lead-status-badge";
+import { MessagesCard } from "@/components/messages-card";
 import { NoAccess } from "@/components/no-access";
 import { PersonAvatar } from "@/components/person-avatar";
 import { StatusBadge } from "@/components/status-badge";
@@ -326,6 +327,8 @@ export default async function LeadPage({ params }: PageProps<"/[property]/leads/
               </CardContent>
             </Card>
           )}
+
+          <MessagesCard leadId={lead.id} />
 
           {earlier.length > 0 && (
             <Card className="shadow-xs">
