@@ -15,7 +15,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { addons, offerings, offeringSlots, roomTypes, units } from "./catalogue";
+import { addons, offerings, offeringSlots, roomTypes, stayPackages, units } from "./catalogue";
 import { createdBy, timestamps } from "./common";
 import { properties } from "./properties";
 
@@ -134,6 +134,8 @@ export const bookingItems = pgTable(
     offeringId: uuid().references(() => offerings.id),
     slotId: uuid().references(() => offeringSlots.id),
     addonId: uuid().references(() => addons.id),
+    /** The stay package this room was booked as, if any (URD 5.3). */
+    packageId: uuid().references(() => stayPackages.id),
     /** Units, people or rooms for an add-on. One for rooms and tickets. */
     quantity: smallint().notNull().default(1),
     /** Who is coming. An add-on's is empty. */

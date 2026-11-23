@@ -90,7 +90,7 @@ export function ListingCard({ listing, nights, count, suggested, onPick, imageSi
         <div className="flex flex-col gap-4 border-t border-bk-line px-1 pt-4 md:col-span-2 md:grid md:grid-cols-[minmax(0,1fr)_auto] md:items-end lg:col-span-1 lg:flex lg:border-l lg:border-t-0 lg:pl-6 lg:pt-1">
           <div className="min-w-0">
             <Rates listing={listing} nights={nights} />
-            {nights.length > 0 && !listing.onRequest && <YourStay listing={listing} party={suggested} nights={nights} />}
+            {nights.length > 0 && !listing.onRequest && !(listing.stayPackage?.nights && nights.length !== listing.stayPackage.nights) && <YourStay listing={listing} party={suggested} nights={nights} />}
           </div>
           <div className="lg:mt-auto">
             <button
@@ -123,6 +123,21 @@ function Rates({ listing, nights }: { listing: Listing; nights: string[] }) {
       <div>
         <p className="bk-display text-[1.4rem]">{listing.onRequest}</p>
         <p className="mt-1 text-[0.85rem] text-bk-muted">Add it, and our team sends you a quote.</p>
+      </div>
+    );
+  }
+  const pkg = listing.stayPackage;
+  if (pkg && listing.everyNight) {
+    const length = pkg.nights ? plural(pkg.nights, "night") : pkg.minNights && pkg.maxNights ? `${pkg.minNights} to ${pkg.maxNights} nights` : pkg.minNights ? `${pkg.minNights} nights or more` : "";
+    return (
+      <div className="min-w-0">
+        <p className="text-[0.82rem] text-bk-muted">{pkg.unit === "stay" ? `The package${length ? `, ${length}` : ""}` : `A night${length ? `, ${length}` : ""}`}</p>
+        <p className="bk-display mt-1 text-[1.5rem] leading-none tabular-nums">{formatRupees(listing.everyNight.base)}</p>
+        {listing.everyNight.meals && <p className="mt-1 text-[0.8rem] leading-snug text-bk-muted">{listing.everyNight.meals}</p>}
+        <p className="mt-2.5 text-[0.8rem] text-bk-muted">
+          {basisLabel(listing.everyNight)}
+          {pkg.unit === "night" ? ", a night" : ""}, plus GST
+        </p>
       </div>
     );
   }
@@ -187,6 +202,14 @@ export function PartyPrice({ listing, party, nights }: { listing: Listing; party
   }
   const rate = listing.everyNight ?? listing.weekday ?? listing.weekend;
   const night = rate ? priceForNight(rate, party) : null;
+  if (listing.stayPackage?.unit === "stay" && night !== null) {
+    return (
+      <span>
+        <span className="bk-display block text-[1.45rem] leading-tight tabular-nums">{formatRupees(night)}</span>
+        <span className="text-[0.82rem] text-bk-muted">{listing.stayPackage.nights ? `for ${plural(listing.stayPackage.nights, "night")}` : "for the package"}, plus GST</span>
+      </span>
+    );
+  }
   return night === null ? (
     <span className="text-bk-muted">Choose dates to see the price.</span>
   ) : (

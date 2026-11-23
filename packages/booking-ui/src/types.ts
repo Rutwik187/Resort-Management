@@ -46,6 +46,11 @@ export type Listing = {
   everyNight?: Rate;
   /** Set when no rate is published. The text says what happens, for example "Rates on request". */
   onRequest?: string;
+  /**
+   * Set for a stay or staycation package (URD 5.3). Its price is in
+   * `everyNight`: for the whole stay when `unit` is "stay", or a night.
+   */
+  stayPackage?: { nights: number | null; minNights: number | null; maxNights: number | null; unit: "stay" | "night"; arrivalDays: number[] | null; room: string };
 };
 
 /** A heading with the listings under it, such as "Rooms" and "Packages". */

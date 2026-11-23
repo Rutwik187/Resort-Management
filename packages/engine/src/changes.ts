@@ -110,7 +110,7 @@ async function changeStayIn(tx: Tx, input: StayChange) {
     await tx.insert(bookingItems).values(
       hold.quote.lines.flatMap((line, i): (typeof bookingItems.$inferInsert)[] =>
         line.kind === "stay"
-          ? [{ propertyId: booking.propertyId, bookingId: booking.id, kind: "stay" as const, roomTypeId: line.roomTypeId, unitId: line.unitId, party: line.party, extraBeds: line.extraBeds, amountPaise: line.totalPaise, sortOrder: i }]
+          ? [{ propertyId: booking.propertyId, bookingId: booking.id, kind: "stay" as const, roomTypeId: line.roomTypeId, unitId: line.unitId, packageId: line.packageId ?? null, party: line.party, extraBeds: line.extraBeds, amountPaise: line.totalPaise, sortOrder: i }]
           : line.kind === "addon"
             ? [{ propertyId: booking.propertyId, bookingId: booking.id, kind: "addon" as const, addonId: line.addonId, quantity: line.quantity, party: { adults: 0, children: {} }, amountPaise: line.totalPaise, sortOrder: i }]
             : [],

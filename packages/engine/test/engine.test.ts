@@ -20,6 +20,8 @@ import {
   rates,
   roomTypes,
   siteNotices,
+  stayPackageChildPrices,
+  stayPackages,
   stayRules,
   taxRules,
   unitNights,
@@ -596,6 +598,32 @@ describe("offer rules and the best offer", () => {
     await db.update(offers).set({ active: false }).where(eq(offers.propertyId, propertyId));
     await releaseHold(db, again.holdId);
     for (const offer of made) expect(offer.id).toBeTruthy();
+  });
+});
+
+describe("stay packages", () => {
+  it("books a package in its room type at its own price, for its nights and arrival days only", async () => {
+    const [pkg] = await db
+      .insert(stayPackages)
+      .values({ propertyId, code: "weekend-escape", name: "Weekend escape", kind: "staycation", roomTypeIds: [pairId], nights: 2, basis: "couple", priceUnit: "stay", pricePaise: 1_200_000, extraAdultPaise: 300_000, arrivalDays: [5], capacityPerDay: 1 })
+      .returning();
+    await db.insert(stayPackageChildPrices).values({ packageId: pkg.id, ageBandId: child511, paise: 150_000 });
+    // 2 March 2029 is a Friday.
+    const quote = await quoteStay(db, { propertyId, checkIn: "2029-03-02", checkOut: "2029-03-04", rooms: [{ roomTypeId: pairId, party: { adults: 3, children: { child_5_11: 1 } }, packageId: pkg.id }] });
+    const line = quote.lines[0];
+    expect(line).toMatchObject({ kind: "stay", packageName: "Weekend escape", totalPaise: 1_200_000 + 300_000 + 150_000 });
+    expect(line.kind === "stay" && line.nights.map((n) => n.paise)).toEqual([825_000, 825_000]);
+
+    await expect(quoteStay(db, { propertyId, checkIn: "2029-03-02", checkOut: "2029-03-05", rooms: [{ roomTypeId: pairId, party: couple, packageId: pkg.id }] })).rejects.toThrow(/is for 2 nights/);
+    await expect(quoteStay(db, { propertyId, checkIn: "2029-03-03", checkOut: "2029-03-05", rooms: [{ roomTypeId: pairId, party: couple, packageId: pkg.id }] })).rejects.toThrow(/starts on Friday only/);
+    await expect(quoteStay(db, { propertyId, checkIn: "2029-03-02", checkOut: "2029-03-04", rooms: [{ roomTypeId: lastRoomId, party: couple, packageId: pkg.id }] })).rejects.toThrow(/isn't sold in this room/);
+
+    // One a day: a second arrival on the same Friday is sold out once the first is booked.
+    const held = await holdStay(db, { propertyId, checkIn: "2029-03-02", checkOut: "2029-03-04", rooms: [{ roomTypeId: pairId, party: couple, packageId: pkg.id }] });
+    const { bookingId } = await createBooking(db, { holdId: held.holdId, guest: { name: "Meera", phone: "9800000002" }, source: "website" });
+    const [item] = await db.select().from(bookingItems).where(eq(bookingItems.bookingId, bookingId));
+    expect(item.packageId).toBe(pkg.id);
+    await expect(holdStay(db, { propertyId, checkIn: "2029-03-02", checkOut: "2029-03-04", rooms: [{ roomTypeId: pairId, party: couple, packageId: pkg.id }] })).rejects.toBeInstanceOf(SoldOutError);
   });
 });
 

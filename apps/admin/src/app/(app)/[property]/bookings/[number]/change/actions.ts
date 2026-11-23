@@ -13,7 +13,7 @@ const changeInput = z.object({
   checkIn: date("check-in date"),
   checkOut: date("check-out date"),
   rooms: z
-    .array(z.object({ roomTypeId: z.uuid(), adults: count.min(1, "Each room needs at least one adult."), children: z.record(z.string().max(40), count), extraBeds: count.max(5) }))
+    .array(z.object({ roomTypeId: z.uuid(), adults: count.min(1, "Each room needs at least one adult."), children: z.record(z.string().max(40), count), extraBeds: count.max(5), packageId: z.uuid().optional() }))
     .min(1, "Keep at least one room.")
     .max(30),
   keepPrice: z.boolean().optional(),
@@ -36,7 +36,7 @@ async function changeable(bookingId: string) {
   return booking;
 }
 
-const rooms = (input: z.infer<typeof changeInput>) => input.rooms.map(({ roomTypeId, adults, children, extraBeds }) => ({ roomTypeId, party: { adults, children }, extraBeds }));
+const rooms = (input: z.infer<typeof changeInput>) => input.rooms.map(({ roomTypeId, adults, children, extraBeds, packageId }) => ({ roomTypeId, party: { adults, children }, extraBeds, packageId }));
 const linesOf = (quote: Quote) => quote.lines.flatMap((line) => (line.kind === "stay" ? [{ name: line.roomTypeName, unit: line.unitName, totalPaise: line.totalPaise }] : []));
 
 /** The new price and rooms, as the engine would book them, without changing anything. */

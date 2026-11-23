@@ -14,6 +14,7 @@ import {
   type Database,
   type Executor,
 } from "@repo/db";
+import { loadPackage, packageArrivals, packageProblem, pricePackage } from "./packages";
 import { addonQuantityWords, priceAddons, type AddonQuoteLine, type AddonRequest } from "./addons";
 import { freeUnits, stayRuleProblem } from "./availability";
 import { loadBands, loadRoomPricing } from "./catalogue";
@@ -31,7 +32,8 @@ import { loadTaxRules, taxQuote, type TaxPart } from "./tax";
  * guests paying at the same second can't both get the last room.
  */
 
-export type StayRequest = { roomTypeId: string; party: Party; extraBeds?: number };
+/** One room in a stay. With `packageId`, it is booked as that stay package, at the package's price (URD 5.3). */
+export type StayRequest = { roomTypeId: string; party: Party; extraBeds?: number; packageId?: string };
 /** Add-ons chosen with a hold. "website" lets only add-ons shown on the website through. */
 type WithAddons = { addons?: AddonRequest[]; website?: boolean };
 export type StayInput = { propertyId: string; checkIn: string; checkOut: string; rooms: StayRequest[]; minutes?: number } & WithAddons;
@@ -46,6 +48,9 @@ export type StayQuoteLine = {
   extraBeds: number;
   nights: NightPrice[];
   totalPaise: number | null;
+  /** The stay package it is booked as, if any. */
+  packageId?: string;
+  packageName?: string;
 };
 
 export type OfferingQuoteLine = {
@@ -63,7 +68,7 @@ export type QuoteLine = StayQuoteLine | OfferingQuoteLine | AddonQuoteLine;
 
 /** A quote line in words, such as "Deluxe Room", "Day picnic, Morning" or "BBQ dinner (4 people)". */
 export function lineTitle(line: QuoteLine) {
-  if (line.kind === "stay") return line.roomTypeName;
+  if (line.kind === "stay") return line.packageName ? `${line.packageName} (${line.roomTypeName})` : line.roomTypeName;
   if (line.kind === "offering") return `${line.offeringName}, ${line.slotLabel}`;
   return `${line.addonName} (${addonQuantityWords(line)})`;
 }
@@ -133,13 +138,24 @@ export async function holdStayIn(tx: Tx, input: StayInput): Promise<HoldResult> 
     .select()
     .from(stayRules)
     .where(and(inArray(stayRules.roomTypeId, roomTypeIds), gte(stayRules.night, input.checkIn), lt(stayRules.night, input.checkOut)));
+  // Packages set their own nights; the room's stop-sell and no-arrival rules still apply.
+  const packages = new Map<string, NonNullable<Awaited<ReturnType<typeof loadPackage>>>>();
+  for (const id of new Set(input.rooms.flatMap((room) => (room.packageId ? [room.packageId] : [])))) {
+    const loaded = await loadPackage(tx, input.propertyId, id);
+    if (!loaded) throw new NotFoundError("Package");
+    packages.set(id, loaded);
+    const wanted = input.rooms.filter((room) => room.packageId === id).length;
+    if (loaded.pkg.capacityPerDay !== null && (await packageArrivals(tx, id, input.checkIn)) + wanted > loaded.pkg.capacityPerDay) {
+      throw new SoldOutError(`${loaded.pkg.name} is sold out for arrivals on ${input.checkIn}.`);
+    }
+  }
   for (const room of input.rooms) {
     const { roomType, pricing } = priced.get(room.roomTypeId)!;
-    const problem = stayRuleProblem(
-      rules.filter((rule) => rule.roomTypeId === room.roomTypeId),
-      input.checkIn,
-      nights.length,
-    );
+    const own = rules.filter((rule) => rule.roomTypeId === room.roomTypeId);
+    const pkg = room.packageId ? packages.get(room.packageId)!.pkg : null;
+    const problem = pkg
+      ? (packageProblem(pkg, room.roomTypeId, input.checkIn, nights.length) ?? stayRuleProblem(own.map((rule) => ({ ...rule, minNights: null, maxNights: null })), input.checkIn, nights.length))
+      : stayRuleProblem(own, input.checkIn, nights.length);
     if (problem) throw new RuleError(`${roomType.name}: ${problem}`);
     const guests = headcount(room.party);
     if (room.party.adults < 1) throw new RuleError(`${roomType.name}: at least one adult stays in each room.`);
@@ -184,7 +200,10 @@ export async function holdStayIn(tx: Tx, input: StayInput): Promise<HoldResult> 
     if (!unit) throw new SoldOutError(`${roomType.name} is sold out for these dates.`);
     taken.push(unit.id);
 
-    const price = priceStay(pricing, nights, room.party, room.extraBeds ?? 0);
+    const packaged = room.packageId ? packages.get(room.packageId)! : null;
+    const price = packaged
+      ? pricePackage(packaged.pkg, packaged.childPaise, pricing.bands, room.party, nights, pricing.baseOccupancy)
+      : priceStay(pricing, nights, room.party, room.extraBeds ?? 0);
     lines.push({
       kind: "stay",
       roomTypeId: roomType.id,
@@ -195,6 +214,7 @@ export async function holdStayIn(tx: Tx, input: StayInput): Promise<HoldResult> 
       extraBeds: room.extraBeds ?? 0,
       nights: price.nights,
       totalPaise: price.totalPaise,
+      ...(packaged ? { packageId: packaged.pkg.id, packageName: packaged.pkg.name } : {}),
     });
     await tx.insert(inventoryLog).values({
       propertyId: input.propertyId,

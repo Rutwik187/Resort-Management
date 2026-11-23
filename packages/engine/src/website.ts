@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, gte, inArray, isNull, or } from "drizzle-orm";
-import { addons, ageBands, offerDays, offeringChildPrices, offerings, offeringSlots, offers, properties, rateChildPrices, rates, roomTypes, siteNotices, units, type Executor } from "@repo/db";
+import { addons, ageBands, offerDays, stayPackageChildPrices, stayPackages, offeringChildPrices, offerings, offeringSlots, offers, properties, rateChildPrices, rates, roomTypes, siteNotices, units, type Executor } from "@repo/db";
 import { addDays, todayInIndia } from "./dates";
 import { offerLabel, offerTakesOff } from "./offers";
 
@@ -85,7 +85,33 @@ export type WebsiteAddon = { code: string; name: string; summary: string | null;
 /** The company that runs the resort, for the footer and policies page (WEB-04). Empty fields stay empty: staff fill them in Settings. */
 export type WebsiteCompany = { legalName: string | null; gstin: string | null; address: string | null; phone: string | null; email: string | null };
 
-export type WebsiteCatalogue = { company: WebsiteCompany; roomTypes: WebsiteRoomType[]; passes: WebsitePass[]; addons: WebsiteAddon[]; offers: WebsiteOffer[]; offerDays: WebsiteOfferDay[]; notices: WebsiteNotice[] };
+/** A stay or staycation package on the website (URD 5.3, PKG-01), with the room types it can be booked in. */
+export type WebsiteStayPackage = {
+  code: string;
+  kind: "stay" | "staycation" | "custom";
+  name: string;
+  summary: string | null;
+  inclusions: string[];
+  exclusions: string[];
+  mealPlan: "EP" | "CP" | "MAP" | "AP";
+  nights: number | null;
+  minNights: number | null;
+  maxNights: number | null;
+  basis: "person" | "couple" | "room";
+  priceUnit: "stay" | "night";
+  pricePaise: number;
+  extraAdultPaise: number | null;
+  /** By age band code. */
+  childPaise: Record<string, number>;
+  arrivalDays: number[] | null;
+  validFrom: string | null;
+  validTo: string | null;
+  cancellationNote: string | null;
+  featured: boolean;
+  roomTypes: { code: string; name: string }[];
+};
+
+export type WebsiteCatalogue = { company: WebsiteCompany; stayPackages: WebsiteStayPackage[]; roomTypes: WebsiteRoomType[]; passes: WebsitePass[]; addons: WebsiteAddon[]; offers: WebsiteOffer[]; offerDays: WebsiteOfferDay[]; notices: WebsiteNotice[] };
 
 /** A resort's website catalogue, or null when there is no such resort. A few queries, run one after another. */
 export async function websiteCatalogue(db: Executor, propertyCode: string): Promise<WebsiteCatalogue | null> {
@@ -151,6 +177,20 @@ export async function websiteCatalogue(db: Executor, propertyCode: string): Prom
     .where(and(eq(offers.propertyId, property.id), eq(offers.active, true), eq(offers.onWebsite, true), or(isNull(offers.endsOn), gte(offers.endsOn, todayInIndia()))))
     .orderBy(asc(offers.sortOrder), asc(offers.title));
 
+  // Stay packages on the website that haven't ended (PKG-01).
+  const packageRows = await db
+    .select()
+    .from(stayPackages)
+    .where(and(eq(stayPackages.propertyId, property.id), eq(stayPackages.active, true), eq(stayPackages.onWebsite, true), or(isNull(stayPackages.validTo), gte(stayPackages.validTo, todayInIndia()))))
+    .orderBy(desc(stayPackages.featured), asc(stayPackages.sortOrder), asc(stayPackages.name));
+  const packageChildren = packageRows.length
+    ? await db
+        .select({ packageId: stayPackageChildPrices.packageId, band: ageBands.code, paise: stayPackageChildPrices.paise })
+        .from(stayPackageChildPrices)
+        .innerJoin(ageBands, eq(ageBands.id, stayPackageChildPrices.ageBandId))
+        .where(inArray(stayPackageChildPrices.packageId, packageRows.map((p) => p.id)))
+    : [];
+
   // Offers of the Day from yesterday on, so a page cached overnight still finds today's.
   const dayRows = await db
     .select({ day: offerDays.day, offer: offers })
@@ -172,6 +212,32 @@ export async function websiteCatalogue(db: Executor, propertyCode: string): Prom
     .orderBy(desc(siteNotices.createdAt));
 
   return {
+    stayPackages: packageRows
+      .map((p) => ({
+        code: p.code,
+        kind: p.kind,
+        name: p.name,
+        summary: p.summary,
+        inclusions: p.inclusions,
+        exclusions: p.exclusions,
+        mealPlan: p.mealPlan,
+        nights: p.nights,
+        minNights: p.minNights,
+        maxNights: p.maxNights,
+        basis: p.basis,
+        priceUnit: p.priceUnit,
+        pricePaise: p.pricePaise,
+        extraAdultPaise: p.extraAdultPaise,
+        childPaise: Object.fromEntries(packageChildren.filter((c) => c.packageId === p.id).map((c) => [c.band, c.paise])),
+        arrivalDays: p.arrivalDays,
+        validFrom: p.validFrom,
+        validTo: p.validTo,
+        cancellationNote: p.cancellationNote,
+        featured: p.featured,
+        // Only room types the website sells, in the admin's order.
+        roomTypes: types.filter((t) => p.roomTypeIds.includes(t.id)).map((t) => ({ code: t.code, name: t.name })),
+      }))
+      .filter((p) => p.roomTypes.length > 0),
     company: { legalName: property.legalName || null, gstin: property.gstin || null, address: property.address || null, phone: property.phone || null, email: property.email || null },
     notices: noticeRows.map((n) => ({ id: n.id, message: n.message, linkLabel: n.linkLabel, linkUrl: n.linkUrl, startsOn: n.startsOn, endsOn: n.endsOn })),
     // An offer scheduled as Offer of the Day shows in its strip, on its days only.

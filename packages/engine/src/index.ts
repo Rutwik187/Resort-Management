@@ -8,6 +8,7 @@ export { freeUnits, searchStays, seatsLeft, stayRuleProblem, type SeatOption, ty
 export { createBlock, liftBlock, type BlockReason } from "./blocks";
 export { setDayCapacity } from "./capacity";
 export { closedDates } from "./closed-dates";
+export { loadPackage, packageArrivals, packageCheckOut, packageProblem, packagesByIds, pricePackage, type StayPackage } from "./packages";
 export {
   addBookingNote,
   allowedMoves,
@@ -44,7 +45,7 @@ export {
 export { expireHolds } from "./jobs";
 export { recordPayment, type PaymentInput, type PaymentMethod } from "./payments";
 export { headcount, payingGuests, priceNight, priceOffering, priceStay, type AgeBand, type NightPrice, type Party, type Rate, type RoomPricing, type Season } from "./pricing";
-export { websiteCatalogue, type WebsiteAddon, type WebsiteCatalogue, type WebsiteCompany, type WebsiteOffer, type WebsiteOfferDay, type WebsiteNotice, type WebsitePass, type WebsiteRate, type WebsiteRoomType } from "./website";
+export { websiteCatalogue, type WebsiteAddon, type WebsiteCatalogue, type WebsiteCompany, type WebsiteOffer, type WebsiteOfferDay, type WebsiteStayPackage, type WebsiteNotice, type WebsitePass, type WebsiteRate, type WebsiteRoomType } from "./website";
 export { recordWebsiteLead, type LeadInterest, type WebsiteLeadInput } from "./leads";
 export { offerDiscount, offerLabel, offerProblem, offerTakesOff, quoteDiscount, type OfferRule, type OfferTarget } from "./offers";
 export { chooseOffer, offerOfTheDay, offerUsageProblem, offerUseTotals, quoteTarget, recordOfferUse, toRule as offerRule, type AppliedOffer } from "./offer-choice";

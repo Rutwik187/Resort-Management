@@ -131,3 +131,7 @@ export function ago(at: Date, now = new Date()) {
   if (hours < 24) return plural(hours, "hour") + " ago";
   return plural(Math.round(hours / 24), "day") + " ago";
 }
+
+/** A stay package's kind and meal plan, in words (URD 5.3). */
+export const packageKindLabel = { stay: "Stay package", staycation: "Staycation", custom: "Custom package" } as const;
+export const mealPlanLabel = { EP: "Room only", CP: "Breakfast", MAP: "Breakfast and one meal", AP: "All meals" } as const;

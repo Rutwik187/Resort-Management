@@ -1,6 +1,6 @@
 import "server-only";
 import { cacheLife, cacheTag, revalidateTag } from "next/cache";
-import { offerNotes, offersFor, passesFromCatalogue, stayGroupsFromCatalogue, type ListingGroup, type Pass } from "@repo/booking-ui/catalogue";
+import { offerNotes, offersFor, packageListings, passesFromCatalogue, stayGroupsFromCatalogue, type ListingGroup, type Pass } from "@repo/booking-ui/catalogue";
 import type { OnlineAddon } from "@repo/booking-ui";
 import { getDb } from "@repo/db";
 import { websiteCatalogue, type WebsiteCompany, type WebsiteNotice, type WebsiteOffer, type WebsiteOfferDay } from "@repo/engine";
@@ -45,7 +45,10 @@ export async function liveStayGroups(code: PropertyCode, fallback: ListingGroup[
   const data = await catalogue(code);
   if (!data || data.roomTypes.length === 0) return fallback;
   const photos = new Map(fallback.flatMap((group) => group.listings.map((listing) => [listing.id, listing.photos] as const)));
-  return stayGroupsFromCatalogue(data, propertyByCode(code).staySections, (id) => photos.get(id) ?? []);
+  const groups = stayGroupsFromCatalogue(data, propertyByCode(code).staySections, (id) => photos.get(id) ?? []);
+  // Stay and staycation packages follow the rooms, in a section of their own (URD 5.3).
+  const packages = packageListings(data, (id) => photos.get(id) ?? []);
+  return packages.length ? [...groups, { id: "stay-packages", title: "Stay packages", line: "A room with meals and more, at one price for the package.", listings: packages }] : groups;
 }
 
 /** The day packages, from the admin, with the site's own photo for each. */

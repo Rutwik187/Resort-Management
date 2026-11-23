@@ -13,6 +13,7 @@ import {
   offlinePayments,
   properties,
   roomTypes,
+  stayPackages,
   units,
   user,
 } from "@repo/db";
@@ -163,12 +164,14 @@ export async function loadBooking(propertyId: string, number: string) {
     .select({
       item: bookingItems,
       roomTypeName: roomTypes.name,
+      packageName: stayPackages.name,
       unitName: units.name,
       offeringName: offerings.name,
       slotLabel: offeringSlots.label,
     })
     .from(bookingItems)
     .leftJoin(roomTypes, eq(roomTypes.id, bookingItems.roomTypeId))
+    .leftJoin(stayPackages, eq(stayPackages.id, bookingItems.packageId))
     .leftJoin(units, eq(units.id, bookingItems.unitId))
     .leftJoin(offerings, eq(offerings.id, bookingItems.offeringId))
     .leftJoin(offeringSlots, eq(offeringSlots.id, bookingItems.slotId))

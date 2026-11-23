@@ -85,6 +85,13 @@
       "when": 1795425239249,
       "tag": "0011_offers_more",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795426371487,
+      "tag": "0012_stay_packages",
+      "breakpoints": true
     }
   ]
 }

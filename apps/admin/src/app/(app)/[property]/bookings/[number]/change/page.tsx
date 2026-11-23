@@ -82,7 +82,7 @@ export default async function ChangeBookingPage({ params }: PageProps<"/[propert
         bookingId={booking.id}
         checkIn={booking.checkIn}
         checkOut={booking.checkOut}
-        lines={stays.map(({ item }) => ({ roomTypeId: item.roomTypeId!, adults: item.party.adults, children: item.party.children, extraBeds: item.extraBeds }))}
+        lines={stays.map(({ item }) => ({ roomTypeId: item.roomTypeId!, adults: item.party.adults, children: item.party.children, extraBeds: item.extraBeds, packageId: item.packageId ?? undefined }))}
         roomTypes={types}
         bands={bands}
         canKeepPrice={can(staff, "prices.manage", property.id)}

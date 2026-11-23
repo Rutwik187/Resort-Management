@@ -237,7 +237,7 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
-              {items.map(({ item, roomTypeName, unitName, offeringName, slotLabel }, index) => {
+              {items.map(({ item, roomTypeName, packageName, unitName, offeringName, slotLabel }, index) => {
                 const line = quote?.lines[index];
                 if (item.kind === "addon") {
                   return (
@@ -259,7 +259,7 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
                   <div key={item.id} className="grid gap-2 rounded-lg border p-4">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <p className="font-medium">
-                        {item.kind === "stay" ? roomTypeName : offeringName}
+                        {item.kind === "stay" ? (packageName ? `${packageName} (${roomTypeName})` : roomTypeName) : offeringName}
                         <span className="font-normal text-muted-foreground"> · {item.kind === "stay" ? (unitName ?? "Room to assign") : slotLabel}</span>
                       </p>
                       <p className="font-semibold tabular-nums">{price(item.amountPaise)}</p>

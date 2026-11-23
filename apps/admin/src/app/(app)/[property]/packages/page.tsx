@@ -1,7 +1,7 @@
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { Ticket } from "lucide-react";
 import { can } from "@repo/auth";
-import { addons, ageBands, getDb, offeringChildPrices, offerings, offeringSlots } from "@repo/db";
+import { addons, ageBands, getDb, offeringChildPrices, offerings, offeringSlots, roomTypes, stayPackageChildPrices, stayPackages } from "@repo/db";
 import { dayOfWeek, todayInIndia } from "@repo/engine";
 import { NoAccess } from "@/components/no-access";
 import { PageHeader } from "@/components/page-header";
@@ -9,11 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { longDate, rupees, shortDate } from "@/lib/format";
+import { longDate, mealPlanLabel, packageKindLabel, rupees, shortDate } from "@/lib/format";
 import { seatsAhead } from "@/lib/seats";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
 import { AddonDialog, AddonSaleButton } from "./addon-forms";
 import { OfferingButtons, OfferingDialog, SeatsDialog, SlotsDialog } from "./forms";
+import { StayPackageButtons, StayPackageDialog, type StayPackageValues } from "./stay-forms";
 
 export const metadata = { title: "Packages" };
 
@@ -52,6 +53,16 @@ export default async function PackagesPage({ params }: PageProps<"/[property]/pa
 
   const onSale = list.filter((o) => o.active).length;
   const extras = await db.select().from(addons).where(eq(addons.propertyId, property.id)).orderBy(asc(addons.sortOrder), asc(addons.name));
+  const stayList = await db.select().from(stayPackages).where(eq(stayPackages.propertyId, property.id)).orderBy(desc(stayPackages.featured), asc(stayPackages.sortOrder), asc(stayPackages.name));
+  const stayChildren = stayList.length ? await db.select().from(stayPackageChildPrices).where(inArray(stayPackageChildPrices.packageId, stayList.map((p) => p.id))) : [];
+  const rooms = await db.select({ id: roomTypes.id, name: roomTypes.name }).from(roomTypes).where(and(eq(roomTypes.propertyId, property.id), eq(roomTypes.status, "active"))).orderBy(asc(roomTypes.sortOrder), asc(roomTypes.name));
+  const stayChoices = { rooms, bands: paidBands };
+  const stayValues = (p: (typeof stayList)[number]): StayPackageValues => {
+    const { propertyId: _p, createdBy: _c, createdAt: _a, updatedAt: _u, sortOrder: _s, active: _x, ...rest } = p;
+    return { ...rest, children: Object.fromEntries(stayChildren.filter((c) => c.packageId === p.id).map((c) => [c.ageBandId, c.paise])) };
+  };
+  const nightsWords = (p: (typeof stayList)[number]) =>
+    p.nights ? `${p.nights} ${p.nights === 1 ? "night" : "nights"}` : p.minNights && p.maxNights ? `${p.minNights} to ${p.maxNights} nights` : p.minNights ? `${p.minNights}+ nights` : p.maxNights ? `Up to ${p.maxNights} nights` : "Any nights";
 
   return (
     <>
@@ -237,6 +248,76 @@ export default async function PackagesPage({ params }: PageProps<"/[property]/pa
             })}
         </section>
       ))}
+      <section className="grid gap-4" aria-labelledby="stay-packages-heading">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="stay-packages-heading" className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+              Stay packages
+              <span className="rounded-full bg-foreground/[0.06] px-2 text-xs font-medium text-muted-foreground tabular-nums">{stayList.length}</span>
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Stay packages, staycations and custom bundles: a room with inclusions at one price. They use the rooms of their room types, show on the website&apos;s Stays page while on sale and within their dates, and drop off when they end or sell out.
+            </p>
+          </div>
+          {manage && <StayPackageDialog propertyId={property.id} choices={stayChoices} />}
+        </div>
+        {stayList.length === 0 ? (
+          <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">{rooms.length ? "No stay packages yet." : "Add room types first: a stay package uses their rooms."}</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            {stayList.map((p) => {
+              const ended = p.validTo !== null && p.validTo < today;
+              return (
+                <Card key={p.id} className={`gap-3 shadow-xs ${p.active && !ended ? "" : "bg-muted/30"}`}>
+                  <CardHeader>
+                    <CardTitle className="flex flex-wrap items-center gap-2 text-base">
+                      {p.name}
+                      <Badge variant="outline" className="font-normal">
+                        {packageKindLabel[p.kind]}
+                      </Badge>
+                      {p.featured && <Badge className="bg-primary/10 text-primary hover:bg-primary/10">Featured</Badge>}
+                      {!p.active && (
+                        <Badge variant="outline" className="text-muted-foreground">
+                          Off sale
+                        </Badge>
+                      )}
+                      {p.active && ended && (
+                        <Badge variant="outline" className="text-muted-foreground">
+                          Ended
+                        </Badge>
+                      )}
+                    </CardTitle>
+                    {p.summary && <CardDescription>{p.summary}</CardDescription>}
+                    {manage && (
+                      <CardAction className="flex flex-wrap gap-1.5 sm:justify-end">
+                        <StayPackageDialog propertyId={property.id} choices={stayChoices} value={stayValues(p)} />
+                        <StayPackageButtons packageId={p.id} active={p.active} />
+                      </CardAction>
+                    )}
+                  </CardHeader>
+                  <CardContent className="grid gap-2 text-sm">
+                    <p>
+                      <span className="font-medium tabular-nums">{rupees(p.pricePaise)}</span>{" "}
+                      <span className="text-muted-foreground">
+                        {p.basis === "person" ? "per adult" : p.basis === "couple" ? "per couple" : "per room"}
+                        {p.priceUnit === "night" ? ", a night" : ", for the stay"}, before GST · {nightsWords(p)} · {mealPlanLabel[p.mealPlan]}
+                      </span>
+                    </p>
+                    <p className="text-muted-foreground">
+                      {rooms.filter((r) => p.roomTypeIds.includes(r.id)).map((r) => r.name).join(", ") || "No room types on sale"}
+                      {p.arrivalDays?.length ? ` · arrive ${p.arrivalDays.map((d) => weekdays[d]).join(" or ")}` : ""}
+                      {p.validFrom || p.validTo ? ` · ${p.validFrom ? shortDate(p.validFrom) : "now"} to ${p.validTo ? shortDate(p.validTo) : "no end"}` : ""}
+                      {p.capacityPerDay ? ` · ${p.capacityPerDay} a day` : ""}
+                      {p.onWebsite ? "" : " · desk only"}
+                    </p>
+                    {p.inclusions.length > 0 && <p className="text-muted-foreground">Includes {p.inclusions.join(", ")}.</p>}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </section>
       <section className="grid gap-4" aria-labelledby="addons-heading">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>

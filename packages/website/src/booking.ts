@@ -125,7 +125,7 @@ export async function startOnlineBooking(siteCode: PropertyCode, choice: OnlineC
         url: `/booking?ref=${started.token}`,
         holdExpiresAt: started.holdExpiresAt,
         lines: quote.lines.map((line) => ({
-          title: line.kind === "stay" ? `${line.roomTypeName}, ${line.nights.length} ${line.nights.length === 1 ? "night" : "nights"}` : lineTitle(line),
+          title: line.kind === "stay" ? `${line.packageName ? `${line.packageName} (${line.roomTypeName})` : line.roomTypeName}, ${line.nights.length} ${line.nights.length === 1 ? "night" : "nights"}` : lineTitle(line),
           amountPaise: line.totalPaise,
         })),
         offer: started.offer ? { title: started.offer.title, code: started.offer.code, paise: started.offer.discountPaise } : null,

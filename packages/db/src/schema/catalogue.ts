@@ -328,3 +328,82 @@ export const addons = pgTable(
     check("addons_night_is_stay", sql`${t.basis} <> 'night' or ${t.soldWith} = 'stay'`),
   ],
 );
+
+/** A stay package's kind (URD 5.3): room plus inclusions, a fixed weekend bundle, or anything else the team defines. */
+export const stayPackageKind = pgEnum("stay_package_kind", ["stay", "staycation", "custom"]);
+/** What the package price pays for: each adult, a couple, or the room at its base occupancy. */
+export const packageBasis = pgEnum("package_basis", ["person", "couple", "room"]);
+/** Whether the price is for the whole stay or for each night. */
+export const packagePriceUnit = pgEnum("package_price_unit", ["stay", "night"]);
+
+/**
+ * A stay or staycation package (URD 5.3, PKG-01, PKG-02): a room of one of
+ * its linked room types for a fixed or bounded number of nights, at the
+ * package's own price, with its inclusions. It uses the room type's units,
+ * so it can never oversell a room. It shows on the website while active
+ * and within its dates, and drops off when it expires or sells out.
+ */
+export const stayPackages = pgTable(
+  "stay_packages",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    propertyId: uuid()
+      .notNull()
+      .references(() => properties.id),
+    kind: stayPackageKind().notNull().default("stay"),
+    code: text().notNull(),
+    name: text().notNull(),
+    summary: text(),
+    inclusions: text().array().notNull().default(sql`'{}'::text[]`),
+    exclusions: text().array().notNull().default(sql`'{}'::text[]`),
+    mealPlan: mealPlan().notNull().default("AP"),
+    /** The room types it can be booked in. */
+    roomTypeIds: uuid().array().notNull(),
+    /** A fixed number of nights, such as 1 for "1 night and 2 days". Empty when the guest chooses within min and max. */
+    nights: smallint(),
+    minNights: smallint(),
+    maxNights: smallint(),
+    basis: packageBasis().notNull().default("couple"),
+    priceUnit: packagePriceUnit().notNull().default("stay"),
+    /** What the basis pays, for the stay or a night. */
+    pricePaise: bigint({ mode: "number" }).notNull(),
+    /** Each adult beyond the couple or the room's base occupancy. Empty means not published. */
+    extraAdultPaise: bigint({ mode: "number" }),
+    /** Days of the week guests can arrive, 0 for Sunday. Empty means any. */
+    arrivalDays: smallint().array(),
+    validFrom: date({ mode: "string" }),
+    validTo: date({ mode: "string" }),
+    /** Arrival dates it isn't sold for. */
+    blackoutDates: date({ mode: "string" }).array().notNull().default(sql`'{}'::date[]`),
+    /** The most packages that can arrive on one day. Empty means only the rooms limit it. */
+    capacityPerDay: integer(),
+    cancellationNote: text(),
+    featured: boolean().notNull().default(false),
+    onWebsite: boolean().notNull().default(true),
+    active: boolean().notNull().default(true),
+    sortOrder: integer().notNull().default(0),
+    createdBy: createdBy(),
+    ...timestamps,
+  },
+  (t) => [
+    unique().on(t.propertyId, t.code),
+    check("stay_packages_money", sql`${t.pricePaise} >= 0 and (${t.extraAdultPaise} is null or ${t.extraAdultPaise} >= 0)`),
+    check("stay_packages_nights", sql`(${t.nights} is null or ${t.nights} between 1 and 30) and (${t.minNights} is null or ${t.maxNights} is null or ${t.maxNights} >= ${t.minNights})`),
+    check("stay_packages_dates", sql`${t.validTo} is null or ${t.validFrom} is null or ${t.validTo} >= ${t.validFrom}`),
+  ],
+);
+
+/** What a child in one age band pays for a stay package, for the stay or a night as the package says. No row means not published. */
+export const stayPackageChildPrices = pgTable(
+  "stay_package_child_prices",
+  {
+    packageId: uuid()
+      .notNull()
+      .references(() => stayPackages.id, { onDelete: "cascade" }),
+    ageBandId: uuid()
+      .notNull()
+      .references(() => ageBands.id),
+    paise: bigint({ mode: "number" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.packageId, t.ageBandId] }), check("stay_package_child_prices_money", sql`${t.paise} >= 0`)],
+);

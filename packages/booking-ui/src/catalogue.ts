@@ -48,7 +48,28 @@ export type CataloguePass = {
 /** An offer the website shows. Coupon codes stay with the team. */
 export type CatalogueOffer = { title: string; details: string | null; appliesTo: "stay" | "day" | "any" };
 
-export type Catalogue = { roomTypes: CatalogueRoomType[]; passes: CataloguePass[]; offers?: CatalogueOffer[] };
+export type CatalogueStayPackage = {
+  code: string;
+  kind: "stay" | "staycation" | "custom";
+  name: string;
+  summary: string | null;
+  inclusions: string[];
+  exclusions: string[];
+  mealPlan: CatalogueRate["mealPlan"];
+  nights: number | null;
+  minNights: number | null;
+  maxNights: number | null;
+  basis: "person" | "couple" | "room";
+  priceUnit: "stay" | "night";
+  pricePaise: number;
+  extraAdultPaise: number | null;
+  childPaise: Record<string, number>;
+  arrivalDays: number[] | null;
+  cancellationNote: string | null;
+  roomTypes: { code: string; name: string }[];
+};
+
+export type Catalogue = { roomTypes: CatalogueRoomType[]; passes: CataloguePass[]; offers?: CatalogueOffer[]; stayPackages?: CatalogueStayPackage[] };
 export type Section = { id: string; title: string; line?: string };
 
 /** The sites' words for each meal plan. Room only says nothing. */
@@ -149,4 +170,55 @@ export function offersFor(catalogue: Catalogue, kind: "stay" | "day"): Catalogue
 
 export function offerNotes(catalogue: Catalogue, kind: "stay" | "day"): string[] {
   return offersFor(catalogue, kind).map((offer) => `Offer: ${offer.title}.${offer.details ? ` ${offer.details}` : ""}`);
+}
+
+/** A package card's id: the package and the room type it books, such as pkg~weekend-escape~glass-house. */
+export const packageListingId = (packageCode: string, roomTypeCode: string) => `pkg~${packageCode}~${roomTypeCode}`;
+
+/** The package and room type codes in a package card's id, or null for a plain room type. */
+export function parsePackageListingId(id: string): { packageCode: string; roomTypeCode: string } | null {
+  const [prefix, packageCode, roomTypeCode] = id.split("~");
+  return prefix === "pkg" && packageCode && roomTypeCode ? { packageCode, roomTypeCode } : null;
+}
+
+const dayWords = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/**
+ * The website's stay and staycation packages as cards (URD 5.3, PKG-01): one
+ * card for each package and room type it can be booked in. Photos come from
+ * the room type's own listing.
+ */
+export function packageListings(catalogue: Catalogue, photosFor: (code: string) => Photo[]): Listing[] {
+  return (catalogue.stayPackages ?? []).flatMap((pkg) =>
+    pkg.roomTypes.map((room) => {
+      const length = pkg.nights ? plural(pkg.nights, "night") : pkg.minNights ? `${pkg.minNights}+ nights` : undefined;
+      const arrivals = pkg.arrivalDays?.length ? `Arrive ${pkg.arrivalDays.map((d) => dayWords[d]).join(" or ")}` : undefined;
+      const details = [
+        pkg.inclusions.length ? `Includes: ${pkg.inclusions.join(", ")}.` : "",
+        pkg.exclusions.length ? `Not included: ${pkg.exclusions.join(", ")}.` : "",
+        pkg.cancellationNote ?? "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      return {
+        id: packageListingId(pkg.code, room.code),
+        name: pkg.roomTypes.length > 1 ? `${pkg.name}, ${room.name}` : pkg.name,
+        noun: "package",
+        line: pkg.summary ?? "",
+        photos: photosFor(room.code),
+        facts: [length, mealWords[pkg.mealPlan], arrivals, pkg.roomTypes.length > 1 ? undefined : room.name].filter((fact): fact is string => Boolean(fact)),
+        details: details || undefined,
+        features: pkg.inclusions.length ? pkg.inclusions : undefined,
+        everyNight: {
+          basis: pkg.basis === "person" ? "person" : "couple",
+          base: pkg.pricePaise / 100,
+          extraAdult: rupees(pkg.extraAdultPaise),
+          child5to11: rupees(pkg.childPaise.child_5_11),
+          child3to5: rupees(pkg.childPaise.child_3_5),
+          meals: mealWords[pkg.mealPlan],
+        },
+        stayPackage: { nights: pkg.nights, minNights: pkg.minNights, maxNights: pkg.maxNights, unit: pkg.priceUnit, arrivalDays: pkg.arrivalDays, room: room.name },
+      } satisfies Listing;
+    }),
+  );
 }

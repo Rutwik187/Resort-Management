@@ -58,6 +58,12 @@ export function priceForNight(rate: Rate, party: Party): number | null {
 /** The whole stay for one party, each night at its own rate. Null if any night can't be priced. */
 export function priceForStay(listing: Listing, party: Party, nights: string[]): number | null {
   if (listing.onRequest || nights.length === 0) return null;
+  // A package priced for the whole stay: one price, for its own number of nights only.
+  const pkg = listing.stayPackage;
+  if (pkg?.unit === "stay") {
+    if (pkg.nights && nights.length !== pkg.nights) return null;
+    return listing.everyNight ? priceForNight(listing.everyNight, party) : null;
+  }
   let total = 0;
   for (const night of nights) {
     const rate = rateForNight(listing, night);

@@ -1,8 +1,9 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { addons, bookingItems, bookings, guests, holds, invoices, offerings, offeringSlots, onlinePayments, properties, roomTypes, units, type CampaignJson, type ConsentJson, type Database } from "@repo/db";
+import { addons, bookingItems, stayPackages, bookings, guests, holds, invoices, offerings, offeringSlots, onlinePayments, properties, roomTypes, units, type CampaignJson, type ConsentJson, type Database } from "@repo/db";
 import { searchStays, seatsLeft } from "./availability";
 import { createBooking, normalisePhone, type GuestInput } from "./bookings";
-import { isDate } from "./dates";
+import { isDate, nightsOf } from "./dates";
+import { packageArrivals, packageProblem } from "./packages";
 import { CouponError, NotFoundError, RuleError } from "./errors";
 import { holdSeats, holdStay, lineTitle, releaseHold, type Quote } from "./holds";
 import { holdConfirmationEmail } from "./messages";
@@ -46,11 +47,21 @@ export async function websiteAvailability(db: Database, input: { propertyCode: s
         .innerJoin(roomTypes, eq(roomTypes.id, units.roomTypeId))
         .where(and(eq(roomTypes.propertyId, property.id), eq(units.status, "active")))
     : [];
-  const rooms = stayAsked
-    ? (await searchStays(db, property.id, input.checkIn!, input.checkOut!))
-        .filter((o) => counted.some((c) => c.roomTypeId === o.roomTypeId))
-        .map((o) => ({ code: o.code, free: o.closedReason ? 0 : o.freeUnits, note: o.closedReason }))
-    : [];
+  const options = stayAsked ? (await searchStays(db, property.id, input.checkIn!, input.checkOut!)).filter((o) => counted.some((c) => c.roomTypeId === o.roomTypeId)) : [];
+  const rooms = options.map((o) => ({ code: o.code, free: o.closedReason ? 0 : o.freeUnits, note: o.closedReason }));
+  if (stayAsked) {
+    // Package cards: the room's free units, within the package's own rules and arrivals a day.
+    const nightCount = nightsOf(input.checkIn!, input.checkOut!).length;
+    const pkgs = await db.select().from(stayPackages).where(and(eq(stayPackages.propertyId, property.id), eq(stayPackages.active, true), eq(stayPackages.onWebsite, true)));
+    for (const pkg of pkgs) {
+      const left = pkg.capacityPerDay === null ? Infinity : Math.max(0, pkg.capacityPerDay - (await packageArrivals(db, pkg.id, input.checkIn!)));
+      for (const option of options.filter((o) => pkg.roomTypeIds.includes(o.roomTypeId))) {
+        const why = packageProblem(pkg, option.roomTypeId, input.checkIn!, nightCount) ?? (left === 0 ? `${pkg.name} is sold out for that day.` : null);
+        const closed = option.closedReason && !/at least|at most/.test(option.closedReason) ? option.closedReason : null;
+        rooms.push({ code: packageListingCode(pkg.code, option.code), free: why || closed ? 0 : Math.min(option.freeUnits, left), note: why ?? closed });
+      }
+    }
+  }
   const passes = input.day && isDate(input.day)
     ? await (async () => {
         const seats = await seatsLeft(db, property.id, input.day!);
@@ -135,17 +146,28 @@ export async function bookOnline(db: Database, input: WebsiteBookingInput): Prom
 
   let held;
   if (input.stay && input.stay.rooms.length) {
-    const codes = [...new Set(input.stay.rooms.map((r) => r.code))];
+    // A package card's code names the package and its room type.
+    const asked = input.stay.rooms.map((r) => ({ ...r, ...splitPackageCode(r.code) }));
+    const codes = [...new Set(asked.map((r) => r.roomCode))];
     const types = await db
       .select({ id: roomTypes.id, code: roomTypes.code })
       .from(roomTypes)
       .where(and(eq(roomTypes.propertyId, property.id), inArray(roomTypes.code, codes), eq(roomTypes.status, "active"), eq(roomTypes.onWebsite, true)));
     if (types.length !== codes.length) throw new RuleError("One of these rooms can't be booked online. Please send the request instead.");
+    const packageCodes = [...new Set(asked.flatMap((r) => (r.packageCode ? [r.packageCode] : [])))];
+    const pkgs = packageCodes.length
+      ? await db.select({ id: stayPackages.id, code: stayPackages.code }).from(stayPackages).where(and(eq(stayPackages.propertyId, property.id), inArray(stayPackages.code, packageCodes), eq(stayPackages.onWebsite, true)))
+      : [];
+    if (pkgs.length !== packageCodes.length) throw new RuleError("This package can't be booked online. Please send the request instead.");
     held = await holdStay(db, {
       propertyId: property.id,
       checkIn: input.stay.checkIn,
       checkOut: input.stay.checkOut,
-      rooms: input.stay.rooms.map((room) => ({ roomTypeId: types.find((t) => t.code === room.code)!.id, party: room.party })),
+      rooms: asked.map((room) => ({
+        roomTypeId: types.find((t) => t.code === room.roomCode)!.id,
+        party: room.party,
+        packageId: room.packageCode ? pkgs.find((p) => p.code === room.packageCode)!.id : undefined,
+      })),
       addons: extras,
       website: true,
     });
@@ -309,4 +331,12 @@ export async function newManageLink(db: Database, bookingId: string) {
   const { token, hash } = newToken();
   await db.update(bookings).set({ manageTokenHash: hash }).where(eq(bookings.id, bookingId));
   return token;
+}
+
+/** A package card's code: the package and the room type, as the widget names it (booking-ui catalogue.ts). */
+const packageListingCode = (packageCode: string, roomTypeCode: string) => `pkg~${packageCode}~${roomTypeCode}`;
+
+function splitPackageCode(code: string): { roomCode: string; packageCode: string | null } {
+  const [prefix, packageCode, roomCode] = code.split("~");
+  return prefix === "pkg" && packageCode && roomCode ? { roomCode, packageCode } : { roomCode: code, packageCode: null };
 }

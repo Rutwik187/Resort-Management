@@ -19,7 +19,8 @@ import { previewStayChange, saveStayChange, type ChangeRequest, type ChangeView 
 
 type RoomType = { id: string; name: string; maxAdults: number | null; maxGuests: number | null; extraBedAllowed: boolean };
 type Band = { code: string; label: string };
-type Line = { key: number; roomTypeId: string; adults: number; children: Record<string, number>; extraBeds: number };
+/** A room in the stay. A room booked as a stay package keeps its package while its room type stays the same. */
+type Line = { key: number; roomTypeId: string; adults: number; children: Record<string, number>; extraBeds: number; packageId?: string };
 
 const noLimit = 60;
 
@@ -50,7 +51,7 @@ export function ChangeStayForm({
   const [view, setView] = useState<ChangeView | null>(null);
   const [checking, startCheck] = useTransition();
 
-  const request: ChangeRequest = { ...dates, keepPrice, rooms: lines.map(({ roomTypeId, adults, children, extraBeds }) => ({ roomTypeId, adults, children, extraBeds })) };
+  const request: ChangeRequest = { ...dates, keepPrice, rooms: lines.map(({ roomTypeId, adults, children, extraBeds, packageId }) => ({ roomTypeId, adults, children, extraBeds, packageId })) };
   const [state, action, pending] = useToastAction(saveStayChange.bind(null, bookingId));
   // Any change makes a shown price out of date.
   const change = (next: Line[]) => {
@@ -99,7 +100,7 @@ export function ChangeStayForm({
               return (
                 <div key={line.key} className="grid gap-3 rounded-lg border p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Select value={line.roomTypeId} onValueChange={(roomTypeId) => update(line.key, { roomTypeId, extraBeds: 0 })}>
+                    <Select value={line.roomTypeId} onValueChange={(roomTypeId) => update(line.key, { roomTypeId, extraBeds: 0, packageId: undefined })}>
                       <SelectTrigger className="w-full sm:w-72" aria-label={`Room ${index + 1} type`}>
                         <SelectValue />
                       </SelectTrigger>
