@@ -1,6 +1,7 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element -- admin thumbnails straight from the Blob store */
+import { uploadProblem } from "@/lib/upload-problem";
 import { useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ImagePlus, Pencil, RotateCcw, Send, Trash2 } from "lucide-react";
 import { upload } from "@vercel/blob/client";
@@ -97,7 +98,7 @@ async function sizeOf(file: File) {
 }
 
 /** The gallery: upload many photos into a category at once, then edit, order, feature, hide or remove them (URD 4.2, CMS-06). */
-export function GalleryManager({ propertyId, photos, categories }: { propertyId: string; photos: ManagedPhoto[]; categories: string[] }) {
+export function GalleryManager({ propertyId, photos, categories, storageReady }: { propertyId: string; photos: ManagedPhoto[]; categories: string[]; storageReady: boolean }) {
   const input = useRef<HTMLInputElement>(null);
   const [category, setCategory] = useState(categories[0] ?? "Rooms");
   const [progress, setProgress] = useState<string | null>(null);
@@ -116,7 +117,7 @@ export function GalleryManager({ propertyId, photos, categories }: { propertyId:
       }
       say(await addGalleryPhotos(propertyId, category, done));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "An upload didn't go through.");
+      toast.error(uploadProblem(error, "An upload didn't go through."));
       if (done.length) say(await addGalleryPhotos(propertyId, category, done));
     } finally {
       setProgress(null);
@@ -137,11 +138,12 @@ export function GalleryManager({ propertyId, photos, categories }: { propertyId:
           </datalist>
         </Field>
         <input ref={input} type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple className="hidden" onChange={(e) => e.target.files?.length && send(e.target.files)} />
-        <Button type="button" disabled={progress !== null || category.trim().length < 2} onClick={() => input.current?.click()}>
+        <Button type="button" disabled={!storageReady || progress !== null || category.trim().length < 2} onClick={() => input.current?.click()}>
           {progress ? <Spinner /> : <ImagePlus />}
           {progress ?? "Add photos"}
         </Button>
       </div>
+      {!storageReady && <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Photo uploads start once file storage is set up on Vercel (BLOB_READ_WRITE_TOKEN in the admin project).</p>}
       {photos.length > 0 && (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {photos.map((photo) => (

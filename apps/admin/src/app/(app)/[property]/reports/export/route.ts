@@ -4,6 +4,7 @@ import { getDb } from "@repo/db";
 import { isDate } from "@repo/engine";
 import { tableDownload, type Cell } from "@/lib/export";
 import { buildReport, exportCell, exportLabel, reportKinds, type ReportKind } from "@/lib/report-tables";
+import { sourceLabel, statusLabel } from "@/lib/format";
 import { bookingsForExport } from "@/lib/reports";
 import { propertyFromCode } from "@/lib/staff";
 
@@ -53,13 +54,14 @@ export async function GET(request: Request, { params }: RouteContext<"/[property
   if (!can(staff, "reports.view", property.id)) return new Response("Your role can't download reports.", { status: 403 });
 
   const rows = await bookingsForExport(property.id, { from, to });
+  const closed = ["cancelled", "refunded", "expired", "no_show"];
   const lines = [
     ["Booking", "Booked on", "Source", "Status", "Guest", "Phone", "Email", "Check-in", "Check-out", "Visit date", "Total (₹)", "Paid (₹)", "To pay (₹)"],
     ...rows.map((r) => [
       r.number,
       r.bookedOn,
-      r.source,
-      r.status,
+      sourceLabel[r.source as keyof typeof sourceLabel] ?? r.source,
+      statusLabel[r.status as keyof typeof statusLabel] ?? r.status,
       r.guest,
       r.phone ? `+${r.phone}` : "",
       r.email,
@@ -68,7 +70,8 @@ export async function GET(request: Request, { params }: RouteContext<"/[property
       r.visitDate,
       rupees(r.totalPaise),
       rupees(r.paidPaise),
-      r.totalPaise === null ? "" : rupees(Math.max(0, r.totalPaise - r.paidPaise)),
+      // A closed booking owes nothing, as on the booking page.
+      closed.includes(r.status) ? rupees(0) : r.totalPaise === null ? "" : rupees(Math.max(0, r.totalPaise - r.paidPaise)),
     ]),
   ];
   // A byte-order mark, so Excel reads the ₹ sign and names in Unicode.

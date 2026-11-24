@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowRightLeft, CalendarCheck, CalendarRange, CircleAlert, Clock, IndianRupee, Link2, Mail, MessageCircle, MessageSquareText, Phone, PencilLine, Sparkles, Undo2 } from "lucide-react";
 import { can } from "@repo/auth";
 import { and, asc, eq, isNull } from "drizzle-orm";
-import { getDb, idProofs, properties } from "@repo/db";
+import { getDb, idProofs, offers, properties } from "@repo/db";
 import { addonQuantityWords, freeUnits, todayInIndia, type Quote } from "@repo/engine";
 import { NoAccess } from "@/components/no-access";
 import { PersonAvatar } from "@/components/person-avatar";
@@ -14,6 +14,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { privateToken } from "@/lib/blob";
 import { loadBooking, type LoadedBooking } from "@/lib/bookings";
 import { balance, clock, longDate, methodLabel, partyLabel, plural, price, rupees, shortDate, sourceLabel, statusLabel, when } from "@/lib/format";
 import { propertyFromCode, requireStaffPage } from "@/lib/staff";
@@ -57,6 +58,10 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
   const closed = ["cancelled", "refunded", "expired", "no_show"].includes(booking.status);
   const left = closed ? 0 : balance(booking);
   const quote = booking.quote as Quote | null;
+  // A price below the rates comes from an offer (its event's note starts "Offer:"), staff, or both.
+  const [offer] = booking.offerId ? await getDb().select({ title: offers.title }).from(offers).where(eq(offers.id, booking.offerId)) : [];
+  const offerTitle = offer?.title ?? null;
+  const staffSetPrice = loaded.events.some((e) => e.type === "price_override" && !e.note?.startsWith("Offer:"));
   const roomsBooked = booking.status === "confirmed" || booking.status === "part_paid";
   const takesMoney = ["pending_payment", "part_paid", "confirmed", "checked_in", "checked_out"].includes(booking.status) && left !== 0;
   const nights = quote?.lines.find((l) => l.kind === "stay")?.nights.length ?? 0;
@@ -243,6 +248,7 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
               base={`/${property.code.toLowerCase()}`}
               guestName={guest.name}
               retentionDays={retention?.days ?? 30}
+              storageReady={Boolean(privateToken())}
               proofs={proofs.map((p) => ({ id: p.id, label: p.label, contentType: p.contentType, size: p.size, createdAt: p.createdAt.toISOString(), deleteAfter: p.deleteAfter.toISOString() }))}
             />
           )}
@@ -317,7 +323,13 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
           <Card>
             <CardHeader>
               <CardTitle>Payments</CardTitle>
-              {quote?.totalPaise !== undefined && booking.totalPaise !== quote?.totalPaise && <CardDescription>The rates gave {price(quote?.totalPaise)}; staff set this price (see the timeline).</CardDescription>}
+              {quote?.totalPaise !== undefined && booking.totalPaise !== quote?.totalPaise && (
+                <CardDescription>
+                  The rates gave {price(quote?.totalPaise)}
+                  {offerTitle && booking.discountPaise > 0 ? `; ${offerTitle} took ${rupees(booking.discountPaise)} off before GST` : ""}
+                  {staffSetPrice ? "; staff set this price" : ""} (see the timeline).
+                </CardDescription>
+              )}
               {takesMoney && may("bookings.modify") && money.onlinePayments && left !== null && left > 0 && (
                 <CardAction className="print:hidden">
                   <PaymentLinkForm bookingId={booking.id} balance={String(left / 100)} />
@@ -439,9 +451,17 @@ function Timeline({ loaded }: { loaded: LoadedBooking }) {
       case "note":
         return "Note";
       case "changed": {
-        const from = data.from as { checkIn?: string; checkOut?: string; totalPaise?: number | null } | undefined;
-        const to = data.to as { checkIn?: string; checkOut?: string; totalPaise?: number | null } | undefined;
-        return `Changed from ${from?.checkIn ? shortDate(from.checkIn) : "?"} – ${from?.checkOut ? shortDate(from.checkOut) : "?"} to ${to?.checkIn ? shortDate(to.checkIn) : "?"} – ${to?.checkOut ? shortDate(to.checkOut) : "?"}, ${price(to?.totalPaise ?? null)}`;
+        type Side = { checkIn?: string; checkOut?: string; rooms?: string[]; totalPaise?: number | null };
+        const from = data.from as Side | undefined;
+        const to = data.to as Side | undefined;
+        const dates = (side?: Side) => `${side?.checkIn ? shortDate(side.checkIn) : "?"} – ${side?.checkOut ? shortDate(side.checkOut) : "?"}`;
+        const rooms = (side?: Side) => (side?.rooms ?? []).join(", ");
+        // Say only what changed: the dates, the rooms, or both.
+        const parts = [
+          dates(from) !== dates(to) ? `dates from ${dates(from)} to ${dates(to)}` : null,
+          rooms(from) !== rooms(to) ? `rooms from ${rooms(from) || "?"} to ${rooms(to) || "?"}` : null,
+        ].filter(Boolean);
+        return `Changed ${parts.length ? parts.join("; ") : "the guests"}, now ${price(to?.totalPaise ?? null)}`;
       }
       default:
         return event.type;

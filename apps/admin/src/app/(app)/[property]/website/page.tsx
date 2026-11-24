@@ -1,3 +1,4 @@
+import { publicToken } from "@/lib/blob";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { and, asc, count, desc, eq } from "drizzle-orm";
@@ -243,10 +244,10 @@ export default async function WebsitePage({ params }: PageProps<"/[property]/web
       <Card className="gap-0 overflow-hidden py-0 shadow-xs">
         <CardHeader className="border-b py-5 [.border-b]:pb-5">
           <CardTitle>Gallery</CardTitle>
-          <CardDescription>The website&apos;s Gallery page, in category tabs. Add many photos at once into a category; they show within a minute. Large photos are fine: they go straight to storage.</CardDescription>
+          <CardDescription>The website&apos;s Gallery page, in category tabs. Add many photos at once into a category; they show within a minute. Large photos are fine: they go straight to storage. To give a room type its own photos on the Rooms page, use its exact name as the category, such as &ldquo;Cozy Cottage&rdquo;.</CardDescription>
         </CardHeader>
         <CardContent className="py-5">
-          <GalleryManager propertyId={property.id} categories={galleryCategories} photos={photos.map((p) => ({ id: p.id, url: p.url, alt: p.alt, caption: p.caption, category: p.category, featured: p.featured, hidden: p.hidden }))} />
+          <GalleryManager storageReady={Boolean(publicToken())} propertyId={property.id} categories={galleryCategories} photos={photos.map((p) => ({ id: p.id, url: p.url, alt: p.alt, caption: p.caption, category: p.category, featured: p.featured, hidden: p.hidden }))} />
         </CardContent>
       </Card>
 

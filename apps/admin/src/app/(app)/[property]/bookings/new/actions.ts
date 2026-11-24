@@ -9,6 +9,7 @@ import {
   holdSeats,
   holdStay,
   lineTitle,
+  loadTaxRules,
   nightsOf,
   normalisePhone,
   offerProblem,
@@ -21,6 +22,7 @@ import {
   quoteTarget,
   releaseHold,
   subtotalOf,
+  taxQuote,
   todayInIndia,
   type AppliedOffer,
   type Quote,
@@ -60,6 +62,8 @@ export type QuoteView = {
   tax?: { label: string; rateBps: number; taxPaise: number }[];
   /** With GST. */
   totalPaise?: number | null;
+  /** For each offer that takes something off this quote: what it takes off before GST, and the total with GST after it. */
+  offerPrices?: Record<string, { discountPaise: number; totalPaise: number | null }>;
 };
 
 const asView = (quote: Quote): QuoteView => ({
@@ -85,7 +89,18 @@ export async function quoteOffline(propertyId: string, payload: BookingRequest):
       input.kind === "stay"
         ? await quoteStay(db, { propertyId, checkIn: input.checkIn, checkOut: input.checkOut, rooms: input.lines.map(({ id, adults, children, extraBeds }) => ({ roomTypeId: id, party: { adults, children }, extraBeds })) , addons: extrasOf(input) })
         : await quoteSeats(db, { propertyId, day: input.day, seats: input.lines.map(({ id, adults, children }) => ({ slotId: id, party: { adults, children } })) , addons: extrasOf(input) });
-    return asView(quote);
+    // Each offer's discount as createOffline will apply it, with GST worked out again on what is left.
+    const subtotal = subtotalOf(quote);
+    const offerPrices: NonNullable<QuoteView["offerPrices"]> = {};
+    if (subtotal !== null) {
+      const [rows, rules] = await Promise.all([db.select().from(offers).where(eq(offers.propertyId, propertyId)), loadTaxRules(db, propertyId)]);
+      for (const row of rows) {
+        if (!offerTakesOff(row)) continue;
+        const discountPaise = quoteDiscount(offerRule(row), quote);
+        offerPrices[row.id] = { discountPaise, totalPaise: discountPaise ? (taxQuote(quote, rules, subtotal - discountPaise)?.totalPaise ?? null) : quote.totalPaise };
+      }
+    }
+    return { ...asView(quote), offerPrices };
   } catch (error) {
     return { error: problem(error, "Your role can't make bookings at this resort.")?.error };
   }

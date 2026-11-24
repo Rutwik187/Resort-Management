@@ -20,11 +20,7 @@ import { createOffline, quoteOffline, type BookingRequest, type QuoteView } from
 
 /** A room type, or a ticket for a package, activity or sitting, that can be added. */
 /** An offer the guest may take: what it takes off, and why it can't apply here, if it can't. */
-export type OfferOption = { id: string; title: string; code: string | null; label: string; discountKind: "percent" | "amount" | "none"; discountValue: number | null; problem: string | null };
-
-/** What an offer takes off a price, as the server works it out. */
-const discountOf = (offer: OfferOption | undefined, total: number | null | undefined) =>
-  !offer || total == null ? 0 : offer.discountKind === "percent" ? Math.min(total, Math.round((total * (offer.discountValue ?? 0)) / 100)) : offer.discountKind === "amount" ? Math.min(total, offer.discountValue ?? 0) : 0;
+export type OfferOption = { id: string; title: string; code: string | null; label: string; takesOff: boolean; problem: string | null };
 
 /** An add-on staff can add, priced before GST. */
 export type AddonOption = { id: string; name: string; summary: string | null; basis: "unit" | "person" | "night"; pricePaise: number; maxQuantity: number };
@@ -99,9 +95,12 @@ export function NewBookingForm({
   const [payAmount, setPayAmount] = useState("");
   const [offerId, setOfferId] = useState("none");
   const chosenOffer = offers.find((o) => o.id === offerId);
-  // Offers come off the price before GST; GST is then worked out on what is left.
-  const discount = discountOf(chosenOffer, quote?.subtotalPaise);
+  // Offers come off the price before GST; the server works out what each takes off and the GST on what is left.
+  const offerPrice = chosenOffer ? quote?.offerPrices?.[chosenOffer.id] : undefined;
+  const discount = offerPrice?.discountPaise ?? 0;
   const payable = quote?.subtotalPaise == null ? null : quote.subtotalPaise - discount;
+  // What "paid in full" means: the total with GST, after any offer.
+  const payableWithGst = chosenOffer ? (offerPrice?.totalPaise ?? null) : (quote?.totalPaise ?? null);
   const [state, action, pending] = useActionState(createOffline.bind(null, propertyId), undefined);
 
   const noun = kind === "stay" ? "room" : "ticket";
@@ -388,11 +387,11 @@ export function NewBookingForm({
                     </Select>
                     {chosenOffer && (
                       <FieldDescription className={discount ? "font-medium text-good" : undefined}>
-                        {chosenOffer.discountKind === "none"
+                        {!chosenOffer.takesOff
                           ? "It takes nothing off by itself: the team applies it, and it is noted on the booking."
                           : quote?.subtotalPaise == null
                             ? "Check the price to see what it saves."
-                            : `Saves ${rupees(discount)} before GST: ${rupees(payable!)} instead of ${rupees(quote.subtotalPaise)}, plus GST.`}
+                            : `Saves ${rupees(discount)} before GST: ${rupees(payable!)} instead of ${rupees(quote.subtotalPaise)}${payableWithGst != null ? `, so ${rupees(payableWithGst)} with GST` : ", plus GST"}.`}
                       </FieldDescription>
                     )}
                   </Field>
@@ -435,9 +434,9 @@ export function NewBookingForm({
                     {payMethod !== "none" && (
                       <div className="grid gap-3">
                         <Input name="payAmount" required inputMode="decimal" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} aria-label="Amount paid, in rupees" placeholder="Amount paid (₹)" />
-                        {payable != null && !override && (
-                          <Button type="button" variant="link" className="h-auto justify-self-start p-0" onClick={() => setPayAmount(String(payable / 100))}>
-                            The full {rupees(payable)}
+                        {payableWithGst != null && !override && (
+                          <Button type="button" variant="link" className="h-auto justify-self-start p-0" onClick={() => setPayAmount(String(payableWithGst / 100))}>
+                            The full {rupees(payableWithGst)} with GST
                           </Button>
                         )}
                         <Input name="payReference" aria-label="Reference" placeholder="UPI, card or receipt reference" />

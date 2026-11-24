@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { uploadProblem } from "@/lib/upload-problem";
 import { Spinner } from "@/components/ui/spinner";
 import { deleteIdProof, recordIdProof } from "./id-proof-actions";
 
@@ -17,7 +18,7 @@ type Proof = { id: string; label: string; contentType: string; size: number; cre
  * or a file, straight to the private store. Only Front Desk, the Property
  * Manager and the Super Admin see this card; each opening is logged.
  */
-export function IdProofCard({ propertyId, bookingId, base, guestName, proofs, retentionDays }: { propertyId: string; bookingId: string; base: string; guestName: string; proofs: Proof[]; retentionDays: number }) {
+export function IdProofCard({ propertyId, bookingId, base, guestName, proofs, retentionDays, storageReady }: { propertyId: string; bookingId: string; base: string; guestName: string; proofs: Proof[]; retentionDays: number; storageReady: boolean }) {
   const input = useRef<HTMLInputElement>(null);
   const [label, setLabel] = useState(proofs.length ? "" : guestName);
   const [busy, setBusy] = useState(false);
@@ -43,7 +44,7 @@ export function IdProofCard({ propertyId, bookingId, base, guestName, proofs, re
         setLabel("");
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "The upload didn't go through.");
+      toast.error(uploadProblem(error));
     } finally {
       setBusy(false);
       if (input.current) input.current.value = "";
@@ -98,12 +99,18 @@ export function IdProofCard({ propertyId, bookingId, base, guestName, proofs, re
             ))}
           </ul>
         )}
-        <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Whose ID, such as the guest's name" aria-label="Whose ID" maxLength={80} />
-        <input ref={input} type="file" accept="image/*,application/pdf" capture="environment" className="hidden" onChange={(e) => e.target.files?.[0] && send(e.target.files[0])} />
-        <Button type="button" variant="outline" disabled={busy} onClick={() => input.current?.click()}>
-          {busy ? <Spinner /> : <Camera />}
-          {busy ? "Uploading…" : "Add an ID proof"}
-        </Button>
+        {storageReady ? (
+          <>
+            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Whose ID, such as the guest's name" aria-label="Whose ID" maxLength={80} />
+            <input ref={input} type="file" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" capture="environment" className="hidden" onChange={(e) => e.target.files?.[0] && send(e.target.files[0])} />
+            <Button type="button" variant="outline" disabled={busy} onClick={() => input.current?.click()}>
+              {busy ? <Spinner /> : <Camera />}
+              {busy ? "Uploading…" : "Add an ID proof"}
+            </Button>
+          </>
+        ) : (
+          <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Uploads start once private file storage is set up on Vercel (BLOB_PRIVATE_READ_WRITE_TOKEN in the admin project).</p>
+        )}
       </CardContent>
     </Card>
   );
