@@ -165,7 +165,10 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
   const stock = useLiveStock(live, pending ? null : { checkIn: search.checkIn, checkOut: search.checkOut });
   // Sold-out dates, greyed out in the calendars (BW-04).
   const closedDates = useClosedDates(live, "stay", useToday());
-  const stockOf = (code: string) => stock?.rooms.find((room) => room.code === code);
+  // Rooms the resort sells online, with how many are free. A room not sold online is booked by request, never "sold out".
+  const stockOf = (code: string) => stock?.rooms.find((room) => room.code === code && room.online !== false);
+  const byRequest = picked.some((item) => stock?.rooms.some((room) => room.code === item.listingId && room.online === false));
+  const payOnline = Boolean(online) && total !== null && !byRequest;
   const short = listings.find((listing) => {
     const own = stockOf(listing.id);
     const count = picked.filter((item) => item.listingId === listing.id).length;
@@ -204,7 +207,7 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
       blocker={blocker}
       desk={desk}
       checkout={checkout}
-      online={online && total !== null ? online : undefined}
+      online={payOnline ? online : undefined}
       choice={() => (pending || picked.length === 0 ? null : { kind: "stay", checkIn: search.checkIn, checkOut: search.checkOut, rooms: picked.map((item) => ({ code: item.listingId, party: item.party })) })}
       onSend={(guest) =>
         keep(onRequest, {
@@ -242,7 +245,7 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
   const guests = search.adults + search.children;
   const summary = pending ? "" : `${formatRange(search.checkIn, search.checkOut)} · ${plural(guests, "guest")}`;
   const dockSummary = `${plural(picked.length, "room")} · ${placed < wanted ? `${placed} of ${plural(wanted, "guest")} placed` : plural(placed, "guest")}`;
-  const extrasTotal = online && total !== null ? addonsRupees(online.addons ?? [], checkout.extras, nights.length) : 0;
+  const extrasTotal = payOnline && online ? addonsRupees(online.addons ?? [], checkout.extras, nights.length) : 0;
   const dockTotal = pending ? "Add dates for the price" : total === null ? "Price to confirm" : `${formatRupees(total + extrasTotal)} + GST`;
 
   return (
@@ -253,7 +256,7 @@ export function StayPlanner({ groups, desk, storageKey, path, notes = [], imageS
           steps={[
             { label: "Choose dates", done: !pending },
             { label: "Add rooms and guests", done: picked.length > 0 && placed >= wanted },
-            online && total !== null ? { label: "Pay and book", done: false } : { label: "Send the request on WhatsApp", done: checkout.step === "sent" },
+            payOnline ? { label: "Pay and book", done: false } : { label: "Send the request on WhatsApp", done: checkout.step === "sent" },
           ]}
         />
         <SearchBar action={path} value={search} onSearch={applySearch} className="mt-4" />

@@ -154,7 +154,10 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
   const stock = useLiveStock(live, date ? { day: date } : null);
   // Sold-out dates, greyed out in the calendars (BW-04).
   const closedDates = useClosedDates(live, "day", useToday());
-  const stockOf = (code: string) => stock?.passes.find((pass) => pass.code === code);
+  // Passes the resort sells online, with their places left. A pass not sold online is booked by request, never "full".
+  const stockOf = (code: string) => stock?.passes.find((pass) => pass.code === code && pass.online !== false);
+  const byRequest = picked.some((item) => stock?.passes.some((pass) => pass.code === item.passId && pass.online === false));
+  const payOnline = Boolean(online) && total !== null && !byRequest;
   const coming = (passId: string) => picked.filter((item) => item.passId === passId).reduce((sum, item) => sum + headcount(item.party), 0);
   const short = passes.find((pass) => {
     const own = stockOf(pass.id);
@@ -206,7 +209,7 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
       blocker={blocker}
       desk={desk}
       checkout={checkout}
-      online={online && total !== null ? online : undefined}
+      online={payOnline ? online : undefined}
       choice={() => (!date || picked.length === 0 ? null : { kind: "day", date, passes: picked.map((item) => ({ code: item.passId, party: item.party })) })}
       onSend={(guest) => keep(onRequest, { kind: "day", from: date, guests: people, lines: lines.map(({ title, detail, amount }) => ({ title, detail, amount })), total, guest })}
       message={(guest) =>
@@ -224,7 +227,7 @@ export function DayPlanner({ passes, desk, storageKey, notes = [], noun = "day p
         steps={[
           { label: "Choose the date", done: Boolean(date) },
           { label: `Add ${pluralOf(noun)} and guests`, done: picked.length > 0 },
-          online && total !== null ? { label: "Pay and book", done: false } : { label: "Send the request on WhatsApp", done: checkout.step === "sent" },
+          payOnline ? { label: "Pay and book", done: false } : { label: "Send the request on WhatsApp", done: checkout.step === "sent" },
         ]}
       />
 

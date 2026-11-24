@@ -29,3 +29,7 @@ export function nightsOf(checkIn: string, checkOut: string) {
 
 /** Today's date in India, for "no bookings in the past". */
 export const todayInIndia = (now = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(now);
+
+/** A date in words for messages to guests and staff, such as "Sat, 5 Dec 2026". */
+export const dayWords = (date: string) =>
+  isDate(date) ? new Intl.DateTimeFormat("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(utc(date)) : date;

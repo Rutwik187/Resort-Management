@@ -90,7 +90,7 @@ async function Results({ searchParams }: { searchParams: PageProps<"/search">["s
                             <>
                               {o.totalPaise !== null ? <span className="font-semibold">{rupees(o.totalPaise)}</span> : <span>Rate on request</span>}
                               <span className="ml-2 text-muted">
-                                {o.free <= 2 ? `${o.free} left` : "Available"}
+                                {o.free === null ? "Ask the resort" : o.free <= 2 ? `${o.free} left` : "Available"}
                                 {o.note ? ` · ${o.note}` : ""}
                               </span>
                             </>

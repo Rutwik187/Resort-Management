@@ -473,11 +473,14 @@ describe("Add-ons", () => {
 });
 
 describe("Live availability for the websites", () => {
-  it("counts free rooms, and leaves out room types with no rooms entered", async () => {
+  it("counts free rooms, and marks room types with no rooms entered as booked by request", async () => {
     await db.insert(roomTypes).values({ propertyId, code: "dorm", name: "Dormitory" });
     const before = await websiteAvailability(db, { propertyCode: "SB", checkIn: "2027-06-01", checkOut: "2027-06-03" });
     expect(before.rooms.find((r) => r.code === "villa")).toMatchObject({ free: 1, note: null });
-    expect(before.rooms.find((r) => r.code === "dorm")).toBeUndefined();
+    expect(before.rooms.find((r) => r.code === "dorm")).toMatchObject({ free: 0, note: null, online: false });
+    // Booking it online says why, rather than "sold out".
+    const dormId = (await db.select({ id: roomTypes.id }).from(roomTypes).where(eq(roomTypes.code, "dorm")))[0].id;
+    await expect(holdStay(db, { propertyId, checkIn: "2027-06-01", checkOut: "2027-06-02", rooms: [{ roomTypeId: dormId, party: couple }] })).rejects.toThrow("isn't open for online booking");
     await holdStay(db, { propertyId, checkIn: "2027-06-02", checkOut: "2027-06-03", rooms: [{ roomTypeId: villaId, party: couple }] });
     const after = await websiteAvailability(db, { propertyCode: "SB", checkIn: "2027-06-01", checkOut: "2027-06-03" });
     expect(after.rooms.find((r) => r.code === "villa")).toMatchObject({ free: 0 });

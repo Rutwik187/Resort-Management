@@ -18,7 +18,7 @@ import { loadPackage, packageArrivals, packageProblem, pricePackage } from "./pa
 import { addonQuantityWords, priceAddons, type AddonQuoteLine, type AddonRequest } from "./addons";
 import { freeUnits, stayRuleProblem } from "./availability";
 import { loadBands, loadRoomPricing } from "./catalogue";
-import { isDate, nightsOf } from "./dates";
+import { dayWords, isDate, nightsOf } from "./dates";
 import { NotFoundError, RuleError, SoldOutError, isCheckViolation, isUniqueViolation } from "./errors";
 import { headcount, payingGuests, priceOffering, priceStay, type NightPrice, type Party } from "./pricing";
 import { loadTaxRules, taxQuote, type TaxPart } from "./tax";
@@ -146,7 +146,7 @@ export async function holdStayIn(tx: Tx, input: StayInput): Promise<HoldResult> 
     packages.set(id, loaded);
     const wanted = input.rooms.filter((room) => room.packageId === id).length;
     if (loaded.pkg.capacityPerDay !== null && (await packageArrivals(tx, id, input.checkIn)) + wanted > loaded.pkg.capacityPerDay) {
-      throw new SoldOutError(`${loaded.pkg.name} is sold out for arrivals on ${input.checkIn}.`);
+      throw new SoldOutError(`${loaded.pkg.name} is sold out for arrivals on ${dayWords(input.checkIn)}.`);
     }
   }
   for (const room of input.rooms) {
@@ -197,7 +197,12 @@ export async function holdStayIn(tx: Tx, input: StayInput): Promise<HoldResult> 
         if (!isUniqueViolation(error)) throw error;
       }
     }
-    if (!unit) throw new SoldOutError(`${roomType.name} is sold out for these dates.`);
+    if (!unit) {
+      // A room type with no rooms entered isn't sold out: the resort hasn't opened it for online booking.
+      const [any] = await tx.select({ id: units.id }).from(units).where(and(eq(units.roomTypeId, room.roomTypeId), eq(units.status, "active"))).limit(1);
+      if (!any) throw new SoldOutError(`${roomType.name} isn't open for online booking yet. Call or WhatsApp the resort to book it.`);
+      throw new SoldOutError(`${roomType.name} is sold out for these dates.`);
+    }
     taken.push(unit.id);
 
     const packaged = room.packageId ? packages.get(room.packageId)! : null;
@@ -291,7 +296,7 @@ async function holdSeatsIn(tx: Tx, input: SeatsInput): Promise<HoldResult> {
     const slot = slots.find((s) => s.slotId === seat.slotId)!;
     if (!slot.active || !slot.slotActive) throw new RuleError(`${slot.offeringName} is not on sale.`);
     if (slot.soldOn?.length && !slot.soldOn.includes(weekday)) throw new RuleError(`${slot.offeringName} is not sold on that day of the week.`);
-    if ((slot.validFrom && input.day < slot.validFrom) || (slot.validTo && input.day > slot.validTo)) throw new RuleError(`${slot.offeringName} is not sold on ${input.day}.`);
+    if ((slot.validFrom && input.day < slot.validFrom) || (slot.validTo && input.day > slot.validTo)) throw new RuleError(`${slot.offeringName} is not sold on ${dayWords(input.day)}.`);
     const guests = headcount(seat.party);
     if (seat.party.adults < 1) throw new RuleError("Each ticket needs at least one adult.");
 
@@ -312,7 +317,12 @@ async function holdSeatsIn(tx: Tx, input: SeatsInput): Promise<HoldResult> {
     } catch (error) {
       if (!isCheckViolation(error)) throw error;
     }
-    if (updated.length === 0) throw new SoldOutError(`${slot.offeringName}, ${slot.label}, is full on ${input.day}.`);
+    if (updated.length === 0) {
+      // A slot whose seats were never set isn't full: the resort hasn't opened it for online booking.
+      const [day] = await tx.select({ capacity: capacityDays.capacity }).from(capacityDays).where(and(eq(capacityDays.slotId, slot.slotId), eq(capacityDays.day, input.day)));
+      if (day?.capacity === 0 && slot.defaultCapacity === 0) throw new SoldOutError(`${slot.offeringName}, ${slot.label}, isn't open for online booking on ${dayWords(input.day)}. Call or WhatsApp the resort to book it.`);
+      throw new SoldOutError(`${slot.offeringName}, ${slot.label}, is full on ${dayWords(input.day)}.`);
+    }
 
     await tx
       .insert(capacityHolds)

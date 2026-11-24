@@ -25,7 +25,7 @@ export function PhotoStrip({ photos, name, sizes }: { photos: Photo[]; name: str
       >
         {photos.map((photo, i) => (
           <div key={i} className="relative aspect-[4/3] w-full shrink-0 snap-start">
-            <Image src={photo.src} alt={photo.alt} fill sizes={sizes} placeholder="blur" className="object-cover" />
+            <Image src={photo.src} alt={photo.alt} fill sizes={sizes} placeholder={photo.src.blurDataURL ? "blur" : "empty"} className="object-cover" />
           </div>
         ))}
       </div>

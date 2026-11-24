@@ -35,8 +35,9 @@ export async function takesOnlineBookings(db: Database, propertyCode: string) {
 /**
  * Live free rooms and seats for the widget (booking step 2): per room type
  * code and per package code, read from the database each time. A room type
- * with no rooms entered, or a package with no seats set, is left out: the
- * website can't tell, so it doesn't call them sold out.
+ * with no rooms entered, or a pass with no seats set, comes back with
+ * `online: false`: the website takes a request for it instead of a
+ * payment, and never calls it sold out.
  */
 export async function websiteAvailability(db: Database, input: { propertyCode: string; checkIn?: string; checkOut?: string; day?: string }) {
   const [property] = await db.select({ id: properties.id }).from(properties).where(eq(properties.code, input.propertyCode));
@@ -49,14 +50,19 @@ export async function websiteAvailability(db: Database, input: { propertyCode: s
         .innerJoin(roomTypes, eq(roomTypes.id, units.roomTypeId))
         .where(and(eq(roomTypes.propertyId, property.id), eq(units.status, "active")))
     : [];
-  const options = stayAsked ? (await searchStays(db, property.id, input.checkIn!, input.checkOut!)).filter((o) => counted.some((c) => c.roomTypeId === o.roomTypeId)) : [];
-  const rooms = options.map((o) => ({ code: o.code, free: o.closedReason ? 0 : o.freeUnits, note: o.closedReason }));
+  const all = stayAsked ? await searchStays(db, property.id, input.checkIn!, input.checkOut!) : [];
+  const hasRooms = (roomTypeId: string) => counted.some((c) => c.roomTypeId === roomTypeId);
+  const options = all.filter((o) => hasRooms(o.roomTypeId));
+  const rooms: { code: string; free: number; note: string | null; online?: false }[] = options.map((o) => ({ code: o.code, free: o.closedReason ? 0 : o.freeUnits, note: o.closedReason }));
+  // A room type with no rooms entered isn't sold online: the site takes a request for it instead, so it never looks sold out.
+  for (const o of all) if (!hasRooms(o.roomTypeId)) rooms.push({ code: o.code, free: 0, note: null, online: false });
   if (stayAsked) {
     // Package cards: the room's free units, within the package's own rules and arrivals a day.
     const nightCount = nightsOf(input.checkIn!, input.checkOut!).length;
     const pkgs = await db.select().from(stayPackages).where(and(eq(stayPackages.propertyId, property.id), eq(stayPackages.active, true), eq(stayPackages.onWebsite, true)));
     for (const pkg of pkgs) {
       const left = pkg.capacityPerDay === null ? Infinity : Math.max(0, pkg.capacityPerDay - (await packageArrivals(db, pkg.id, input.checkIn!)));
+      for (const option of all.filter((o) => pkg.roomTypeIds.includes(o.roomTypeId) && !hasRooms(o.roomTypeId))) rooms.push({ code: packageListingCode(pkg.code, option.code), free: 0, note: null, online: false });
       for (const option of options.filter((o) => pkg.roomTypeIds.includes(o.roomTypeId))) {
         const why = packageProblem(pkg, option.roomTypeId, input.checkIn!, nightCount) ?? (left === 0 ? `${pkg.name} is sold out for that day.` : null);
         const closed = option.closedReason && !/at least|at most/.test(option.closedReason) ? option.closedReason : null;
@@ -69,11 +75,16 @@ export async function websiteAvailability(db: Database, input: { propertyCode: s
         const seats = await seatsLeft(db, property.id, input.day!);
         const codes = seats.length ? await db.select({ id: offerings.id, code: offerings.code }).from(offerings).where(inArray(offerings.id, seats.map((s) => s.offeringId))) : [];
         // A package's seats are its first open slot's.
-        const byCode = new Map<string, { code: string; left: number; note: string | null }>();
+        // A pass whose seats the resort never set isn't sold online: the site takes a request for it instead, so it never looks full.
+        const byCode = new Map<string, { code: string; left: number; note: string | null; online?: false }>();
         for (const seat of seats) {
-          if (seat.capacity === 0 && !seat.setForDay) continue;
           const code = codes.find((c) => c.id === seat.offeringId)!.code;
-          if (!byCode.has(code)) byCode.set(code, { code, left: seat.closedReason ? 0 : seat.left, note: seat.closedReason });
+          if (seat.capacity === 0 && !seat.setForDay) {
+            if (!byCode.has(code)) byCode.set(code, { code, left: 0, note: null, online: false });
+            continue;
+          }
+          const known = byCode.get(code);
+          if (!known || known.online === false) byCode.set(code, { code, left: seat.closedReason ? 0 : seat.left, note: seat.closedReason });
         }
         return [...byCode.values()];
       })()

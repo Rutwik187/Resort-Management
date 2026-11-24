@@ -6,14 +6,15 @@ import { createContext, useEffect, useMemo, useRef, useState } from "react";
  * Live free rooms and seats (booking step 2): sold-out rooms and full
  * passes show as such in the lists, not hidden. The site's server action
  * reads them from the database each time the dates change; they are never
- * cached. A room type or pass the resort hasn't set up is left out, so it
- * never looks sold out.
+ * cached. A room type or pass the resort hasn't set up comes with
+ * `online: false`: it is booked by request, never shown as sold out.
  */
 
 export type LiveQuery = { checkIn: string; checkOut: string } | { day: string } | { closed: "stay" | "day"; from: string; to: string };
 export type LiveStock = {
-  rooms: { code: string; free: number; note: string | null }[];
-  passes: { code: string; left: number; note: string | null }[];
+  rooms: { code: string; free: number; note: string | null; online?: false }[];
+  /** `online: false`: the resort hasn't set this pass's seats, so the site takes a request for it instead of a payment. */
+  passes: { code: string; left: number; note: string | null; online?: false }[];
   /** For a `closed` query: the nights or days with nothing left to sell (BW-04). */
   closed?: string[];
 };

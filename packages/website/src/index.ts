@@ -1,6 +1,6 @@
 import "server-only";
 import { cacheLife, cacheTag, revalidateTag } from "next/cache";
-import { offerNotes, offersFor, packageListings, passesFromCatalogue, stayGroupsFromCatalogue, type ListingGroup, type Pass } from "@repo/booking-ui/catalogue";
+import { offerNotes, offersFor, packageListings, passesFromCatalogue, stayGroupsFromCatalogue, type ListingGroup, type Pass, type Photo } from "@repo/booking-ui/catalogue";
 import type { OnlineAddon } from "@repo/booking-ui";
 import { getDb } from "@repo/db";
 import { websiteCatalogue, type WebsiteCompany, type WebsiteNotice, type WebsiteOffer, type WebsiteOfferDay, type WebsitePhoto, type WebsiteReviews } from "@repo/engine";
@@ -37,17 +37,26 @@ async function catalogue(code: PropertyCode) {
 }
 
 /**
- * The Stays page's sections, from the admin. Photos come from the site's
- * own listings with the same code, so a room type keeps its photos when
- * staff change its text or prices.
+ * The Stays page's sections, from the admin. A room type's photos are the
+ * gallery photos staff put in a category with its name, when there are
+ * any; otherwise the site's own listing photos with the same code, so a
+ * room type keeps its photos when staff change its text or prices. A room
+ * type staff add gets its photos that way too.
  */
 export async function liveStayGroups(code: PropertyCode, fallback: ListingGroup[]): Promise<ListingGroup[]> {
   const data = await catalogue(code);
   if (!data || data.roomTypes.length === 0) return fallback;
   const photos = new Map(fallback.flatMap((group) => group.listings.map((listing) => [listing.id, listing.photos] as const)));
-  const groups = stayGroupsFromCatalogue(data, propertyByCode(code).staySections, (id) => photos.get(id) ?? []);
+  const names = new Map(data.roomTypes.map((room) => [room.code, room.name.trim().toLowerCase()] as const));
+  const photosFor = (id: string): Photo[] => {
+    const name = names.get(id);
+    const staff = data.gallery.filter((p) => p.category.trim().toLowerCase() === name);
+    if (staff.length) return staff.map((p) => ({ src: { src: p.url, width: p.width ?? 1600, height: p.height ?? 1200 }, alt: p.alt }));
+    return photos.get(id) ?? [];
+  };
+  const groups = stayGroupsFromCatalogue(data, propertyByCode(code).staySections, photosFor);
   // Stay and staycation packages follow the rooms, in a section of their own (URD 5.3).
-  const packages = packageListings(data, (id) => photos.get(id) ?? []);
+  const packages = packageListings(data, photosFor);
   return packages.length ? [...groups, { id: "stay-packages", title: "Stay packages", line: "A room with meals and more, at one price for the package.", listings: packages }] : groups;
 }
 

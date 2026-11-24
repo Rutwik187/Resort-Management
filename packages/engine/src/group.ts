@@ -16,7 +16,8 @@ import { priceOffering, priceStay } from "./pricing";
 export type GroupStayResult = {
   propertyCode: string;
   propertyName: string;
-  options: { code: string; name: string; free: number; totalPaise: number | null; note: string | null }[];
+  /** `free` is null for a room type whose rooms the resort hasn't entered: ask the resort. */
+  options: { code: string; name: string; free: number | null; totalPaise: number | null; note: string | null }[];
 };
 
 export type GroupDayResult = {
@@ -37,9 +38,11 @@ export async function groupStaySearch(db: Database, input: { checkIn: string; ch
     const shown = await db
       .select({ id: roomTypes.id, units: units.id })
       .from(roomTypes)
-      .innerJoin(units, and(eq(units.roomTypeId, roomTypes.id), eq(units.status, "active")))
+      .leftJoin(units, and(eq(units.roomTypeId, roomTypes.id), eq(units.status, "active")))
       .where(and(eq(roomTypes.propertyId, resort.id), eq(roomTypes.onWebsite, true), eq(roomTypes.status, "active")));
     const ids = [...new Set(shown.map((s) => s.id))];
+    // A room type with no rooms entered still shows, as "ask the resort", so a resort still being set up isn't missing.
+    const counted = new Set(shown.filter((s) => s.units !== null).map((s) => s.id));
     const own = options.filter((o) => ids.includes(o.roomTypeId));
     if (!own.length) continue;
     const pricing = await loadRoomPricing(db, resort.id, ids, { from: input.checkIn, to: input.checkOut });
@@ -57,12 +60,12 @@ export async function groupStaySearch(db: Database, input: { checkIn: string; ch
           return {
             code: o.code,
             name: o.name,
-            free: o.closedReason ? 0 : o.freeUnits,
+            free: !counted.has(o.roomTypeId) ? null : o.closedReason ? 0 : o.freeUnits,
             totalPaise: price,
             note: o.closedReason ?? (loaded && !fits ? `Takes at most ${loaded.roomType.maxGuests} guests a room.` : null),
           };
         })
-        .sort((a, b) => Number(b.free > 0) - Number(a.free > 0) || (a.totalPaise ?? Infinity) - (b.totalPaise ?? Infinity)),
+        .sort((a, b) => Number(b.free !== 0) - Number(a.free !== 0) || (a.totalPaise ?? Infinity) - (b.totalPaise ?? Infinity)),
     });
   }
   return results;
